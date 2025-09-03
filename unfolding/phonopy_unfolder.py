@@ -35,20 +35,23 @@ def read_phonopy( sposcar='SPOSCAR', sc_mat=np.eye(3),force_constants=None,  dis
         phonon.set_displacement_dataset(disp)
     if force_sets is not None:
         fc=parse_FORCE_SETS(filename=force_sets)
-        phonon.set_forces(fc)
+        phonon.forces=fc
     
     fc=parse_FORCE_CONSTANTS(force_constants)
-    phonon.set_force_constants(fc)
+    phonon.force_constants=fc
 
     return phonon
 
 def unf(phonon, sc_mat, qpoints, knames=None, x=None, xpts=None):
-    prim=phonon.get_primitive()
+    prim=phonon._primitive
     prim=Atoms(symbols=prim.get_chemical_symbols(), cell=prim.get_cell(), positions=prim.get_positions())
     #vesta_view(prim)
     sc_qpoints=np.array([np.dot(q, sc_mat) for q in qpoints])
-    phonon.set_qpoints_phonon(sc_qpoints, is_eigenvectors=True)
-    freqs, eigvecs = phonon.get_qpoints_phonon()
+    phonon.run_qpoints(sc_qpoints, with_eigenvectors=True)
+    qpoint_phonons=phonon.get_qpoints_dict()
+    #freqs, eigvecs = phonon.get_qpoints_phonon()
+    freqs=qpoint_phonons['frequencies']
+    eigvecs=qpoint_phonons['eigenvectors']
     uf=phonon_unfolder(atoms=prim, supercell_matrix=sc_mat, eigenvectors=eigvecs, qpoints=sc_qpoints, phase=False)
     weights = uf.get_weights()
 

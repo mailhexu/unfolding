@@ -25,6 +25,7 @@ def run_unfolding():
         xqpts=x,  # x-axis, should have the same length of q-points.
         Xqpts=X  # x-axis for high symmetry q-points
     )
+    plt.savefig('unfolded_band_structure.png', dpi=300)
     plt.show()
 
 
