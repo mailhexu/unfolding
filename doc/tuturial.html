@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>tuturial.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+perl: warning: Setting locale failed.
+perl: warning: Please check that your locale settings:
+	LC_ALL = (unset),
+	LC_CTYPE = "UTF-8",
+	LANG = "en_CN.UTF-8"
+    are supported and installed on your system.
+perl: warning: Falling back to the standard locale ("C").
+<h1>Tutorial</h1>
+
+<h2>Installation</h2>
+
+<ul>
+<li>Prerequisite : ase, numpy, scipy, matplotlib 
+For unfolding with phonopy: phonopy
+For unfolding with abinit/anaddb output: abipy</li>
+<li>How to inatll:
+<ol>
+<li>Download the package</li>
+<li>use pip
+<code>
+pip install -e .
+</code>
+or
+<code>
+python setup.py install
+</code></li>
+</ol></li>
+</ul>
+
+<h2>How to use</h2>
+
+<h3>unfold phonon band structure with phonopy</h3>
+
+<p>Here we use an example to show how to unfold the phonon band structure. The files can be found in the example/phonopy
+directory. Here we unfold the phonon of a 3<em>3</em>3 FCC Cu structure to the FCC structure. 
+1. Prepare the phonopy files. The files needed here are the supercell
+file and the FORCE_CONSTANTS file (<a href="https://atztogo.github.io/phonopy/input-files.html#structure-file-poscar">link</a> ). 
+In the example here, we use the VASP format for the supercell file (SPOSCAR).</p>
+
+<ol>
+<li>Use the phonon_unfolder tool. </li>
+</ol>
+
+<p>We can create a python script like below. 
+The 
+sc<em>mat: supercell matrix used by  phonopy to build the supercell for calculating the forces set.
+unfold</em>sc<em>mat: the matrix which map the supercell (corresponding to the phonon) to a primitive cell
+force</em>constatnts: the FORCE_CONSTANTS file.
+sposcar: the SPOSCAR file (or other file formats supported.)
+qpts: the q-points along a path. (Note: in the primitive BZ. There is no need to map it to supercell BZ unit.)
+qnames: labels of the high symmetry q-points.
+xqpts: the x-axis in the plot, each q-point has a x value.
+Xqpts: the x-axis corresponding to the high symmetry points. </p>
+
+<p>```
+import numpy as np</p>
+
+<p>from ase.dft.kpoints import get<em>special</em>points, bandpath
+import matplotlib.pyplot as plt
+from unfolding.phonopy<em>unfolder import phonopy</em>unfold</p>
+
+<p>def run<em>unfolding():
+    # Generate k-path for FCC structure
+    # It is not necessary to generate the k-path with ase.
+    from ase.build import bulk
+    atoms = bulk('Cu', 'fcc', a=3.61)
+    points = get</em>special<em>points('fcc', atoms.cell, eps=0.01)
+    path</em>highsym = [points[k] for k in 'GXWGL']
+    kpts, x, X = bandpath(path_highsym, atoms.cell, 300)
+    names = ['$\Gamma$', 'X', 'W', '$\Gamma$', 'L']</p>
+
+<pre><code># here is the unfolding. Here is an example of 3*3*3 fcc cell.
+ax = phonopy_unfold(
+    sc_mat=np.diag([1, 1, 1]),  # supercell matrix for phonopy.
+    unfold_sc_mat=np.diag([3, 3, 3]),  # supercell matrix for unfolding
+    force_constants='FORCE_CONSTANTS',  # FORCE_CONSTANTS file path
+    sposcar='SPOSCAR',  # SPOSCAR file for phonopy
+    qpts=kpts,  # q-points. In primitive cell!
+    qnames=names,  # Names of high symmetry q-points in the q-path.
+    xqpts=x,  # x-axis, should have the same length of q-points.
+    Xqpts=X  # x-axis for high symmetry q-points
+)
+plt.show()
+</code></pre>
+
+<p>run_unfolding()
+```</p>
+
+<h3>unfold phonon band structure with abipy</h3>
+
+<h3>unfold electron band structure from Wannier90</h3>
+
+</body>
+</html>
