@@ -79,7 +79,7 @@ class Unfolder():
 
         self._trans_rs = rs
         self._trans_indices = indices
-        print(indices)
+        #print(indices)
 
     def get_weight(self, evec, qpt, G=None):
         """
@@ -92,7 +92,7 @@ class Unfolder():
         N = len(self._trans_rs)
         for r_i, ind in zip(self._trans_rs, self._trans_indices):
             weight += np.vdot(evec, evec[ind])/N *np.exp(1j*2*np.pi*np.dot(G, r_i))
-        print('w: ', weight)
+        #print('w: ', weight)
         return weight.real
 
 

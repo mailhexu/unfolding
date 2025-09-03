@@ -9,6 +9,12 @@ from ase.units import Bohr
 import os.path
 from collections import namedtuple
 
+def negative_to_zero(x):
+    # x is a numpy array, set negative values to zero
+    x[x < 0] = 0
+    x[x> 1] = 1
+    return x
+
 def plot_band_weight(kslist,
                      ekslist,
                      wkslist=None,
@@ -35,24 +41,31 @@ def plot_band_weight(kslist,
     if yrange is None:
         yrange = (np.array(ekslist).flatten().min() - 66,
                   np.array(ekslist).flatten().max() + 66)
+    #print(f"{np.max(wkslist)=}, {np.min(wkslist)=}")
+
+    wkslist=negative_to_zero(np.array(wkslist))
 
     if wkslist is not None:
         for i in range(len(kslist)):
             x = kslist[i]
             y = ekslist[i]
             lwidths = np.array(wkslist[i]) * width
-            #lwidths=np.ones(len(x))
             points = np.array([x, y]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
             if style == 'width':
                 lc = LineCollection(segments, linewidths=lwidths, colors=color)
             elif style == 'alpha':
+                alphas = [np.abs(lwidth / (width + 0.011))
+                        for lwidth in lwidths
+                    ]
+                #print(f"{np.max(alphas)=}, {np.min(alphas)=}")
+                #print(alphas)
                 lc = LineCollection(
                     segments,
                     linewidths=[2] * len(x),
                     colors=[
                         colorConverter.to_rgba(
-                            color, alpha=np.abs(lwidth / (width + 0.001)))
+                            color, alpha=np.abs(lwidth / (width + 0.011)))
                         for lwidth in lwidths
                     ])
 

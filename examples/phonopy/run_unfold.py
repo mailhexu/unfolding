@@ -12,7 +12,7 @@ def run_unfolding():
     points = get_special_points('fcc', atoms.cell, eps=0.01)
     path_highsym = [points[k] for k in 'GXWGL']
     kpts, x, X = bandpath(path_highsym, atoms.cell, 300)
-    names = ['$\Gamma$', 'X', 'W', '$\Gamma$', 'L']
+    names = [r'$\Gamma$', r'X', r'W', r'$\Gamma$', r'L']
 
     # here is the unfolding. Here is an example of 3*3*3 fcc cell.
     ax = phonopy_unfold(

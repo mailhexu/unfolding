@@ -56,7 +56,8 @@ def DDB_unfolder(DDB_fname, kpath_bounds,sc_mat,knames=None, kx=None,dipdip=1):
     atoms = DDB.structure.to_ase_atoms()
     scaled_positions = struct.frac_coords
 
-    cell = struct.lattice_vectors()
+    #cell = struct.lattice_vectors()
+    cell = struct.lattice
     numbers = struct.atomic_numbers
     masses = [atomic_masses[i] for i in numbers]
 
@@ -112,7 +113,7 @@ def DDB_unfolder(DDB_fname, kpath_bounds,sc_mat,knames=None, kx=None,dipdip=1):
 
     #names = ['$\Gamma$', 'X', 'W', '$\Gamma$', 'L']
     #ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*33.356,weights[:,:].T*0.98+0.01,xticks=[names,X],axis=ax)
-    ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*8065.6,weights[:,:].T*0.98+0.01,xticks=[knames,xpts],style='alpha')
+    ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*8065.6,weights[:,:].T*0.99+0.001,xticks=[knames,xpts],style='alpha')
     #ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*8065.6,weights[:,:].T*0.98+0.000001,xticks=[knames, kx],style='alpha' )
 
     #plt.show()
