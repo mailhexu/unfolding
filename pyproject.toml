@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "unfolding"
+version = "0.1"
+description = "Bloch wave unfolding"
+authors = [
+    {name = "Xu He", email = "mailhexu@gmail.com"},
+]
+license = {text = "BSD2-Clause"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+]
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "ase",
+]
+
+[project.optional-dependencies]
+abipy = ["abipy"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["unfolding*"]
