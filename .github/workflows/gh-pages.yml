@@ -6,6 +6,11 @@ on:
       - main  # Set a branch name to trigger deployment
   pull_request:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   deploy:
     runs-on: ubuntu-22.04
@@ -36,6 +41,3 @@ jobs:
           github_token: ${{ secrets.GH_PAGES_TOKEN }}
           publish_dir: ./docs/public
           publish_branch: gh-pages
-          force_orphan: true
-          user_name: github-actions[bot]
-          user_email: github-actions[bot]@users.noreply.github.com
