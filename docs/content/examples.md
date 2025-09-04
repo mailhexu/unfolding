@@ -52,7 +52,7 @@ run_unfolding()
 
 The resulting unfolded band structure is saved as `unfolded_band_structure.png`.
 
-![Phonopy Unfolded Band Structure](/images/phonopy_unfolded_band_structure.png)
+{{< figure src="/images/phonopy_unfolded_band_structure.png" title="Phonopy Unfolded Band Structure" >}}
 
 ## Cu_fcc Example
 
@@ -87,7 +87,7 @@ run_unfolding()
 
 The resulting unfolded band structure is saved as `unfolded.png`.
 
-![Cu_fcc Unfolded Band Structure](/images/cu_fcc_unfolded.png)
+{{< figure src="/images/cu_fcc_unfolded.png" title="Cu_fcc Unfolded Band Structure" >}}
 
 ## CaTiO3_unfold Example
 
@@ -118,4 +118,4 @@ test()
 
 The resulting unfolded band structure is saved as `unfolded.png`.
 
-![CaTiO3 Unfolded Band Structure](/images/catio3_unfolded.png)
+{{< figure src="/images/catio3_unfolded.png" title="CaTiO3 Unfolded Band Structure" >}}
