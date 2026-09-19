@@ -9,8 +9,15 @@ import numpy as np
 
 class Unfolder():
     """ phonon unfolding class"""
+
     def __init__(self, cell, basis, positions , supercell_matrix, eigenvectors, qpoints, tol_r=0.04, compare=None):
         """
+        .. deprecated::
+            Legacy generic Bloch-wave unfolder. Use
+            :class:`unfolding.phonon_unfolder.phonon_unfolder` for phonons;
+            electron/TB unfolding is exposed through
+            :class:`unfolding.wannier_unfold.WannierUnfolder`.
+
         Params:
         ===================
         cell: cell matrix. [a,b,c]
@@ -23,6 +30,15 @@ class Unfolder():
         #ndim: number of dimensions. For 3D phonons, use ndim=3. For electrons(no spin), ndim=1. For spinors, use ndim=2 (TODO: spinor not tested. is it correct?).
         labels: labels of the basis. for 3D phonons, ndim can be set to 1 alternately, with labels set to ['x','y','z']*natoms. The labels are used to decide if two basis are identical by translation. (Not used for phonon)
         """
+        import warnings
+
+        warnings.warn(
+            "unfolding.unfolder.Unfolder is deprecated; use "
+            "unfolding.phonon_unfolder.phonon_unfolder (phonons) or "
+            "unfolding.wannier_unfold.WannierUnfolder (electrons).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._cell = cell
         self._basis = basis
         self._positions = positions
@@ -34,20 +50,6 @@ class Unfolder():
         self._trans_indices = None
         self._make_translate_maps()
         return
-
-    def _translate(self, evec, r):
-        """
-        T(r) psi: r is integer numbers of primitive cell lattice matrix.
-        Params:
-        =================
-        evec: an eigen vector of supercell
-        r: The translate vector
-        
-        Returns:
-        ================
-         tevec: translated vector.
-        """
-        pass
 
     def _make_translate_maps(self):
         """

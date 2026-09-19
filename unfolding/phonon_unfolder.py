@@ -10,19 +10,24 @@ import numpy as np
 class phonon_unfolder:
     """ phonon unfolding class"""
 
-    def __init__(self, atoms, supercell_matrix, eigenvectors, qpoints, tol_r=0.04, ndim=3,labels=None,compare=None,phase=True):
+    def __init__(self, atoms, supercell_matrix, eigenvectors, qpoints, tol_r=0.04, ndim=3,labels=None,compare=None,phase=False):
         """
+        phase=False is the correct pairing for phonopy-gauge eigenvectors
+        (the canonical input from phonopy and the DDB adapters), where the
+        sector decomposition is carried by the exp(-2*pi*i*G*r) factor in
+        get_weight. Only pass phase=True for eigenvectors that carry no
+        Bloch phase information at all.
+
         Params:
         ===================
         atoms: The structure of supercell.
         supercell matrix: The matrix that convert the primitive cell to supercell.
         eigenvectors: The phonon eigenvectors. format np.array() index=[ikpts, ifreq, 3*iatoms+j]. j=0..2
-        qpoints: list of q-points, note the q points are in the BZ of the supercell. 
+        qpoints: list of q-points, note the q points are in the BZ of the supercell.
         tol_r: tolerance. If abs(a-b) <r, they are seen as the same atom.
         ndim: number of dimensions. For 3D phonons, use ndim=3. For electrons(no spin), ndim=1. For spinors, use ndim=2 (TODO: spinor not tested. is it correct?).
         labels: labels of the basis. for 3D phonons, ndim can be set to 1 alternately, with labels set to ['x','y','z']*natoms. The labels are used to decide if two basis are identical by translation. (Not used for phonon)
         compare: how to decide the basis are identical (Not used for phonon)
-        
         """
         self._atoms = atoms
         self._scmat = supercell_matrix
@@ -36,20 +41,6 @@ class phonon_unfolder:
         self._make_translate_maps()
         self._phase=phase
         return
-
-    def _translate(self, evec, r):
-        """
-        T(r) psi: r is integer numbers of primitive cell lattice matrix.
-        Params:
-        =================
-        evec: an eigen vector of supercell
-        r: The translate vector
-        
-        Returns:
-        ================
-         tevec: translated vector.
-        """
-        pass
 
     def _make_translate_maps(self):
         """
@@ -81,7 +72,7 @@ class phonon_unfolder:
         self._trans_indices = indices
         #print indices
 
-    def get_weight(self, evec, qpt, G=np.array([0,0,0]) ):
+    def get_weight(self, evec, qpt, G=None):
         """
         get the weight of a mode which has the wave vector of qpt and eigenvector of evec.
         W= sum_1^N < evec| T(r_i)exp(-I (K+G) * r_i| evec>, here G=0. T(r_i)exp(-I K r_i)| evec> = evec[indices[i]]

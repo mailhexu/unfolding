@@ -15,11 +15,12 @@ from ase.io import read
 import numpy as np
 from numpy.linalg import inv
 
-from ase.dft.kpoints import *
+from ase.dft.kpoints import bandpath, get_special_points
 import matplotlib.pyplot as plt
 
 from unfolding.phonon_unfolder import phonon_unfolder
 from unfolding.plotphon import plot_band_weight
+from unfolding.units import THZ_TO_CM
 
 def read_phonopy( sposcar='SPOSCAR', sc_mat=np.eye(3),force_constants=None,  disp_yaml=None, force_sets=None):
     if force_constants is None and (disp_yaml is None or force_sets is None):
@@ -43,11 +44,10 @@ def read_phonopy( sposcar='SPOSCAR', sc_mat=np.eye(3),force_constants=None,  dis
         disp=parse_disp_yaml(filename=disp_yaml)
         phonon.set_displacement_dataset(disp)
     if force_sets is not None:
-        fc=parse_FORCE_SETS(filename=force_sets)
-        phonon.forces=fc
-    
-    fc=parse_FORCE_CONSTANTS(force_constants)
-    phonon.force_constants=fc
+        phonon.dataset = parse_FORCE_SETS(filename=force_sets)
+        phonon.produce_force_constants()
+    if force_constants is not None:
+        phonon.force_constants = parse_FORCE_CONSTANTS(force_constants)
 
     return phonon
 
@@ -65,7 +65,7 @@ def unf(phonon, sc_mat, qpoints, knames=None, x=None, xpts=None):
     weights = uf.get_weights()
 
     #ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*8065.6,weights[:,:].T*0.98+0.01,xticks=[knames,xpts],style='alpha')
-    ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*33.356,weights[:,:].T*0.99+0.001,xticks=[knames,xpts],style='alpha')
+    ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*THZ_TO_CM,weights[:,:].T*0.99+0.001,xticks=[knames,xpts],style='alpha')
     return ax
 
 def phonopy_unfold(sc_mat=np.diag([1,1,1]), unfold_sc_mat=np.diag([3,3,3]),force_constants='FORCE_CONSTANTS', sposcar='SPOSCAR', qpts=None, qnames=None, xqpts=None, Xqpts=None):
@@ -82,7 +82,7 @@ def kpath():
     points = get_special_points('fcc', atoms.cell, eps=0.01)
     GXW = [points[k] for k in 'GXWGL']
     kpts, x, X = bandpath(GXW, atoms.cell, 300)
-    names = ['$\Gamma$', 'X', 'W', '$\Gamma$', 'L']
+    names = [r'$\Gamma$', 'X', 'W', r'$\Gamma$', 'L']
     return kpts, x, X, names
 
 

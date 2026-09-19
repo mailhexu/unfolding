@@ -9,8 +9,12 @@ A Python utility to unfold band structures of quasi-particles (electrons, phonon
 
 - Unfold phonon band structures from **Phonopy** calculations.
 - Unfold phonon band structures from **Abinit** DDB files.
-- A simple and intuitive API.
+- A simple and intuitive API (`phonopy_unfold` is the main entry point; the core weights come from `unfolding.phonon_unfolder.phonon_unfolder`).
 - Integration with popular materials science libraries like [ASE](https://wiki.fysik.dtu.dk/ase/) and [Matplotlib](https://matplotlib.org/).
+
+> Note: the legacy generic class `unfolding.unfolder.Unfolder` is deprecated
+> in favor of `unfolding.phonon_unfolder.phonon_unfolder` (phonons) and
+> `unfolding.wannier_unfold.WannierUnfolder` (electrons).
 
 ## Installation
 
