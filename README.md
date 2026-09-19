@@ -79,6 +79,21 @@ For more detailed information, tutorials, and API reference, please visit the of
 
 Contributions are welcome! If you find a bug, have a feature request, or would like to contribute code, please feel free to open an issue or a pull request on the [GitHub repository](https://github.com/mailhexu/unfolding).
 
+### Re-running the symbolic derivations
+
+The weight identities (LCAO dual-basis projection, spectral sum rule, and the
+Allen-style phonon projection sum rule) are derived and verified by the
+scripts in [`derivations/`](derivations/). They run standalone and write
+LaTeX fragments to `derivations/out/`:
+
+```bash
+python derivations/lcao_weight.py
+python derivations/normalization.py
+python derivations/phonon_projection.py
+```
+
+The same checks run in CI via `tests/test_derivations.py`.
+
 ## License
 
 This project is licensed under the BSD 2-Clause License. See the [LICENSE](LICENSE) file for details.
