@@ -77,8 +77,8 @@ def plot_band_weight(kslist,
         a.set_ylim(yrange)
         if xticks is not None:
             plt.xticks(xticks[1], xticks[0])
-        for x in xticks[1]:
-            plt.axvline(x, color='gray', linewidth=0.5)
+            for x in xticks[1]:
+                plt.axvline(x, color='gray', linewidth=0.5)
         if efermi is not None:
             plt.axhline(linestyle='--', color='black')
     return a
