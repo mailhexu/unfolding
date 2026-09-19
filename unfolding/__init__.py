@@ -1,7 +1,10 @@
+from .mapping import RelabelMap, RelabelMapError
 from .phonon_unfolder import phonon_unfolder
 from .unfolder import Unfolder
 
 __all__ = [
+    "RelabelMap",
+    "RelabelMapError",
     "phonon_unfolder",
     "Unfolder",
     "phonopy_unfold",
