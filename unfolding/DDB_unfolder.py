@@ -1,5 +1,13 @@
 #!/usr/bin/env python
-import abipy.abilab as abilab
+try:
+    import abipy.abilab as abilab
+except ModuleNotFoundError as exc:
+    if exc.name not in ("abipy", "abipy.abilab"):
+        raise  # a different dependency is missing: surface the real error
+    raise ImportError(
+        "abipy is required for the Abinit DDB adapter. "
+        "Install it with: pip install unfolding[abipy]"
+    ) from exc
 import numpy as np
 from ase.build import bulk
 from ase.dft.kpoints import get_special_points, bandpath

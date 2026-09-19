@@ -1,6 +1,15 @@
-from phonopy import Phonopy
-from phonopy.file_IO import parse_FORCE_CONSTANTS, parse_disp_yaml, parse_FORCE_SETS
-from phonopy.structure.atoms import PhonopyAtoms
+try:
+    from phonopy import Phonopy
+    from phonopy.file_IO import parse_FORCE_CONSTANTS, parse_disp_yaml, parse_FORCE_SETS
+    from phonopy.structure.atoms import PhonopyAtoms
+except ModuleNotFoundError as exc:
+    if exc.name != "phonopy":
+        raise  # a different dependency is missing: surface the real error
+    raise ImportError(
+        "phonopy is required for the Phonopy adapter. "
+        "Install it with: pip install unfolding[phonopy]"
+    ) from exc
+
 from ase.atoms import Atoms
 from ase.io import read
 import numpy as np
@@ -44,7 +53,7 @@ def read_phonopy( sposcar='SPOSCAR', sc_mat=np.eye(3),force_constants=None,  dis
 
 def unf(phonon, sc_mat, qpoints, knames=None, x=None, xpts=None):
     prim=phonon._primitive
-    prim=Atoms(symbols=prim.get_chemical_symbols(), cell=prim.get_cell(), positions=prim.get_positions())
+    prim=Atoms(symbols=prim.symbols, cell=prim.cell, positions=prim.positions)
     #vesta_view(prim)
     sc_qpoints=np.array([np.dot(q, sc_mat) for q in qpoints])
     phonon.run_qpoints(sc_qpoints, with_eigenvectors=True)

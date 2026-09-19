@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from netCDF4 import Dataset
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
