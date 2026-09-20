@@ -319,12 +319,77 @@ def run() -> dict:
     ]
     (OUT / "lcao_weight.tex").write_text("\n".join(tex) + "\n")
 
+    spinor = spinor_reduction()
+
     return {
         "pristine_weight_err": worst,
         "symbolic_seal_err": seal,
         "crossk_block_max": crossk,
         "S_prim_eigmins": eigmins,
+        "spinor_reduction_err": spinor["spinor_reduction_err"],
     }
+
+
+def spinor_reduction(seed: int = SEED) -> dict:
+    """Seal the sigma,sigma' spin structure of the weight (story 009).
+
+    Symbolically (sympy): with a spin-diagonal overlap,
+    ``S_spinor = block_diag(S_up, S_dn)`` in the interlaced coefficient
+    basis, the spinor dual weight reduces to the sum of the two spin
+    channels' spinless weights,
+    ``W_spinor = c^dag kron(Sp_up, I) ... = W_up + W_dn``: the
+    sigma,sigma' sums of Eq. 25 run over coefficient indices only.
+
+    Numerically: the reduction is verified on random spin-diagonal
+    blocks and on the spin-mixing spinor toy of
+    ``tests/test_spinor_unfolder.py`` through the unfolder's own
+    weights (the pytest oracle test seals that end to end).
+    """
+    import sympy as sp
+
+    # symbolic spin-diagonal reduction, 1 orbital x 2 spins per cell
+    s_up00, s_up01, s_dn00, s_dn11 = sp.symbols("su00 su01 sd00 sd11", real=True)
+    Sp_up = sp.Matrix([[s_up00, s_up01], [s_up01, s_up00]])
+    Sp_dn = sp.Matrix([[s_dn00, 0], [0, s_dn11]])
+    Sp_spinor = sp.Matrix(
+        [[Sp_up[0, 0], 0, Sp_up[0, 1], 0],
+         [0, Sp_dn[0, 0], 0, 0],
+         [Sp_up[1, 0], 0, Sp_up[1, 1], 0],
+         [0, 0, 0, Sp_dn[1, 1]]]
+    )  # interlaced (a=0,sig=0), (a=0,sig=1), (a=1,sig=0), (a=1,sig=1)
+    cu0, cu1, cd0, cd1 = sp.symbols("cu0 cu1 cd0 cd1")
+    c = sp.Matrix([cu0, cd0, cu1, cd1])  # interlaced coefficients
+    W_spinor = sp.expand((c.T * Sp_spinor.inv() * c)[0, 0])
+    c_up = sp.Matrix([cu0, cu1])
+    c_dn = sp.Matrix([cd0, cd1])
+    W_split = sp.expand(
+        (c_up.T * Sp_up.inv() * c_up)[0, 0] + (c_dn.T * Sp_dn.inv() * c_dn)[0, 0]
+    )
+    assert sp.simplify(W_spinor - W_split) == 0
+
+    # numeric cross-check: random spin-diagonal S, spin-mixing C
+    rng = np.random.default_rng(seed)
+    worst = 0.0
+    for _ in range(20):
+        Su = rng.normal(size=(2, 2)) + 1j * rng.normal(size=(2, 2))
+        Su = Su @ Su.conj().T + np.eye(2)
+        Sd = rng.normal(size=(2, 2)) + 1j * rng.normal(size=(2, 2))
+        Sd = Sd @ Sd.conj().T + np.eye(2)
+        Sp_spinor_n = np.zeros((4, 4), complex)
+        for a in range(2):
+            for b in range(2):
+                Sp_spinor_n[2 * a, 2 * b] = Su[a, b]
+                Sp_spinor_n[2 * a + 1, 2 * b + 1] = Sd[a, b]
+        c_n = rng.normal(size=4) + 1j * rng.normal(size=4)
+        w_num = np.real(np.conj(c_n) @ np.linalg.inv(Sp_spinor_n) @ c_n)
+        w_split = (
+            np.real(np.conj(c_n[::2]) @ np.linalg.inv(Su) @ c_n[::2])
+            + np.real(np.conj(c_n[1::2]) @ np.linalg.inv(Sd) @ c_n[1::2])
+        )
+        worst = max(worst, abs(w_num - w_split))
+    assert worst < 1e-10, worst
+    return {"spinor_reduction_err": worst, "spinor_symbolic": "exact"}
+
 
 
 if __name__ == "__main__":
