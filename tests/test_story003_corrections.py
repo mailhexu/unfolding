@@ -102,6 +102,7 @@ def test_unit_conversion_constants_are_derived():
 def test_adapters_use_shared_units():
     from unfolding import units
 
+    pytest.importorskip("phonopy")
     phonopy_mod = importlib.import_module("unfolding.phonopy_unfolder")
     assert phonopy_mod.THZ_TO_CM is units.THZ_TO_CM
     pytest.importorskip("abipy")

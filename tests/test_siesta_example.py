@@ -46,6 +46,8 @@ def _torus_parser(fdf_name):
 
 @pytest.fixture(scope="module")
 def si_models():
+    pytest.importorskip("HamiltonIO")
+    pytest.importorskip("sisl")
     pp = _torus_parser("si_prim.fdf")
     ps = _torus_parser("si_sc.fdf")
     return pp.get_model(), ps.get_model()

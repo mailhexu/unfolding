@@ -3,6 +3,8 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -21,6 +23,7 @@ def _run(script, out_name):
 
 
 def test_fig_phonopy_cu():
+    pytest.importorskip("phonopy")
     _run("fig_phonopy_cu.py", "phonopy.png")
 
 
