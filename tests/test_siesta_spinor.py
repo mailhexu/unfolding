@@ -15,6 +15,24 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "tests", "data", "fept_spinor")
 
 
+def _first_eig_values(path, nstates):
+    """Read the first k-point's energies from a SIESTA EIG file."""
+    with open(path) as fh:
+        lines = fh.readlines()
+    values = []
+    for line in lines[2:]:
+        fields = line.split()
+        if not fields:
+            continue
+        # A new k-point line starts with its integer index; continuation
+        # lines contain only energy values.
+        start = 1 if len(values) == 0 and fields[0].isdigit() else 0
+        values.extend(float(x) for x in fields[start:])
+        if len(values) >= nstates:
+            break
+    return np.asarray(values[:nstates])
+
+
 def test_real_spinor_wfsx_is_complex_and_complete():
     sisl = pytest.importorskip("sisl")
     with open(os.path.join(DATA, "fept_spinor.fdf")) as fh:
@@ -30,3 +48,18 @@ def test_real_spinor_wfsx_is_complex_and_complete():
     assert np.iscomplexobj(state.state)
     assert np.isfinite(state.state).all()
     assert np.isfinite(state.c).all()
+
+
+def test_real_spinor_wfsx_eigenvalues_match_eig():
+    """The spin-orbit WFSX energies agree with SIESTA's EIG record."""
+    sisl = pytest.importorskip("sisl")
+    state = sisl.get_sile(
+        os.path.join(DATA, "fept_spinor.selected.WFSX")
+    ).read_eigenstate()
+    eig = _first_eig_values(
+        os.path.join(DATA, "fept_spinor.EIG"), len(state.c)
+    )
+    assert len(eig) == len(state.c)
+    # WFSX.c and EIG carry the same Fermi-shifted absolute values in this
+    # spin-orbit branch; the EIG header is not subtracted a second time.
+    assert np.abs(np.sort(np.asarray(state.c)) - np.sort(eig)).max() < 1e-4

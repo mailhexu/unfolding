@@ -10,28 +10,38 @@ DATA = os.path.join(ROOT, "tests", "data", "si_example_defect_kgrid")
 
 def _unfolder():
     pytest.importorskip("HamiltonIO")
-    from HamiltonIO.siesta.sisl_wrapper import SislParser
+    from siesta_helpers import make_si_unfolder
 
-    class RListParser(SislParser):
-        def read_Rlist(self, geom=None):
-            return self.ham.lattice.sc_off
-
-    from unfolding.lcao_unfolder import HamiltonIOModel, LCAOUnfolder
-    from unfolding.mapping import RelabelMap
-
-    prim = RListParser(os.path.join(ROOT, "tests", "data", "si_example", "si_prim.fdf")).get_model()
-    sc = RListParser(os.path.join(DATA, "si_defect_kgrid.fdf")).get_model()
-    B = np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])
-    rm = RelabelMap.from_atoms(
-        sc.atoms, prim.atoms, B, tol_r=0.1,
-        orb_counts_sc=[4] * 8, orb_counts_prim=[4, 4]
+    return make_si_unfolder(
+        os.path.join(DATA, "si_defect_kgrid.fdf"), tol_r=0.1
     )
-    return LCAOUnfolder(HamiltonIOModel(sc), rm)
+
+
+def _fermi_energy(path):
+    with open(path) as fh:
+        return float(fh.readline())
 
 
 def test_real_defect_fixture_is_multishell():
     u = _unfolder()
     assert len(u._model.SR) == 125
+
+
+def test_real_defect_wfsx_eigenvalues_match_hsx():
+    """The displaced-cell WFSX Gamma state energies match HSX."""
+    sisl = pytest.importorskip("sisl")
+    from scipy.linalg import eigh
+
+    u = _unfolder()
+    out = u._model.hs_and_eigen(np.zeros(3))
+    eps = eigh(out[0], out[1], eigvals_only=True)
+    state = sisl.get_sile(
+        os.path.join(DATA, "si_defect_kgrid.selected.WFSX")
+    ).read_eigenstate()
+    eps_wfsx = np.asarray(state.c, dtype=float) - _fermi_energy(
+        os.path.join(DATA, "si_defect_kgrid.EIG")
+    )
+    assert np.abs(np.sort(eps) - np.sort(eps_wfsx)).max() < 1e-4
 
 
 def test_real_defect_ideal_weights_are_finite():

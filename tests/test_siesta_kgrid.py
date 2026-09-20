@@ -16,22 +16,14 @@ DATA = os.path.join(ROOT, "tests", "data", "si_example_kgrid")
 
 def _unfolder():
     pytest.importorskip("HamiltonIO")
-    from HamiltonIO.siesta.sisl_wrapper import SislParser
+    from siesta_helpers import make_si_unfolder
 
-    class RListParser(SislParser):
-        def read_Rlist(self, geom=None):
-            return self.ham.lattice.sc_off
+    return make_si_unfolder(os.path.join(DATA, "si_sc_kgrid.fdf"))
 
-    from unfolding.lcao_unfolder import HamiltonIOModel, LCAOUnfolder
-    from unfolding.mapping import RelabelMap
 
-    prim = RListParser(os.path.join(ROOT, "tests", "data", "si_example", "si_prim.fdf")).get_model()
-    sc = RListParser(os.path.join(DATA, "si_sc_kgrid.fdf")).get_model()
-    B = np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])
-    rm = RelabelMap.from_atoms(
-        sc.atoms, prim.atoms, B, orb_counts_sc=[4] * 8, orb_counts_prim=[4, 4]
-    )
-    return LCAOUnfolder(HamiltonIOModel(sc), rm)
+def _fermi_energy(path):
+    with open(path) as fh:
+        return float(fh.readline())
 
 
 def test_real_kgrid_has_multishell_hsx():
@@ -44,8 +36,7 @@ def test_real_kgrid_has_multishell_hsx():
 def test_real_kgrid_ideal_generic_weights():
     """The standard ideal weight is binary for pristine Si at generic k."""
     u = _unfolder()
-    k = np.array([[0.13, 0.27, 0.41]])
-    result = u.compute(k, method="ideal")
+    result = u.compute(np.array([[0.13, 0.27, 0.41]]), method="ideal")
     weights = result.weights[0]
     assert weights.min() > -1e-8
     assert weights.max() < 1.0 + 1e-8
@@ -60,3 +51,32 @@ def test_real_kgrid_gamma_ring_and_ideal_agree():
     ring = u.compute(k, method="ring").weights
     ideal = u.compute(k, method="ideal").weights
     assert np.abs(ring - ideal).max() < 1e-8
+
+
+def test_real_kgrid_wfsx_eigenvalues_match_hsx_at_selected_kpoints():
+    """Every selected real WFSX k-point matches HSX eigenvalues.
+
+    The independent WFSX eigenvector-weight oracle is sealed at Gamma
+    by ``test_wfsx_gamma_weights_oracle``. At non-Gamma k-points this
+    test deliberately limits the cross-check to eigenvalues because the
+    WFSX physical-k gauge and the primitive fractional-k ideal gauge
+    require a separate convention adjudication.
+    """
+    sisl = pytest.importorskip("sisl")
+    from scipy.linalg import eigh
+
+    u = _unfolder()
+    fermi = _fermi_energy(os.path.join(DATA, "si_sc_kgrid.EIG"))
+    wfsx = sisl.get_sile(os.path.join(DATA, "si_sc_kgrid.selected.WFSX"))
+    states = list(wfsx.yield_eigenstate())
+    physical_k, _, _ = wfsx.read_info()
+    cell = np.asarray(u._model.atoms.cell)
+    reciprocal = 2.0 * np.pi * np.linalg.inv(cell).T
+    sc_kpoints = physical_k @ np.linalg.inv(reciprocal)
+    assert len(states) == len(sc_kpoints) == 4
+
+    for K, state in zip(sc_kpoints, states):
+        out = u._model.hs_and_eigen(K)
+        eps = eigh(out[0], out[1], eigvals_only=True)
+        eps_wfsx = np.asarray(state.c, dtype=float) - fermi
+        assert np.abs(np.sort(eps) - np.sort(eps_wfsx)).max() < 1e-4
