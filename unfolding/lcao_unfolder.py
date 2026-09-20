@@ -111,8 +111,8 @@ class HamiltonIOModel:
 
     def __init__(self, model):
         self._model = model
-        self._SR = self._as_dict(getattr(model, "SR"), getattr(model, "Rlist"))
-        self._HR = self._as_dict(getattr(model, "HR", None), getattr(model, "Rlist"))
+        self._SR = self._as_dict(getattr(model, "SR", None), getattr(model, "Rlist", None))
+        self._HR = self._as_dict(getattr(model, "HR", None), getattr(model, "Rlist", None))
 
     @staticmethod
     def _as_dict(mat, rlist):
@@ -173,37 +173,6 @@ class LCAOUnfolder:
 
     # -- geometry -----------------------------------------------------------
 
-    def _sector(self, k):
-        """Primitive k's folding to this k's supercell momentum.
-
-        Members are k_h = (g_k + h) @ scmat^{-T} for integer h over a
-        box (g_k = k @ scmat^T); k-points differing by a primitive
-        reciprocal lattice vector are identified, leaving exactly
-        n_cells distinct members.
-        """
-        g_k = self._fold(k)
-        invT = np.linalg.inv(self._scmat.T)
-        span = max(1, int(np.abs(self._scmat).max()))
-        seen = {}
-        while len(seen) < self._n_cells:
-            seen = {}
-            for hx in range(span):
-                for hy in range(span):
-                    for hz in range(span):
-                        cand = (g_k + np.array([hx, hy, hz], dtype=float)) @ invT
-                        key = tuple(np.round(cand % 1.0, 8) % 1.0)
-                        if key not in seen:
-                            seen[key] = cand
-            if len(seen) < self._n_cells:
-                span *= 2
-            if span > 4096:
-                break
-        members = list(seen.values())[: self._n_cells]
-        assert len(members) == self._n_cells, (len(members), self._n_cells)
-        if not any(np.allclose(cand, k, atol=1e-8) for cand in members):
-            members = [np.asarray(k, dtype=float)] + members[1:]
-        return members
-
     def _build_S_AO(self):
         """Position-resolved supercell AO overlap assembled from ``SR``.
 
@@ -233,54 +202,98 @@ class LCAOUnfolder:
 
     # -- overlap vectors ---------------------------------------------------
 
-    def _O_matrix(self, k, K):
-        """``O[k][m, s] = <k m|s>`` (n_orb_prim, n_orb_sc)."""
-        rm = self._rm
-        phases_c = np.exp(-2j * np.pi * (self._offsets @ k))
-        O = np.zeros((self._n_orb_prim, self._n_orb_sc), dtype=complex)
-        for T, block in self._model.SR.items():
-            Tv = np.atleast_1d(np.asarray(T, dtype=float))
-            if Tv.ndim == 0:
-                Tv = Tv.reshape(1)
-            if Tv.shape[0] < 3:  # scalar/per-axis keys: pad along first axes
-                Tv = np.concatenate([Tv, np.zeros(3 - Tv.shape[0])])
-            # image r = offsets[c] - scmat@T  =>  phase carries +K.T
-            # (SR[T][p, q] = <p|(T, q)>: the ket sits at +T, so the bra
-            # image that pairs with it lies at -T)
-            ph = np.exp(+2j * np.pi * (K @ Tv))
-            for c in range(self._n_cells):
-                O += (phases_c[c] * ph) * block[self._rep[:, c], :]
-        return O
-
     def _fold(self, k):
         return np.asarray(k, dtype=float) @ self._scmat.T
 
     # -- public API ---------------------------------------------------------
 
-    def _S_prim(self, k, K):
-        """Primitive-cell overlap Bloch matrix S_p(k)[n, m] from SR."""
-        S_p = np.zeros((self._n_orb_prim, self._n_orb_prim), dtype=complex)
-        phases_c = np.exp(2j * np.pi * ((self._offsets - self._offsets[0]) @ k))
-        rep0 = self._rep[:, 0]
-        for T, block in self._model.SR.items():
-            Tv = np.atleast_1d(np.asarray(T, dtype=float))
-            if Tv.shape[0] < 3:
-                Tv = np.concatenate([Tv, np.zeros(3 - Tv.shape[0])])
-            ph = np.exp(2j * np.pi * (K @ Tv))
-            for c in range(self._n_cells):
-                S_p += (phases_c[c] * ph) * block[
-                    np.ix_(rep0, self._rep[:, c])
-                ]
-        return S_p
+    def _sector(self, k):
+        """Primitive k's folding to this k's supercell momentum.
+
+        Members are k_h = (g_k + h) @ scmat^{-T} for integer h over a
+        box (g_k = k @ scmat^T); k-points differing by a primitive
+        reciprocal lattice vector are identified, leaving exactly
+        n_cells distinct members. The box grows until the reciprocal
+        quotient is complete (skew supercell matrices).
+        """
+        g_k = self._fold(k)
+        invT = np.linalg.inv(self._scmat.T)
+        span = max(1, int(np.abs(self._scmat).max()))
+        seen = {}
+        while len(seen) < self._n_cells:
+            seen = {}
+            for hx in range(span):
+                for hy in range(span):
+                    for hz in range(span):
+                        cand = (g_k + np.array([hx, hy, hz], dtype=float)) @ invT
+                        key = tuple(np.round(cand % 1.0, 8) % 1.0)
+                        if key not in seen:
+                            seen[key] = cand
+            if len(seen) < self._n_cells:
+                span *= 2
+            if span > 4096:
+                break
+        members = list(seen.values())[: self._n_cells]
+        assert len(members) == self._n_cells, (len(members), self._n_cells)
+        if not any(np.allclose(cand, k, atol=1e-8) for cand in members):
+            members = [np.asarray(k, dtype=float)] + members[1:]
+        return members
+
+    def _sector_gram_block(self, ki, kj):
+        """``<k_i m|S_AO|k_j m'>/N`` in the unwrapped-pair gauge.
+
+        The ket phase is anchored at the bra cell plus the actual pair
+        displacement ``delta(c, c')`` carried by ``S_AO``, so for a
+        translation-invariant (pristine) overlap the cell-origin sum
+        kills every ``k_i != k_j`` block exactly and the self block is
+        the primitive overlap matrix ``S_p(k)``.
+        """
+        n = self._n_orb_prim
+        Gb = np.zeros((n, n), dtype=complex)
+        prim_cell = np.asarray(self._rm._prim_atoms.cell)
+        for c in range(self._n_cells):
+            for cp in range(self._n_cells):
+                T = np.asarray(self._rm.scmat_keys[(c, cp)], dtype=float)
+                delta = (self._offsets[cp] - self._offsets[c]
+                         + T @ self._scmat) @ prim_cell
+                ph = np.exp(2j * np.pi * (
+                    np.asarray(kj, dtype=float) @ (self._offsets[c] + delta)
+                    - np.asarray(ki, dtype=float) @ self._offsets[c]
+                ))
+                Gb += ph * self._S_AO[np.ix_(self._rep[:, c], self._rep[:, cp])]
+        return Gb / self._n_cells
+
+    def _bra_overlap(self, k):
+        """Plain AO overlaps ``A[m, s] = <k m|s>/...`` from ``S_AO``."""
+        A = np.zeros((self._n_orb_prim, self._n_orb_sc), dtype=complex)
+        prim_cell = np.asarray(self._rm._prim_atoms.cell)
+        for c in range(self._n_cells):
+            ph = np.exp(-2j * np.pi * (
+                np.asarray(k, dtype=float) @ (self._offsets[c] @ prim_cell)
+            ))
+            A += ph * self._S_AO[self._rep[:, c], :]
+        return A / np.sqrt(self._n_cells)
 
     def compute(self, kpoints, atol_imag: float = 1e-8, atol_orth: float = 1e-8):
         """Weights of every supercell band at each primitive k-point.
 
-        Returns an :class:`LCAOWeights`; the weights of one supercell
-        band over the complete unfolding k-grid sum to 1 (Parseval,
-        story 005).
+        Dual-basis spectral weight on the supercell torus (paper
+        Eq. 25; sealed against the story-4/5 dual-basis derivations):
+
+        1. the sector of primitive k's folding to the same supercell
+           momentum K;
+        2. the S-metric Gram of the sector Bloch kets,
+           ``G[(i m),(j m')] = <k_i m|S_AO|k_j m'>/N``;
+        3. the plain AO overlaps ``A[(i m), band] = <k_i m|psi_band>``;
+        4. the self-k rows of ``x = G^-1 A`` give the weights.
+
+        The position-resolved ``S_AO`` carries any defect's position
+        dependence. Returns an :class:`LCAOWeights`; the weights of one
+        supercell band over the complete unfolding k-grid sum to 1
+        (Parseval, story 005).
         """
         kpoints = np.atleast_2d(np.asarray(kpoints, dtype=float))
+        n = self._n_orb_prim
         all_w = np.zeros((len(kpoints), self._n_orb_sc))
         all_e = np.zeros((len(kpoints), self._n_orb_sc))
         for ik, k in enumerate(kpoints):
@@ -291,36 +304,25 @@ class LCAOUnfolder:
             eps, C = eigh(H, S)
             assert np.allclose(np.conj(C).T @ S @ C, np.eye(len(S)), atol=atol_orth)
 
-            # sector Gram <k n|S|k' m> as the direct phased double sum
-            # over the position-resolved S_AO (cross-k blocks kept: exact
-            # for pristine and defect overlaps alike)
             members = self._sector(k)
-            n = self._n_orb_prim
-            O_mats = [self._O_matrix(cand, self._fold(cand)) / np.sqrt(self._n_cells)
-                      for cand in members]
-            A = np.vstack(O_mats) @ C
-            G = np.zeros((len(members) * n, len(members) * n), dtype=complex)
-            for ig, kg in enumerate(members):
-                for jg, k2 in enumerate(members):
-                    for a in range(n):
-                        for b in range(n):
-                            acc = 0
-                            for c in range(self._n_cells):
-                                for cp in range(self._n_cells):
-                                    ph = np.exp(-2j * np.pi * (
-                                        kg @ self._offsets[c]
-                                        - k2 @ self._offsets[cp]))
-                                    acc += ph * self._S_AO[
-                                        self._rep[a, c], self._rep[b, cp]]
-                            G[ig * n + a, jg * n + b] = acc / self._n_cells
-            x = np.linalg.solve(G, A)
+            A_mats = [self._bra_overlap(ki) @ C for ki in members]
+            n_mem = len(members)
+            G = np.zeros((n_mem * n, n_mem * n), dtype=complex)
+            for i, ki in enumerate(members):
+                for j, kj in enumerate(members):
+                    G[i * n:(i + 1) * n, j * n:(j + 1) * n] = (
+                        self._sector_gram_block(ki, kj)
+                    )
+            A_stack = np.vstack(A_mats)
+            x = np.linalg.solve(G, A_stack)
             i_self = next(
                 i for i, cand in enumerate(members)
                 if np.allclose(cand, k, atol=1e-8)
             )
             rows = slice(i_self * n, (i_self + 1) * n)
-            w = np.real(np.sum(np.conj(A[rows]) * x[rows], axis=0))
-            assert np.abs(np.imag(np.sum(np.conj(A[rows]) * x[rows], axis=0))).max() < atol_imag
+            X = np.conj(A_stack[rows]) * x[rows]
+            w = np.real(np.sum(X, axis=0))
+            assert np.abs(np.imag(np.sum(X, axis=0))).max() < atol_imag
             all_w[ik] = w
             all_e[ik] = eps
         return LCAOWeights(kpoints, all_e, all_w)

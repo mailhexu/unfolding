@@ -12,6 +12,7 @@ __all__ = [
     "phonon_unfolder",
     "Unfolder",
     "phonopy_unfold",
+    "unfold_siesta",
 ]
 
 # Symbols whose adapter modules need optional backends: name -> (module, extra).
@@ -20,6 +21,10 @@ __all__ = [
 # attributes order-dependent. Use `from unfolding.DDB_unfolder import DDB_unfolder`.
 _LAZY_EXPORTS = {
     "phonopy_unfold": ("unfolding.phonopy_unfolder", "phonopy"),
+    # unfolding.siesta_unfold imports only numpy at module level; the
+    # HamiltonIO dependency is checked lazily inside unfold_siesta when
+    # an fdf is parsed (a pre-parsed `model=` needs no HamiltonIO).
+    "unfold_siesta": ("unfolding.siesta_unfold", None),
 }
 
 
@@ -29,7 +34,7 @@ def __getattr__(name):
         try:
             module = __import__(module_name, fromlist=[name])
         except ModuleNotFoundError as exc:
-            if exc.name != extra:
+            if extra is None or exc.name != extra:
                 raise  # a different dependency is missing: surface the real error
             msg = (
                 f"{extra} is required for {name}. "

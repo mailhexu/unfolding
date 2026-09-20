@@ -207,10 +207,12 @@ class RelabelMap:
 
         for a in range(n_sc):
             best = None
+            skipped_by_counts = False
             for m in range(n_prim):
                 if symbols_sc[a] != symbols_prim[m]:
                     continue
                 if counts_sc[a] != counts_prim[m]:
+                    skipped_by_counts = True
                     continue
                 n_center = np.rint(f_sc[a] - prim_frac[m]).astype(int)
                 for s in shifts:
@@ -220,10 +222,14 @@ class RelabelMap:
                     if dist <= tol_r and (best is None or dist < best[0]):
                         best = (dist, m, n)
             if best is None:
+                hint = (
+                    " (nearest same-species primitive atom skipped: orbital "
+                    "count mismatch)" if skipped_by_counts else ""
+                )
                 raise RelabelMapError(
                     f"supercell atom {a} ({symbols_sc[a]} at cartesian "
                     f"{np.round(sc_atoms.positions[a], 4).tolist()}) matches no "
-                    f"primitive atom within tol_r={tol_r}"
+                    f"primitive atom within tol_r={tol_r}{hint}"
                 )
             _, m, n = best
             key = (m, tuple(n))

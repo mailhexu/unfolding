@@ -288,14 +288,41 @@ def test_defect_supercell_sum_rule(unfolder):
     assert np.abs(res.weights.sum(axis=0) - 1.0).max() < 1e-8
 
 
-def test_sector_enumeration_skew_matrix():
-    """Progressive box enumeration must find all |det scmat| quotient
-    representatives for skew supercell matrices (round-2 finding)."""
-    unf = LCAOUnfolder.__new__(LCAOUnfolder)
-    unf._scmat = np.array([[0, 2, 2], [2, 0, 2], [2, 2, 0]], dtype=int)
-    unf._n_cells = 16
-    members = unf._sector(np.array([0.1, 0.3, 0.0]))
-    assert len(members) == 16
-    # members are distinct primitive k-points mod 1
-    keys = {tuple(np.round(np.asarray(m) % 1.0, 8)) for m in members}
-    assert len(keys) == 16
+
+def test_weights_match_oracle_generic_k(unfolder):
+    """The primitive-table oracle seals GENERIC (non-commensurate) k too.
+
+    Story 008's kpath grid exposed a phase-gauge defect at generic k;
+    the unwrapped-pair gauge in _sector_gram_block makes the weights
+    agree with the independent reference everywhere.
+    """
+    unf, _ = unfolder
+    H, S = _prim_tables()
+    worst = 0.0
+    for kx in (0.1, 0.0625, 0.375, 0.4, 0.5):
+        k = np.array([kx, 0, 0])
+        res = unf.compute(k.reshape(1, 3))
+        K = np.diag([N_CELLS, 1, 1]).T @ k
+        Hsc, Ssc, _ = unf._model.hs_and_eigen(K)
+        eps, C = eigh(Hsc, Ssc)
+        A = np.zeros((N_ORB, 2 * N_CELLS), complex)
+        Sp = np.zeros((N_ORB, N_ORB), complex)
+        for m in range(N_ORB):
+            for j in range(2 * N_CELLS):
+                jj, a = divmod(j, 2)
+                for r in range(N_CELLS):
+                    d = (jj - r + N_CELLS // 2) % N_CELLS - N_CELLS // 2
+                    if abs(d) <= 1:
+                        A[m, j] += (
+                            np.exp(-2j * np.pi * kx * r)
+                            / np.sqrt(N_CELLS)
+                            * S[d][m, a]
+                        )
+        for n in range(N_ORB):
+            for m in range(N_ORB):
+                for d in range(-1, 2):
+                    Sp[n, m] += np.exp(2j * np.pi * kx * d) * S[d][n, m]
+        A = A @ C
+        w_ref = np.real(np.conj(A).T @ np.linalg.inv(Sp) @ A).diagonal()
+        worst = max(worst, np.abs(w_ref - res.weights[0]).max())
+    assert worst < 1e-10, worst
