@@ -1,0 +1,20 @@
+{{- /* Project figure shortcode: resolves image paths like "/images/foo.png"
+against the site baseURL. Hugo treats a leading "/" as host-root, so the
+slash is stripped before absURL (the Pages deployment lives at
+https://mailhexu.github.io/unfolding/). */ -}}
+{{- $src := .Get "src" | strings.TrimPrefix "/" | absURL -}}
+{{- $title := .Get "title" -}}
+<figure{{ with .Get "class" }} class="{{ . }}"{{ end }}>
+    <img src="{{ $src }}"
+         alt="{{ with .Get "alt" }}{{ . }}{{ else }}{{ $title }}{{ end }}"
+         {{ with .Get "width" }}width="{{ . }}"{{ end }}
+         {{ with .Get "height" }}height="{{ . }}"{{ end }}>
+    {{- if $title }}
+    <figcaption>
+        {{ $title }}
+        {{- with .Get "caption" }}
+        <span class="figure-caption">{{ . }}</span>
+        {{- end }}
+    </figcaption>
+    {{- end }}
+</figure>

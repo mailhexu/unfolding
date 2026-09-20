@@ -43,4 +43,14 @@ def test_hugo_build():
     )
     assert r.returncode == 0, r.stderr[-3000:]
     assert os.path.exists(os.path.join(out_dir, "index.html"))
+    # Figure shortcodes must resolve against the baseURL subpath: a raw
+    # src="/images/..." in the built HTML 404s on the Pages deployment.
+    examples = os.path.join(out_dir, "examples", "index.html")
+    html = open(examples, encoding="utf-8").read()
+    srcs = re.findall(r'<img src="([^"]+images/[^"]+)"', html)
+    assert srcs, "no figure images rendered on the examples page"
+    for src in srcs:
+        assert not src.startswith("/images/"), f"unsubpathed figure: {src}"
+        built = os.path.join(out_dir, src.split("/unfolding/", 1)[-1])
+        assert os.path.exists(built), f"missing built figure: {src}"
     shutil.rmtree(out_dir)
