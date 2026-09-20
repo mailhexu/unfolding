@@ -59,31 +59,45 @@ The resulting unfolded band structure is saved as `unfolded_band_structure.png`.
 This example demonstrates unfolding the phonon band structure of FCC Cu using Abinit DDB files.
 
 Files used in this example:
-- `out_DDB`: The DDB file from Abinit
+- `out_DDB`: The DDB file from Abinit (computed for the **conventional cubic** fcc cell, natom=4)
 - `unfold.py`: The script to perform the unfolding
 
-The example script `unfold.py` shows how to use the DDB_unfolder function:
+The subtle point is the **k-path frame chain**: ase's
+`get_special_points('fcc', ...)` returns the fcc special points in
+*primitive-cell* fractional coordinates (Setyawan-Curtarolo:
+X=(1/2,0,1/2), W=(1/2,1/4,3/4), L=(1/2,1/2,1/2)), while abipy
+interprets `qptbounds` in the DDB structure's fractional coordinates —
+here the *conventional cubic* reciprocal basis (X=(0,1,0),
+W=(1/2,1,0), L=(1/2,1/2,1/2), in units of 2pi/a). The two frames are
+related by the supercell matrix, and the path points must be
+multiplied by it before entering abipy:
 
 ```python
 import numpy as np
-from unfolding.DDB_unfolder import nc_unfolder, DDB_unfolder
+from unfolding.DDB_unfolder import DDB_unfolder
 import matplotlib.pyplot as plt
 from ase.build import bulk
-from ase.dft.kpoints import get_special_points, bandpath
+from ase.dft.kpoints import get_special_points
 
-def run_unfolding():
-    # Generate k-path for fcc Cu.
-    atoms = bulk('Cu','fcc')
-    points = get_special_points('fcc', atoms.cell, eps=0.01)
-    knames='GXWGL'
-    kpath_bounds= [points[k] for k in 'GXWGL']
-    sc_mat = np.linalg.inv((np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]]) / 2.0))
-    ax=DDB_unfolder('./out_DDB', sc_mat=sc_mat, kpath_bounds=kpath_bounds, knames=knames) 
-    plt.savefig('unfolded.png')
-    plt.show()
+sc_mat = np.linalg.inv((np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]]) / 2.0))
+# = [[-1,1,1],[1,-1,1],[1,1,-1]]  (conventional cell = prim cell @ sc_mat)
 
-run_unfolding()
+atoms = bulk('Cu', 'fcc')
+points = get_special_points(atoms.cell, eps=0.01)   # PRIMITIVE fractional!
+knames = [r'$\Gamma$', 'X', 'W', r'$\Gamma$', 'L']
+kpath_prim = np.array([points[k] for k in 'GXWGL'])
+kpath_bounds = [np.dot(k, sc_mat) for k in kpath_prim]  # -> CONVENTIONAL frame
+# e.g. X: (1/2,0,1/2) -> (0,1,0);  W: (1/2,1/4,3/4) -> (1/2,1,0)
+
+ax = DDB_unfolder('./out_DDB', sc_mat=sc_mat,
+                  kpath_bounds=kpath_bounds, knames=knames)
+plt.savefig('unfolded.png')
+plt.show()
 ```
+
+Skipping the `kpath_prim @ sc_mat` step silently plots the wrong path,
+because abipy reads the raw points in the conventional frame of the
+DDB.
 
 The resulting unfolded band structure is saved as `unfolded.png`.
 
