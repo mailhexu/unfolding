@@ -250,12 +250,12 @@ class LCAOUnfolder:
         """
         n = self._n_orb_prim
         Gb = np.zeros((n, n), dtype=complex)
-        prim_cell = np.asarray(self._rm._prim_atoms.cell)
         for c in range(self._n_cells):
             for cp in range(self._n_cells):
                 T = np.asarray(self._rm.scmat_keys[(c, cp)], dtype=float)
-                delta = (self._offsets[cp] - self._offsets[c]
-                         + T @ self._scmat) @ prim_cell
+                # lattice-coordinate displacement (fractional k x lattice
+                # integer dot product: the Bloch phase convention)
+                delta = self._offsets[cp] - self._offsets[c] + T @ self._scmat
                 ph = np.exp(2j * np.pi * (
                     np.asarray(kj, dtype=float) @ (self._offsets[c] + delta)
                     - np.asarray(ki, dtype=float) @ self._offsets[c]
@@ -266,10 +266,9 @@ class LCAOUnfolder:
     def _bra_overlap(self, k):
         """Plain AO overlaps ``A[m, s] = <k m|s>/...`` from ``S_AO``."""
         A = np.zeros((self._n_orb_prim, self._n_orb_sc), dtype=complex)
-        prim_cell = np.asarray(self._rm._prim_atoms.cell)
         for c in range(self._n_cells):
             ph = np.exp(-2j * np.pi * (
-                np.asarray(k, dtype=float) @ (self._offsets[c] @ prim_cell)
+                np.asarray(k, dtype=float) @ self._offsets[c]
             ))
             A += ph * self._S_AO[self._rep[:, c], :]
         return A / np.sqrt(self._n_cells)

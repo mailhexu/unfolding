@@ -26,9 +26,20 @@ import numpy as np
 def _select_channel(model, spin):
     """Return the spin channel of a parsed HamiltonIO model.
 
-    Collinear models expose ``up``/``down`` channel objects; non-collinear
-    (and unpolarized) models are returned unchanged.
+    ``SislParser.get_model()`` returns either a single model
+    (unpolarized/non-collinear), an object with ``up``/``down``
+    attributes, or a ``(model_up, model_down)`` tuple for a collinear
+    calculation. Non-collinear/unpolarized models are returned
+    unchanged.
     """
+    if isinstance(model, (tuple, list)):
+        idx = {"up": 0, "down": 1}[spin]
+        if len(model) <= idx:
+            raise ValueError(
+                f"parsed model has {len(model)} spin channel(s); "
+                f"cannot select spin={spin!r}"
+            )
+        return model[idx]
     if spin in ("up", "down") and hasattr(model, spin):
         return getattr(model, spin)
     if spin in ("up", "down", "both"):
@@ -172,12 +183,17 @@ def unfold_siesta(
     if kpts is None:
         raise ValueError("kpts (the primitive-cell k-path) is required")
 
+    from ase.io import read as _ase_read
+
     from unfolding.lcao_unfolder import HamiltonIOModel, LCAOUnfolder
     from unfolding.mapping import RelabelMap
 
-    if hasattr(model, "hs_and_eigen") and hasattr(model, "S_AO"):
-        adapted = model  # already backend-neutral (a HamiltonIOModel)
-        raw_orb_dict = getattr(getattr(adapted, "_model", None), "orb_dict", None)
+    if isinstance(prim_atoms, (str, os.PathLike)):
+        prim_atoms = _ase_read(prim_atoms)
+
+    if isinstance(model, HamiltonIOModel):
+        adapted = model
+        raw_orb_dict = getattr(adapted._model, "orb_dict", None)
     else:
         adapted = HamiltonIOModel(model)
         raw_orb_dict = getattr(model, "orb_dict", None)
@@ -215,4 +231,6 @@ def unfold_siesta(
         ylabel=ylabel,
         ypad=ypad,
     )
+    if output is not None:
+        ax.figure.savefig(output)
     return ax

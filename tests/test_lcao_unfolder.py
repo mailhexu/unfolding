@@ -326,3 +326,51 @@ def test_weights_match_oracle_generic_k(unfolder):
         w_ref = np.real(np.conj(A).T @ np.linalg.inv(Sp) @ A).diagonal()
         worst = max(worst, np.abs(w_ref - res.weights[0]).max())
     assert worst < 1e-10, worst
+
+
+def test_weights_oracle_nonunit_lattice_constant():
+    """F1 regression: phases stay in fractional-k x lattice-integer form.
+
+    A primitive lattice constant != 1 Angstrom would silently corrupt the
+    generic-k weights if any phase mixed Cartesian displacements with
+    fractional k. The toy weights depend only on k_frac, so a non-unit
+    cell must not change them.
+    """
+    model = _toy_supercell_model()
+    prim = Atoms(
+        "Si", positions=[[0.0, 0, 0]], cell=[[2.53, 0, 0], [0, 7.65, 0], [0, 0, 7.65]]
+    )
+    sc = prim.repeat((N_CELLS, 1, 1))
+    rm = RelabelMap.from_atoms(
+        sc, prim, np.diag([N_CELLS, 1, 1]),
+        orb_counts_sc=[2] * N_CELLS, orb_counts_prim=[2],
+    )
+    unf = LCAOUnfolder(model, rm)
+    H, S = _prim_tables()
+    worst = 0.0
+    for kx in (0.1, 0.375):
+        res = unf.compute(np.array([[kx, 0, 0]]))
+        K = np.diag([N_CELLS, 1, 1]).T @ np.array([kx, 0, 0])
+        Hsc, Ssc, _ = unf._model.hs_and_eigen(K)
+        eps, C = eigh(Hsc, Ssc)
+        A = np.zeros((N_ORB, 2 * N_CELLS), complex)
+        Sp = np.zeros((N_ORB, N_ORB), complex)
+        for m in range(N_ORB):
+            for j in range(2 * N_CELLS):
+                jj, a = divmod(j, 2)
+                for r in range(N_CELLS):
+                    d = (jj - r + N_CELLS // 2) % N_CELLS - N_CELLS // 2
+                    if abs(d) <= 1:
+                        A[m, j] += (
+                            np.exp(-2j * np.pi * kx * r)
+                            / np.sqrt(N_CELLS)
+                            * S[d][m, a]
+                        )
+        for n in range(N_ORB):
+            for m in range(N_ORB):
+                for d in range(-1, 2):
+                    Sp[n, m] += np.exp(2j * np.pi * kx * d) * S[d][n, m]
+        A = A @ C
+        w_ref = np.real(np.conj(A).T @ np.linalg.inv(Sp) @ A).diagonal()
+        worst = max(worst, np.abs(w_ref - res.weights[0]).max())
+    assert worst < 1e-10, worst
