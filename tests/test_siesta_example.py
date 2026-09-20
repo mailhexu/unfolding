@@ -81,6 +81,30 @@ def test_primitive_matches_siesta_eig(si_models):
     assert np.abs((eps + e_fermi) - siesta_evals).max() < 1e-4
 
 
+def test_wfsx_gamma_eigenvalues_match(si_models):
+    """SIESTA-native WFSX eigenvalues at Gamma match the parsed H,S.
+
+    The first WaveFuncKPoints entry is Gamma (convention-free). WFSX
+    energies carry SIESTA's Fermi shift, added here from the .EIG
+    header, so agreement certifies the WFSX leg end to end.
+    """
+    import sisl
+
+    prim = si_models[0]
+    out = prim.HS_and_eigen(np.atleast_2d(np.zeros(3)))
+    H, S = np.asarray(out[0]), np.asarray(out[1])
+    eps = eigh(H[0], S[0], eigvals_only=True)
+
+    with open(os.path.join(DATA, "si_prim.EIG")) as fh:
+        e_fermi = float(fh.readlines()[0])
+
+    wfsx = sisl.get_sile(os.path.join(DATA, "si_prim.selected.WFSX"))
+    evals_w = [np.asarray(wfc.c, dtype=float) for wfc in wfsx.yield_eigenstate()]
+    # entry 0 is the Gamma point (first requested k); WFSX energies are
+    # Fermi-shifted, so the absolute eigenvalue = raw - E_fermi
+    assert np.abs(np.sort(evals_w[0] - e_fermi) - np.sort(eps)).max() < 1e-4
+
+
 def test_skew_supercell_gamma_group_weights(si_models):
     """Pristine 8-atom SC unfolding at Gamma: group weights exactly 0/1/2."""
     from unfolding.lcao_unfolder import HamiltonIOModel, LCAOUnfolder
