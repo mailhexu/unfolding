@@ -1,20 +1,27 @@
-SystemName     Si diamond primitive
-SystemLabel    si_prim
-NumberOfAtoms  2
-NumberOfSpecies 1
+SystemName     Si7P diamond 8-atom supercell (P substitutional)
+SystemLabel    si_sc_p
+NumberOfAtoms  8
+NumberOfSpecies 2
 %block ChemicalSpeciesLabel
   1  14  Si  Si.psf
+  2  15  P   P.psml
 %endblock ChemicalSpeciesLabel
 LatticeConstant 5.430 Ang
 %block LatticeVectors
-  0.000  0.500  0.500
-  0.500  0.000  0.500
-  0.500  0.500  0.000
+  1.000  0.000  0.000
+  0.000  1.000  0.000
+  0.000  0.000  1.000
 %endblock LatticeVectors
 AtomicCoordinatesFormat Fractional
 %block AtomicCoordinatesAndAtomicSpecies
   0.000  0.000  0.000  1
-  0.250  0.250  0.250  1
+  0.250  0.250  0.250  2
+  0.000  0.500  0.500  1
+  0.250  0.750  0.750  1
+  0.500  0.000  0.500  1
+  0.750  0.250  0.750  1
+  0.500  0.500  0.000  1
+  0.750  0.750  0.250  1
 %endblock AtomicCoordinatesAndAtomicSpecies
 XC.functional   GGA
 XC.authors      PBE
@@ -23,17 +30,8 @@ MeshCutoff      100.0 Ry
 SpinPolarized   false
 SaveHS          true
 %block kgrid_Monkhorst_Pack
-  4  0  0
-  0  4  0
-  0  0  4
+  2  0  0
+  0  2  0
+  0  0  2
 %endblock kgrid_Monkhorst_Pack
-SaveWFSX        true
-WaveFuncKPointsScale ReciprocalLatticeVectors
-%block WaveFuncKPoints
-  0.000  0.000  0.000
-  0.100  0.000  0.000
-  0.200  0.000  0.000
-  0.300  0.000  0.000
-  0.400  0.000  0.000
-  0.500  0.000  0.000
-%endblock WaveFuncKPoints
+ElectronicTemperature  25 meV

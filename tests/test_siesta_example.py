@@ -63,26 +63,32 @@ def test_primitive_eigenvalues_reasonable(si_models):
     assert eps[0] < -10.0 < eps[3] < 5.0  # valence s deep, p near gap
 
 
-def test_primitive_matches_siesta_eig(si_models):
-    """Seal against SIESTA-native eigenvalues (.EIG at the SCF Gamma).
+def test_primitive_matches_siesta_wfsx_all_k(si_models):
+    """Parsed H,S reproduce SIESTA-native WFSX eigenvalues at every
+    committed WaveFuncKPoints entry (Gamma plus five generic points
+    along Gamma-X), including the Fermi shift from the .EIG header.
 
-    The code's Gamma eigenvalues plus the Fermi energy recorded in the
-    .EIG header reproduce SIESTA's bands to file precision. (This also
-    certifies the HSX parsing: no k-convention is involved at Gamma.)
+    The generic-k entries certify the reciprocal-coordinate convention
+    of the parsed model end to end: a wrong k convention fails away
+    from Gamma. (The .EIG file cannot be used for this once the fixture
+    runs use an SCF k-grid: it then lists the irreducible SCF grid
+    points instead of the WaveFuncKPoints entries.)
     """
-    prim = si_models[0]
-    out = prim.HS_and_eigen(np.atleast_2d(np.array([0.0, 0.0, 0.0])))
-    H, S = np.asarray(out[0]), np.asarray(out[1])
-    eps = eigh(H[0], S[0], eigvals_only=True)
+    import sisl
 
-    eig_path = os.path.join(DATA, "si_prim.EIG")
-    with open(eig_path) as fh:
-        lines = fh.readlines()
-    e_fermi = float(lines[0])
-    tokens = lines[2].split()
-    siesta_evals = np.array([float(v) for v in tokens[-len(eps):]])
-    assert len(siesta_evals) == len(eps)
-    assert np.abs((eps + e_fermi) - siesta_evals).max() < 1e-4
+    prim = si_models[0]
+    with open(os.path.join(DATA, "si_prim.EIG")) as fh:
+        e_fermi = float(fh.readlines()[0])
+
+    klist = [(i / 10, 0.0, 0.0) for i in range(6)]  # si_prim.fdf block
+    wfsx = sisl.get_sile(os.path.join(DATA, "si_prim.selected.WFSX"))
+    for ik, (kf, st) in enumerate(zip(klist, wfsx.yield_eigenstate())):
+        out = prim.HS_and_eigen(np.atleast_2d(np.array(kf)))
+        H, S = np.asarray(out[0]), np.asarray(out[1])
+        eps = eigh(H[0], S[0], eigvals_only=True)
+        # WFSX energies carry SIESTA's Fermi shift
+        dev = np.abs(np.sort(st.eig - e_fermi) - eps).max()
+        assert dev < 1e-4, f"k-entry {ik} (k={kf}): dev={dev}"
 
 
 def test_wfsx_gamma_eigenvalues_match(si_models):

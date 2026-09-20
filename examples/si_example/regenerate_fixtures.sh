@@ -3,11 +3,15 @@
 # (SIESTA_BIN env var overrides the binary; Si.psf must be present in
 # this directory -- e.g. from the SIESTA Examples/Si_Optical set).
 # Usage: bash regenerate_fixtures.sh   (from examples/si_example/)
-# Inputs committed here: si_prim.fdf, si_sc.fdf (SZ PBE, SaveHS true,
-# SaveWFSX, WaveFuncKPointsScale ReciprocalLatticeVectors; the SC run uses
-# a 2x2x2 k-grid so the .HSX keeps the full supercell shell set -- a
+# Inputs committed here: si_prim.fdf, si_sc.fdf, si_sc_p.fdf (SZ PBE,
+# SaveHS true, SaveWFSX, WaveFuncKPointsScale ReciprocalLatticeVectors;
+# k-grid SCFs -- 4x4x4 prim, 2x2x2 sc -- keep the full shell sets; a
 # Gamma-only run collapses the images into a single R=0 shell whose
-# H(k) is k-independent and cannot be unfolded at generic k).
+# H(k) is k-independent and cannot be unfolded at generic k. The prim
+# and SC samplings are matched (4x4x4 prim == 2x2x2 conv cell) so the
+# prim reference bands align with the unfolded ones. si_sc_p.fdf is the
+# Si7P substitutional dopant and needs P.psml (Dojo NC-SR PBE, PSML
+# v1.1) next to Si.psf).
 # Outputs produced: *.HSX, *.EIG, *.selected.WFSX -> tests/data/si_example/.
 set -euo pipefail
 
@@ -24,8 +28,10 @@ run() {  # run <dir> <fdf>
 
 run prim si_prim.fdf
 run sc   si_sc.fdf
+run sc_p si_sc_p.fdf
 
 cp prim/si_prim.HSX prim/si_prim.EIG prim/si_prim.selected.WFSX \
    prim/si_prim.fdf tests/data/si_example/
 cp sc/si_sc.HSX sc/si_sc.selected.WFSX sc/si_sc.fdf tests/data/si_example/
+cp sc_p/si_sc_p.HSX sc_p/si_sc_p.fdf tests/data/si_example/
 echo "fixtures refreshed in tests/data/si_example/"

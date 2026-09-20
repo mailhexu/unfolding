@@ -151,14 +151,33 @@ unf = LCAOUnfolder(HamiltonIOModel(sc), rm)
 res = unf.compute(kpts, method="ideal")   # generic-path spectral weights
 ```
 
+`kpts` are the fcc high-symmetry points in *primitive* reciprocal
+fractional coordinates (Gamma-X-W-Gamma-L-W-X); the supercell momenta
+are formed internally as K = scmat^T k. Overlaying the independently
+diagonalized primitive-cell bands on the weight plot validates the
+unfolded spectrum: for the pristine crystal every weight-1 band lies
+on a primitive band to within the SCF k-grid agreement (~2 meV here).
+
 The one-call variant is `unfold_siesta(fdf=..., prim_atoms=...,
 unfold_sc_mat=..., kpts=...)` (see the API reference); it parses the
 fdf through HamiltonIO directly.
 
-The committed fixture was produced by a 2x2x2 k-grid SCF on the
-8-atom supercell: a Gamma-only `SaveHS` run collapses all supercell
-images into a single R=0 shell, leaving a k-independent H that cannot
-be unfolded at generic k. Use `method="ideal"` along generic paths;
-the `ring` method remains exact at torus-commensurate momenta.
+The committed fixtures were produced by k-grid SCF runs (4x4x4 on the
+primitive cell, 2x2x2 on the supercell — matched sampling): a
+Gamma-only `SaveHS` run collapses all supercell images into a single
+R=0 shell, leaving a k-independent H that cannot be unfolded at
+generic k. Use `method="ideal"` along generic paths; the `ring`
+method remains exact at torus-commensurate momenta.
 
-{{< figure src="/images/si_unfolded.png" title="SIESTA Si: 8-atom supercell (2x2x2 k-grid SCF) unfolded onto the primitive path" >}}
+{{< figure src="/images/si_unfolded.png" title="SIESTA Si: 8-atom supercell unfolded onto the primitive path, with the primitive-cell bands overlaid" >}}
+
+### Substitutional dopant: Si7P
+
+Replacing one Si with P (the next element) breaks the ideal crystal:
+the unfolding weight now measures how much each supercell state
+resembles the ideal Si crystal. Host bands stay at weight 1 while
+donor-derived and folded impurity states appear at reduced weight.
+The dopant site maps onto the host site it replaces via
+`RelabelMap.from_atoms(..., match_species=False)`.
+
+{{< figure src="/images/si_p_doped_unfolded.png" title="SIESTA Si7P: one Si substituted by P; the ideal weight separates host bands (weight 1) from impurity-derived states" >}}

@@ -289,30 +289,42 @@ class LCAOUnfolder:
         """
         k = np.asarray(k, dtype=float)
         n = self._n_orb_prim
+        deltas, vals, km1, km2 = self._ideal_gram_terms()
+        Gp = np.zeros((n, n), dtype=complex)
+        np.add.at(Gp, (km1, km2), vals * np.exp(2j * np.pi * (deltas @ k)))
+        return Gp
+
+    def _ideal_gram_terms(self):
+        """Cache ``(deltas, vals, m1, m2)`` for :meth:`ideal_gram`.
+
+        Each entry realizes one unique ``(m, m', delta)`` with the mean of
+        the stored ``SR`` blocks that realize it; ``vals`` carries that
+        mean so the per-k evaluation is a single phase-weighted scatter.
+        """
+        cache = getattr(self, "_ideal_gram_cache", None)
+        if cache is not None:
+            return cache
         n_sc = self._n_orb_sc
         m_idx = self._rm.orb_to_m
         r0 = self._rm.orb_to_r0.astype(float)
         scmat = self._scmat.astype(float)
-        Gp = np.zeros((n, n), dtype=complex)
-        # per-orbital-pair intra displacement r0' - r0
         intra = r0[None, :] - r0[:, None]
-        # each physical prim displacement is ONE infinite-crystal matrix
-        # element; the stored shells realize it on several torus orbital
-        # pairs, so collect (m, m', delta) -> contributions and average
         acc = {}
         for T, block in self._model.SR.items():
             Tv = np.asarray(_key3(T), dtype=float)
             delta = intra + Tv[None, :] @ scmat  # (s, s', 3)
-            ph = np.exp(2j * np.pi * (delta @ k))
-            contrib = ph * np.asarray(block)
+            block = np.asarray(block)
             for s in range(n_sc):
                 ms = m_idx[s]
                 for sp in range(n_sc):
                     key = (ms, m_idx[sp], tuple(np.round(delta[s, sp], 6)))
-                    acc.setdefault(key, []).append(contrib[s, sp])
-        for (ms, msp, _d), vals in acc.items():
-            Gp[ms, msp] += sum(vals) / len(vals)
-        return Gp
+                    acc.setdefault(key, []).append(block[s, sp])
+        deltas = np.array([key[2] for key in acc], dtype=float)
+        vals = np.array([sum(v) / len(v) for v in acc.values()])
+        km1 = np.array([key[0] for key in acc], dtype=int)
+        km2 = np.array([key[1] for key in acc], dtype=int)
+        self._ideal_gram_cache = (deltas, vals, km1, km2)
+        return self._ideal_gram_cache
 
     def _ideal_bra_overlap(self, k):
         """Open-lattice AO overlaps ``A[m, s] = <k m|s>`` for the ideal
@@ -324,7 +336,20 @@ class LCAOUnfolder:
         """
         k = np.asarray(k, dtype=float)
         n = self._n_orb_prim
-        n_sc = self._n_orb_sc
+        m_arr, s_arr, rbra, vals = self._ideal_bra_terms()
+        A = np.zeros((n, self._n_orb_sc), dtype=complex)
+        np.add.at(
+            A, (m_arr, s_arr),
+            vals * np.exp(-2j * np.pi * (rbra @ k)),
+        )
+        return A / np.sqrt(self._n_cells)
+
+    def _ideal_bra_terms(self):
+        """Cache ``(m, s, R_bra, vals)`` for :meth:`_ideal_bra_overlap`."""
+        cache = getattr(self, "_ideal_bra_cache", None)
+        if cache is not None:
+            return cache
+        n = self._n_orb_prim
         r0 = self._rm.orb_to_r0.astype(float)
         scmat = self._scmat.astype(float)
         rep = self._rep
@@ -338,16 +363,17 @@ class LCAOUnfolder:
                 # the bra's total lattice position is R = r0[s] - delta
                 blk = np.asarray(block)[src, :]
                 for m in range(n):
-                    for s in range(n_sc):
+                    for s in range(self._n_orb_sc):
                         key = (m, s, tuple(np.round(delta[m, s], 6)))
                         acc.setdefault(key, []).append(blk[m, s])
-        A = np.zeros((n, n_sc), dtype=complex)
-        for (m, s, d), vals in acc.items():
-            R_bra = r0[s] - np.asarray(d)
-            A[m, s] += np.exp(-2j * np.pi * (k @ R_bra)) * (
-                sum(vals) / len(vals)
-            )
-        return A / np.sqrt(self._n_cells)
+        m_arr = np.array([key[0] for key in acc], dtype=int)
+        s_arr = np.array([key[1] for key in acc], dtype=int)
+        rbra = np.array(
+            [r0[key[1]] - np.asarray(key[2]) for key in acc], dtype=float
+        )
+        vals = np.array([sum(v) / len(v) for v in acc.values()])
+        self._ideal_bra_cache = (m_arr, s_arr, rbra, vals)
+        return self._ideal_bra_cache
 
     def compute(self, kpoints, method: str = "ring",
                 atol_imag: float = 1e-8, atol_orth: float = 1e-8):

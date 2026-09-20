@@ -28,8 +28,13 @@ def test_fig_phonopy_cu():
 
 
 def test_fig_siesta_si():
-    pytest = pytest_importorskip_hamiltonio()
+    pytest_importorskip_hamiltonio()
     _run("fig_siesta_si.py", "si.png")
+
+
+def test_fig_siesta_p_doped():
+    pytest_importorskip_hamiltonio()
+    _run("fig_siesta_p_doped.py", "si_p_doped.png")
 
 
 def pytest_importorskip_hamiltonio():

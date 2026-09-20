@@ -22,6 +22,11 @@ PAO.BasisSize   SZ
 MeshCutoff      100.0 Ry
 SpinPolarized   false
 SaveHS          true
+%block kgrid_Monkhorst_Pack
+  4  0  0
+  0  4  0
+  0  0  4
+%endblock kgrid_Monkhorst_Pack
 SaveWFSX        true
 WaveFuncKPointsScale ReciprocalLatticeVectors
 %block WaveFuncKPoints

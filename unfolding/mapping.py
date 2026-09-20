@@ -149,6 +149,7 @@ class RelabelMap:
         tol_r: float = 0.04,
         orb_counts_sc=None,
         orb_counts_prim=None,
+        match_species: bool = True,
     ):
         """Match every supercell atom to (primitive atom, cell offset).
 
@@ -167,6 +168,14 @@ class RelabelMap:
             or a HamiltonIO-style dict ``{atom index: [orbital names]}``.
             Default: one orbital per atom. Matched atoms must carry
             equal counts.
+        match_species : bool
+            Require equal symbols for a match. Pass ``False`` for
+            substitutional-defect supercells: the defect atom then maps
+            onto the host site it replaces (same position and orbital
+            count), which is the geometric correspondence the defect
+            spectral weight is defined with. The ideal weight then
+            measures resemblance to the ideal host crystal, so defect
+            states score below 1 while host bands stay at 1.
         """
         prim_cell = np.asarray(prim_atoms.cell)
         sc_cell = np.asarray(sc_atoms.cell)
@@ -215,7 +224,7 @@ class RelabelMap:
             best = None
             skipped_by_counts = False
             for m in range(n_prim):
-                if symbols_sc[a] != symbols_prim[m]:
+                if match_species and symbols_sc[a] != symbols_prim[m]:
                     continue
                 if counts_sc[a] != counts_prim[m]:
                     skipped_by_counts = True
