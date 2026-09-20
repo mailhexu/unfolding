@@ -273,24 +273,91 @@ class LCAOUnfolder:
             A += ph * self._S_AO[self._rep[:, c], :]
         return A / np.sqrt(self._n_cells)
 
-    def compute(self, kpoints, atol_imag: float = 1e-8, atol_orth: float = 1e-8):
+    def ideal_gram(self, k):
+        """Primitive (Popescu-Zunger / Lee) overlap matrix ``S_p(k)``.
+
+        Infinite-lattice (BvK-converged) construction: every stored
+        ``SR[T]`` shell block is folded onto the primitive orbital
+        level at its physical displacement
+        ``delta = r0' + T @ scmat - r0`` and accumulated with the Bloch
+        phase ``exp(2i pi k.delta)``::
+
+            S_p(k)[m, m'] = sum_delta exp(2i pi k.delta) S_prim(delta)
+
+        This is the Gram of the *ideal* primitive Bloch-sum family,
+        whose dual defines the standard band-unfolding weight. It
+        equals the torus (ring) sector Gram's self block at commensurate
+        momenta; at generic momenta the two definitions differ (the
+        ring samples each image class once on the torus, the ideal sum
+        uses the full shell set).
+
+        Requires the shell keys to cover ``delta`` and ``-delta``
+        symmetrically (true for SIESTA R-shell lists and the toy
+        builders); on asymmetric shells the result degrades gracefully
+        to the covered range.
+        """
+        k = np.asarray(k, dtype=float)
+        n = self._n_orb_prim
+        n_sc = self._n_orb_sc
+        m_idx = self._rm.orb_to_m
+        r0 = self._rm.orb_to_r0.astype(float)
+        scmat = self._scmat.astype(float)
+        Gp = np.zeros((n, n), dtype=complex)
+        # per-orbital-pair intra displacement r0' - r0
+        intra = r0[None, :] - r0[:, None]
+        # each physical prim displacement is ONE infinite-crystal matrix
+        # element; the stored shells realize it on several torus orbital
+        # pairs, so collect (m, m', delta) -> contributions and average
+        acc = {}
+        for T, block in self._model.SR.items():
+            Tv = np.asarray(_key3(T), dtype=float)
+            delta = intra + Tv[None, :] @ scmat  # (s, s', 3)
+            ph = np.exp(2j * np.pi * (delta @ k))
+            contrib = ph * np.asarray(block)
+            for s in range(n_sc):
+                ms = m_idx[s]
+                for sp in range(n_sc):
+                    key = (ms, m_idx[sp], tuple(np.round(delta[s, sp], 6)))
+                    acc.setdefault(key, []).append(contrib[s, sp])
+        for (ms, msp, _d), vals in acc.items():
+            Gp[ms, msp] += sum(vals) / len(vals)
+        return Gp
+
+    def compute(self, kpoints, method: str = "ring",
+                atol_imag: float = 1e-8, atol_orth: float = 1e-8):
         """Weights of every supercell band at each primitive k-point.
 
-        Dual-basis spectral weight on the supercell torus (paper
-        Eq. 25; sealed against the story-4/5 dual-basis derivations):
+        Dual-basis spectral weight (paper Eq. 25; sealed against the
+        story-4/5 dual-basis derivations). Two weight definitions are
+        available:
 
-        1. the sector of primitive k's folding to the same supercell
-           momentum K;
-        2. the S-metric Gram of the sector Bloch kets,
-           ``G[(i m),(j m')] = <k_i m|S_AO|k_j m'>/N``;
-        3. the plain AO overlaps ``A[(i m), band] = <k_i m|psi_band>``;
-        4. the self-k rows of ``x = G^-1 A`` give the weights.
+        ``method="ring"`` (default)
+            Exact supercell-torus projection: the sector of primitive
+            k's folding to the same supercell momentum K, the S-metric
+            Gram of the sector Bloch kets
+            (``G[(i m),(j m')] = <k_i m|S_AO|k_j m'>/N``), the plain AO
+            overlaps, and the self-k rows of ``x = G^-1 A``. This is
+            the identity sealed by the story-4/5 derivations: exact on
+            the BvK ring, Parseval-exact over the folded grid for
+            pristine *and* defect supercells.
+
+        ``method="ideal"``
+            Standard band-unfolding weight (Popescu-Zunger / Lee):
+            ``w = c^dagger S_p(k)^-1 c`` with ``c = <k m|psi>`` (torus
+            Bloch-sum overlaps) and the open-lattice primitive Gram
+            :meth:`ideal_gram` built from the stored shell set. This is
+            the generic-momentum extension of the story-4/5 oracle and
+            matches what plane-wave / phonopy unfolding oracles
+            produce. Requires shells covering the image set of each
+            displacement class: single-shell (Gamma-only) archives
+            give data-limited ideal weights (only the commensurate
+            grid is sealed there).
 
         The position-resolved ``S_AO`` carries any defect's position
-        dependence. Returns an :class:`LCAOWeights`; the weights of one
-        supercell band over the complete unfolding k-grid sum to 1
-        (Parseval, story 005).
+        dependence. Returns an :class:`LCAOWeights`.
         """
+        if method not in ("ring", "ideal"):
+            raise ValueError(f"unknown weight method: {method!r}")
         kpoints = np.atleast_2d(np.asarray(kpoints, dtype=float))
         n = self._n_orb_prim
         all_w = np.zeros((len(kpoints), self._n_orb_sc))
@@ -302,6 +369,16 @@ class LCAOUnfolder:
             # scipy eigenvector S-orthonormality (story verification item)
             eps, C = eigh(H, S)
             assert np.allclose(np.conj(C).T @ S @ C, np.eye(len(S)), atol=atol_orth)
+
+            if method == "ideal":
+                A = self._bra_overlap(k) @ C
+                Gp = self.ideal_gram(k)
+                X = np.conj(A) * np.linalg.solve(Gp, A)
+                w = np.real(np.sum(X, axis=0))
+                assert np.abs(np.imag(np.sum(X, axis=0))).max() < atol_imag
+                all_w[ik] = w
+                all_e[ik] = eps
+                continue
 
             members = self._sector(k)
             A_mats = [self._bra_overlap(ki) @ C for ki in members]

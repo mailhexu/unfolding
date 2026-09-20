@@ -52,8 +52,12 @@ Adapter exposing a HamiltonIO-parsed Hamiltonian
 
 ### `LCAOUnfolder(model, relabel_map, ndim3=1)`
 
-`.compute(kpoints) -> LCAOWeights` with
-`LCAOWeights(kpoints, eigenvalues, weights)`.
+`.compute(kpoints, method="ring") -> LCAOWeights` with
+`LCAOWeights(kpoints, eigenvalues, weights)`. `method="ring"` (default)
+is the exact supercell-torus projection (Parseval over the folded
+grid); `method="ideal"` reproduces the standard Popescu-Zunger / Lee
+weight at generic momenta and requires multi-shell (k-sampled)
+archives.
 
 ### `spinor` module
 
