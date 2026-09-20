@@ -1,16 +1,31 @@
 #!/bin/bash
-# Regenerate the Si example fixtures on nic6 (SIESTA 5.1 perspin build).
+# Regenerate the Si example fixtures with a local SIESTA >= 5.4 build
+# (SIESTA_BIN env var overrides the binary; Si.psf must be present in
+# this directory -- e.g. from the SIESTA Examples/Si_Optical set).
 # Usage: bash regenerate_fixtures.sh   (from examples/si_example/)
-# Inputs committed here: si_prim.fdf, si_sc.fdf (SZ PBE, SaveHS TSHS,
-# SaveWFSX). Outputs retrieved: *.HSX, *.selected.WFSX (tests/data/si_example/).
+# Inputs committed here: si_prim.fdf, si_sc.fdf (SZ PBE, SaveHS true,
+# SaveWFSX, WaveFuncKPointsScale ReciprocalLatticeVectors; the SC run uses
+# a 2x2x2 k-grid so the .HSX keeps the full supercell shell set -- a
+# Gamma-only run collapses the images into a single R=0 shell whose
+# H(k) is k-independent and cannot be unfolded at generic k).
+# Outputs produced: *.HSX, *.EIG, *.selected.WFSX -> tests/data/si_example/.
 set -euo pipefail
-R=nic6:/scratch/hexu/tmp/unfolding-si
-ssh nic6 'mkdir -p /scratch/hexu/tmp/unfolding-si/{prim,sc}
-          cp ~/src/siesta_perspin@ccbb20e66/Examples/Si_Optical/Si.psf /scratch/hexu/tmp/unfolding-si/'
-scp si_prim.fdf si_sc.fdf $R/
-scp si_prim.fdf $R/prim/ && scp si_sc.fdf $R/sc/
-ssh nic6 'bash -lc "module use ~/privatemodules; module load siesta/dev@ccbb20e66-gcc
-  cd /scratch/hexu/tmp/unfolding-si/prim && siesta < si_prim.fdf > si_prim.out 2>&1
-  cd /scratch/hexu/tmp/unfolding-si/sc && siesta < si_sc.fdf > si_sc.out 2>&1"'
-scp $R/prim/si_prim.HSX $R/prim/si_prim.selected.WFSX $R/prim/si_prim.fdf tests/data/si_example/
-scp $R/sc/si_sc.HSX $R/sc/si_sc.selected.WFSX $R/sc/si_sc.fdf tests/data/si_example/
+
+SIESTA_BIN=${SIESTA_BIN:-$HOME/projects/siesta_git/siesta_spinor/_build/build_gcc13/Src/siesta}
+test -x "$SIESTA_BIN"
+test -f Si.psf
+
+run() {  # run <dir> <fdf>
+  local d=$1 fdf=$2
+  rm -rf "$d" && mkdir -p "$d"
+  cp "$fdf" Si.psf "$d"/
+  ( cd "$d" && "$SIESTA_BIN" "$fdf" > run.out 2>&1 )
+}
+
+run prim si_prim.fdf
+run sc   si_sc.fdf
+
+cp prim/si_prim.HSX prim/si_prim.EIG prim/si_prim.selected.WFSX \
+   prim/si_prim.fdf tests/data/si_example/
+cp sc/si_sc.HSX sc/si_sc.selected.WFSX sc/si_sc.fdf tests/data/si_example/
+echo "fixtures refreshed in tests/data/si_example/"

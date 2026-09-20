@@ -27,8 +27,14 @@ XC.authors      PBE
 PAO.BasisSize   SZ
 MeshCutoff      100.0 Ry
 SpinPolarized   false
-SaveHS          TSHS
+SaveHS          true
 SaveWFSX        true
+%block kgrid_Monkhorst_Pack
+  2  0  0
+  0  2  0
+  0  0  2
+%endblock kgrid_Monkhorst_Pack
+WaveFuncKPointsScale ReciprocalLatticeVectors
 %block WaveFuncKPoints
   0.000  0.000  0.000
 %endblock WaveFuncKPoints

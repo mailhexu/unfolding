@@ -74,7 +74,7 @@ def main(out_path):
     kpts = np.array(kpts)
     x = np.array(x)
 
-    res = unf.compute(kpts)
+    res = unf.compute(kpts, method="ideal")
     nb = res.weights.shape[1]
     kslist = [list(x) for _ in range(nb)]
     ekslist = [list(res.eigenvalues[:, ib]) for ib in range(nb)]

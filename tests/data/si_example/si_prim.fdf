@@ -21,8 +21,9 @@ XC.authors      PBE
 PAO.BasisSize   SZ
 MeshCutoff      100.0 Ry
 SpinPolarized   false
-SaveHS          TSHS
+SaveHS          true
 SaveWFSX        true
+WaveFuncKPointsScale ReciprocalLatticeVectors
 %block WaveFuncKPoints
   0.000  0.000  0.000
   0.100  0.000  0.000

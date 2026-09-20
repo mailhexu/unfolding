@@ -148,11 +148,17 @@ B = np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])  # conv = B @ prim
 rm = RelabelMap.from_atoms(sc.atoms, prim.atoms, B,
                            orb_counts_sc=[4]*8, orb_counts_prim=[4, 4])
 unf = LCAOUnfolder(HamiltonIOModel(sc), rm)
-res = unf.compute(kpts)          # kpts: primitive-cell path
+res = unf.compute(kpts, method="ideal")   # generic-path spectral weights
 ```
 
 The one-call variant is `unfold_siesta(fdf=..., prim_atoms=...,
 unfold_sc_mat=..., kpts=...)` (see the API reference); it parses the
 fdf through HamiltonIO directly.
 
-{{< figure src="/images/si_unfolded.png" title="SIESTA Si: 8-atom supercell unfolded onto the primitive path" >}}
+The committed fixture was produced by a 2x2x2 k-grid SCF on the
+8-atom supercell: a Gamma-only `SaveHS` run collapses all supercell
+images into a single R=0 shell, leaving a k-independent H that cannot
+be unfolded at generic k. Use `method="ideal"` along generic paths;
+the `ring` method remains exact at torus-commensurate momenta.
+
+{{< figure src="/images/si_unfolded.png" title="SIESTA Si: 8-atom supercell (2x2x2 k-grid SCF) unfolded onto the primitive path" >}}
