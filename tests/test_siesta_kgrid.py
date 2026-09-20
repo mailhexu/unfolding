@@ -21,9 +21,11 @@ def _unfolder():
     return make_si_unfolder(os.path.join(DATA, "si_sc_kgrid.fdf"))
 
 
-def _fermi_energy(path):
-    with open(path) as fh:
-        return float(fh.readline())
+def _sc_reduced_kpoints(u, wfsx):
+    physical_k, _, _ = wfsx.read_info()
+    cell = np.asarray(u._model.atoms.cell)
+    reciprocal = 2.0 * np.pi * np.linalg.inv(cell).T
+    return physical_k @ np.linalg.inv(reciprocal)
 
 
 def test_real_kgrid_has_multishell_hsx():
@@ -53,6 +55,34 @@ def test_real_kgrid_gamma_ring_and_ideal_agree():
     assert np.abs(ring - ideal).max() < 1e-8
 
 
+def test_real_kgrid_bands_match_primitive_siesta():
+    """The eight ideal-weight-one SC bands match the independently parsed
+    primitive k-grid bands within the converged-SCF tolerance."""
+    sisl = pytest.importorskip("sisl")
+    from scipy.linalg import eigh
+    from siesta_helpers import read_si_model
+    from unfolding.lcao_unfolder import HamiltonIOModel
+
+    u = _unfolder()
+    wfsx = sisl.get_sile(os.path.join(DATA, "si_sc_kgrid.selected.WFSX"))
+    sc_kpoints = _sc_reduced_kpoints(u, wfsx)
+    prim = HamiltonIOModel(read_si_model(os.path.join(DATA, "si_prim_kgrid.fdf")))
+    inv_b_t = np.linalg.inv(u._scmat.T)
+
+    for K in sc_kpoints:
+        primitive_k = K @ inv_b_t
+        result = u.compute(primitive_k[None, :], method="ideal")
+        selected = result.weights[0] > 0.5
+        assert selected.sum() == 8
+        H, S = prim.hs_and_eigen(primitive_k)[:2]
+        eps_prim = eigh(H, S, eigvals_only=True)
+        # Separate primitive/SC SCF runs use equivalent but not bit-identical
+        # density histories; the observed 3.7 meV maximum is the run tolerance.
+        assert np.abs(
+            np.sort(result.eigenvalues[0, selected]) - np.sort(eps_prim)
+        ).max() < 5e-3
+
+
 def test_real_kgrid_wfsx_eigenvalues_match_hsx_at_selected_kpoints():
     """Every selected real WFSX k-point matches HSX eigenvalues.
 
@@ -64,15 +94,13 @@ def test_real_kgrid_wfsx_eigenvalues_match_hsx_at_selected_kpoints():
     """
     sisl = pytest.importorskip("sisl")
     from scipy.linalg import eigh
+    from siesta_helpers import read_fermi_energy
 
     u = _unfolder()
-    fermi = _fermi_energy(os.path.join(DATA, "si_sc_kgrid.EIG"))
+    fermi = read_fermi_energy(os.path.join(DATA, "si_sc_kgrid.EIG"))
     wfsx = sisl.get_sile(os.path.join(DATA, "si_sc_kgrid.selected.WFSX"))
     states = list(wfsx.yield_eigenstate())
-    physical_k, _, _ = wfsx.read_info()
-    cell = np.asarray(u._model.atoms.cell)
-    reciprocal = 2.0 * np.pi * np.linalg.inv(cell).T
-    sc_kpoints = physical_k @ np.linalg.inv(reciprocal)
+    sc_kpoints = _sc_reduced_kpoints(u, wfsx)
     assert len(states) == len(sc_kpoints) == 4
 
     for K, state in zip(sc_kpoints, states):

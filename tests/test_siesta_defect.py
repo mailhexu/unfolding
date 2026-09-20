@@ -17,11 +17,6 @@ def _unfolder():
     )
 
 
-def _fermi_energy(path):
-    with open(path) as fh:
-        return float(fh.readline())
-
-
 def test_real_defect_fixture_is_multishell():
     u = _unfolder()
     assert len(u._model.SR) == 125
@@ -31,6 +26,7 @@ def test_real_defect_wfsx_eigenvalues_match_hsx():
     """The displaced-cell WFSX Gamma state energies match HSX."""
     sisl = pytest.importorskip("sisl")
     from scipy.linalg import eigh
+    from siesta_helpers import read_fermi_energy
 
     u = _unfolder()
     out = u._model.hs_and_eigen(np.zeros(3))
@@ -38,7 +34,7 @@ def test_real_defect_wfsx_eigenvalues_match_hsx():
     state = sisl.get_sile(
         os.path.join(DATA, "si_defect_kgrid.selected.WFSX")
     ).read_eigenstate()
-    eps_wfsx = np.asarray(state.c, dtype=float) - _fermi_energy(
+    eps_wfsx = np.asarray(state.c, dtype=float) - read_fermi_energy(
         os.path.join(DATA, "si_defect_kgrid.EIG")
     )
     assert np.abs(np.sort(eps) - np.sort(eps_wfsx)).max() < 1e-4

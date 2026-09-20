@@ -8,17 +8,27 @@ PRIM_FDF = os.path.join(ROOT, "tests", "data", "si_example", "si_prim.fdf")
 B_DIAMOND = np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])
 
 
-def make_si_unfolder(sc_fdf, *, tol_r=0.04):
+def read_si_model(fdf):
     from HamiltonIO.siesta.sisl_wrapper import SislParser
-    from unfolding.lcao_unfolder import HamiltonIOModel, LCAOUnfolder
-    from unfolding.mapping import RelabelMap
 
     class RListParser(SislParser):
         def read_Rlist(self, geom=None):
             return self.ham.lattice.sc_off
 
-    prim = RListParser(PRIM_FDF).get_model()
-    sc = RListParser(sc_fdf).get_model()
+    return RListParser(fdf).get_model()
+
+
+def read_fermi_energy(path):
+    with open(path) as fh:
+        return float(fh.readline())
+
+
+def make_si_unfolder(sc_fdf, *, tol_r=0.04):
+    from unfolding.lcao_unfolder import HamiltonIOModel, LCAOUnfolder
+    from unfolding.mapping import RelabelMap
+
+    prim = read_si_model(PRIM_FDF)
+    sc = read_si_model(sc_fdf)
     relabel = RelabelMap.from_atoms(
         sc.atoms,
         prim.atoms,
@@ -28,16 +38,3 @@ def make_si_unfolder(sc_fdf, *, tol_r=0.04):
         orb_counts_prim=[4, 4],
     )
     return LCAOUnfolder(HamiltonIOModel(sc), relabel)
-
-
-def eigenvalue_run_sums(energies, weights, tol=1e-6):
-    order = np.argsort(energies)
-    energies = np.asarray(energies)[order]
-    weights = np.asarray(weights)[order]
-    out = []
-    start = 0
-    for i in range(1, len(energies) + 1):
-        if i == len(energies) or energies[i] - energies[i - 1] > tol:
-            out.append(float(weights[start:i].sum()))
-            start = i
-    return np.asarray(out)
