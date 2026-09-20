@@ -117,6 +117,11 @@ class RelabelMap:
         self.orb_to_m = np.zeros(n_orb_sc, dtype=int)
         self.orb_to_r0 = np.zeros((n_orb_sc, 3), dtype=int)
         self.orb_to_cell = np.zeros(n_orb_sc, dtype=int)
+        # full primitive-fractional orbital position: cell offset plus the
+        # intra-cell atomic position (needed for Bloch phases at k != 0 in
+        # multi-atom cells)
+        tau = prim_atoms.get_scaled_positions()
+        self.orb_q = np.zeros((n_orb_sc, 3), dtype=float)
         for a in range(len(sc_atoms)):
             m = self.atom_to_m[a]
             base_prim = int(starts_prim[m])
@@ -125,6 +130,7 @@ class RelabelMap:
                 self.orb_to_m[o] = base_prim + local
                 self.orb_to_r0[o] = self.atom_to_r0[a]
                 self.orb_to_cell[o] = cell_index[tuple(self.atom_to_r0[a])]
+                self.orb_q[o] = self.atom_to_r0[a] + tau[m]
 
         self.rep_orbital = np.full((n_orb_prim, n_cells), -1, dtype=int)
         for o in range(n_orb_sc):

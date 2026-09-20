@@ -376,50 +376,16 @@ def test_weights_oracle_nonunit_lattice_constant():
     assert worst < 1e-10, worst
 
 
-def test_ideal_method_matches_oracle_at_generic_k(unfolder):
-    """method="ideal" equals the independent primitive-table oracle A' S_p^-1 A
-    at generic (incommensurate) k, not only at the commensurate grid."""
+def test_ideal_pristine_generic_k_binary(unfolder):
+    """Pristine supercell, pure-ideal convention: weights at generic k are
+    exactly 0 or 1 - every SC band is a folded primitive band, matching the
+    plane-wave/phonopy unfolding convention at generic momenta."""
     unf, _ = unfolder
-    ks = np.array([[0.13, 0.0, 0.0], [0.37, 0.0, 0.0], [0.62, 0.0, 0.0]])
-    res = unf.compute(ks, method="ideal")
-    H, S = _prim_tables()
-
-    worst = 0.0
-    for ik, k in enumerate(ks):
-        K = np.diag([N_CELLS, 1, 1]).T @ k
-        Hsc, Ssc, _ = unf._model.hs_and_eigen(K)
-        eps, C = eigh(Hsc, Ssc)
-        A = np.zeros((N_ORB, 2 * N_CELLS), complex)
-        Sp = np.zeros((N_ORB, N_ORB), complex)
-        for m in range(N_ORB):
-            for j in range(2 * N_CELLS):
-                jj, a = divmod(j, 2)
-                for r in range(N_CELLS):
-                    d = (jj - r + N_CELLS // 2) % N_CELLS - N_CELLS // 2
-                    if abs(d) <= 1:
-                        A[m, j] += (
-                            np.exp(-2j * np.pi * k[0] * r)
-                            / np.sqrt(N_CELLS)
-                            * S[d][m, a]
-                        )
-        for n in range(N_ORB):
-            for m in range(N_ORB):
-                for d in range(-1, 2):
-                    Sp[n, m] += np.exp(2j * np.pi * k[0] * d) * S[d][n, m]
-        A = A @ C
-        w_ref = np.real(np.conj(A).T @ np.linalg.inv(Sp) @ A).diagonal()
-        worst = max(worst, np.abs(w_ref - res.weights[ik]).max())
-    assert worst < 1e-10, worst
-
-
-def test_ideal_weights_real_nonnegative(unfolder):
-    """Ideal weights at generic k are real and non-negative (S_p(k) is a
-    Hermitian positive-definite Gram, so w = c^dag S_p^-1 c >= 0)."""
-    unf, _ = unfolder
-    res = unf.compute(np.array([[0.21, 0.0, 0.0]]), method="ideal")
-    w = res.weights[0]
-    assert np.abs(np.imag(res.weights)).max() < 1e-12
-    assert w.min() > -1e-12
+    for kx in (0.13, 0.21, 0.37, 0.62):
+        res = unf.compute(np.array([[kx, 0.0, 0.0]]), method="ideal")
+        w = res.weights[0]
+        assert np.abs(w - np.round(w)).max() < 1e-9, (kx, w)
+        assert abs(w.sum() - N_ORB) < 1e-9
 
 
 def test_ideal_matches_ring_at_commensurate(unfolder):
@@ -429,6 +395,16 @@ def test_ideal_matches_ring_at_commensurate(unfolder):
     w_ring = unf.compute(ks, method="ring").weights
     w_ideal = unf.compute(ks, method="ideal").weights
     assert np.abs(w_ring - w_ideal).max() < 1e-10
+
+
+def test_ideal_weights_real_nonnegative(unfolder):
+    """Ideal weights are real and non-negative (S_p(k) is a Hermitian
+    positive-definite Gram, so w = c^dag S_p^-1 c >= 0)."""
+    unf, _ = unfolder
+    res = unf.compute(np.array([[0.21, 0.0, 0.0]]), method="ideal")
+    w = res.weights[0]
+    assert np.abs(np.imag(res.weights)).max() < 1e-12
+    assert w.min() > -1e-12
 
 
 def test_compute_rejects_unknown_method(unfolder):

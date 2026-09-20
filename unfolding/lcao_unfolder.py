@@ -176,28 +176,17 @@ class LCAOUnfolder:
     def _build_S_AO(self):
         """Position-resolved supercell AO overlap assembled from ``SR``.
 
-        ``S_AO[p, q] = SR[T][p, q]`` where ``T`` is the supercell
-        translation taking orbital ``q``'s cell onto orbital ``p``'s
-        cell (empty pairs contribute zero). Carries any defect's
+        ``S_AO[p, q]`` is the plain sum of every stored ``SR[T]`` element
+        for the orbital pair ``(p, q)``. Each pair appears at most once
+        per shell, so on single-shell archives this is just the ``R=0``
+        block, while multi-shell (k-grid) archives contribute the full
+        set of image elements the pair realizes. Carries any defect's
         position dependence, unlike a single ``SR`` block.
         """
         n_orb = self._n_orb_sc
         S_AO = np.zeros((n_orb, n_orb), dtype=complex)
-        inv_scmat = np.linalg.inv(self._scmat.astype(float))
-        sr_by_key = {_key3(T): (np.asarray(_key3(T), dtype=float), b)
-                     for T, b in self._model.SR.items()}
-        for c in range(self._n_cells):
-            for cp in range(self._n_cells):
-                T0 = np.asarray(self._rm.scmat_keys[(c, cp)], dtype=float)
-                idx_c = self._rep[:, c]
-                idx_cp = self._rep[:, cp]
-                # every SR translation congruent to T0 modulo the
-                # supercell lattice contributes (wrapped torus images)
-                for (Tv, block) in sr_by_key.values():
-                    h = (Tv - T0) @ inv_scmat
-                    if not np.allclose(h, np.round(h), atol=1e-6):
-                        continue
-                    S_AO[np.ix_(idx_c, idx_cp)] += block[np.ix_(idx_c, idx_cp)]
+        for block in self._model.SR.values():
+            S_AO += np.asarray(block)
         return S_AO
 
     # -- overlap vectors ---------------------------------------------------
@@ -240,13 +229,15 @@ class LCAOUnfolder:
         return members
 
     def _sector_gram_block(self, ki, kj):
-        """``<k_i m|S_AO|k_j m'>/N`` in the unwrapped-pair gauge.
+        """``<k_i m|S_AO|k_j m'>/N`` in the cell-offset gauge (story 4/5).
 
-        The ket phase is anchored at the bra cell plus the actual pair
-        displacement ``delta(c, c')`` carried by ``S_AO``, so for a
-        translation-invariant (pristine) overlap the cell-origin sum
-        kills every ``k_i != k_j`` block exactly and the self block is
-        the primitive overlap matrix ``S_p(k)``.
+        The ket phase is anchored at the bra cell and the pair
+        displacement carried by ``S_AO``; with the exact-integer
+        supercell wraps of ``scmat_keys`` the displacement reduces to
+        the intra-cell coordinates and the bra-phase sum kills every
+        ``k_i != k_j`` block for a translation-invariant overlap.
+        Multi-atom generic-k gauges (intra-cell coordinates in the
+        phases) are an open derivation item (story 010).
         """
         n = self._n_orb_prim
         Gb = np.zeros((n, n), dtype=complex)
@@ -323,6 +314,41 @@ class LCAOUnfolder:
             Gp[ms, msp] += sum(vals) / len(vals)
         return Gp
 
+    def _ideal_bra_overlap(self, k):
+        """Open-lattice AO overlaps ``A[m, s] = <k m|s>`` for the ideal
+        weight: the bra sum runs over cells with Bloch phases and the
+        overlap values are the *open-lattice* elements at the physical
+        displacement ``r0(s) - r0(m cell) + T @ scmat`` (torus wraps do
+        not fold the displacement). Multiple stored realizations of the
+        same displacement are averaged, matching :meth:`ideal_gram`.
+        """
+        k = np.asarray(k, dtype=float)
+        n = self._n_orb_prim
+        n_sc = self._n_orb_sc
+        r0 = self._rm.orb_to_r0.astype(float)
+        scmat = self._scmat.astype(float)
+        rep = self._rep
+        acc = {}
+        for c in range(self._n_cells):
+            src = rep[:, c]  # SC orbitals of (m, c), m = 0..n-1
+            for T, block in self._model.SR.items():
+                Tv = np.asarray(_key3(T), dtype=float)
+                delta = r0[None, :] - r0[src, None] + Tv @ scmat
+                # element <m c|s> = block[src[m], s] at displacement delta[m, s];
+                # the bra's total lattice position is R = r0[s] - delta
+                blk = np.asarray(block)[src, :]
+                for m in range(n):
+                    for s in range(n_sc):
+                        key = (m, s, tuple(np.round(delta[m, s], 6)))
+                        acc.setdefault(key, []).append(blk[m, s])
+        A = np.zeros((n, n_sc), dtype=complex)
+        for (m, s, d), vals in acc.items():
+            R_bra = r0[s] - np.asarray(d)
+            A[m, s] += np.exp(-2j * np.pi * (k @ R_bra)) * (
+                sum(vals) / len(vals)
+            )
+        return A / np.sqrt(self._n_cells)
+
     def compute(self, kpoints, method: str = "ring",
                 atol_imag: float = 1e-8, atol_orth: float = 1e-8):
         """Weights of every supercell band at each primitive k-point.
@@ -343,15 +369,17 @@ class LCAOUnfolder:
 
         ``method="ideal"``
             Standard band-unfolding weight (Popescu-Zunger / Lee):
-            ``w = c^dagger S_p(k)^-1 c`` with ``c = <k m|psi>`` (torus
-            Bloch-sum overlaps) and the open-lattice primitive Gram
-            :meth:`ideal_gram` built from the stored shell set. This is
-            the generic-momentum extension of the story-4/5 oracle and
-            matches what plane-wave / phonopy unfolding oracles
-            produce. Requires shells covering the image set of each
-            displacement class: single-shell (Gamma-only) archives
-            give data-limited ideal weights (only the commensurate
-            grid is sealed there).
+            ``w = c^dagger S_p(k)^-1 c`` with the open-lattice Bloch
+            overlaps (:meth:`_ideal_bra_overlap`) and the open-lattice
+            primitive Gram :meth:`ideal_gram`, both built from the
+            stored shell set with torus wraps left unfolded. For a
+            pristine supercell this weight is exactly 0 or 1 at every
+            momentum - each supercell band is a folded primitive band -
+            matching the plane-wave / phonopy unfolding convention at
+            generic momenta. Requires shells covering the image set of
+            each displacement class: single-shell (Gamma-only) archives
+            give data-limited ideal weights (only the commensurate grid
+            is sealed there).
 
         The position-resolved ``S_AO`` carries any defect's position
         dependence. Returns an :class:`LCAOWeights`.
@@ -371,7 +399,7 @@ class LCAOUnfolder:
             assert np.allclose(np.conj(C).T @ S @ C, np.eye(len(S)), atol=atol_orth)
 
             if method == "ideal":
-                A = self._bra_overlap(k) @ C
+                A = self._ideal_bra_overlap(k) @ C
                 Gp = self.ideal_gram(k)
                 X = np.conj(A) * np.linalg.solve(Gp, A)
                 w = np.real(np.sum(X, axis=0))
