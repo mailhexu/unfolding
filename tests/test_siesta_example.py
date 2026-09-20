@@ -59,6 +59,28 @@ def test_primitive_eigenvalues_reasonable(si_models):
     assert eps[0] < -10.0 < eps[3] < 5.0  # valence s deep, p near gap
 
 
+def test_primitive_matches_siesta_eig(si_models):
+    """Seal against SIESTA-native eigenvalues (.EIG at the SCF Gamma).
+
+    The code's Gamma eigenvalues plus the Fermi energy recorded in the
+    .EIG header reproduce SIESTA's bands to file precision. (This also
+    certifies the HSX parsing: no k-convention is involved at Gamma.)
+    """
+    prim = si_models[0]
+    out = prim.HS_and_eigen(np.atleast_2d(np.array([0.0, 0.0, 0.0])))
+    H, S = np.asarray(out[0]), np.asarray(out[1])
+    eps = eigh(H[0], S[0], eigvals_only=True)
+
+    eig_path = os.path.join(DATA, "si_prim.EIG")
+    with open(eig_path) as fh:
+        lines = fh.readlines()
+    e_fermi = float(lines[0])
+    tokens = lines[2].split()
+    siesta_evals = np.array([float(v) for v in tokens[-len(eps):]])
+    assert len(siesta_evals) == len(eps)
+    assert np.abs((eps + e_fermi) - siesta_evals).max() < 1e-4
+
+
 def test_skew_supercell_gamma_group_weights(si_models):
     """Pristine 8-atom SC unfolding at Gamma: group weights exactly 0/1/2."""
     from unfolding.lcao_unfolder import HamiltonIOModel, LCAOUnfolder
