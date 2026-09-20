@@ -286,3 +286,16 @@ def test_defect_supercell_sum_rule(unfolder):
     res = unf.compute(ks)
     # per-state grid sum rule (each column = one supercell eigenstate)
     assert np.abs(res.weights.sum(axis=0) - 1.0).max() < 1e-8
+
+
+def test_sector_enumeration_skew_matrix():
+    """Progressive box enumeration must find all |det scmat| quotient
+    representatives for skew supercell matrices (round-2 finding)."""
+    unf = LCAOUnfolder.__new__(LCAOUnfolder)
+    unf._scmat = np.array([[0, 2, 2], [2, 0, 2], [2, 2, 0]], dtype=int)
+    unf._n_cells = 16
+    members = unf._sector(np.array([0.1, 0.3, 0.0]))
+    assert len(members) == 16
+    # members are distinct primitive k-points mod 1
+    keys = {tuple(np.round(np.asarray(m) % 1.0, 8)) for m in members}
+    assert len(keys) == 16

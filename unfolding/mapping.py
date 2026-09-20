@@ -269,10 +269,11 @@ class RelabelMap:
         # integer triple T whose translation carries cell c onto cell cp
         # on the torus (scmat @ T + offsets[c] - offsets[cp] ~= 0)
         inv_scmat = np.linalg.inv(self.scmat.astype(float))
+        offs = np.unique(atom_to_r0, axis=0)
         scmat_keys = {}
-        for c in range(n_offsets):
-            for cp in range(n_offsets):
-                dd = atom_to_r0[c] - atom_to_r0[cp]
+        for c in range(len(offs)):
+            for cp in range(len(offs)):
+                dd = offs[c] - offs[cp]
                 T = np.round(dd @ inv_scmat).astype(int)
                 scmat_keys[(c, cp)] = tuple(int(v) for v in T)
         self.scmat_keys = scmat_keys

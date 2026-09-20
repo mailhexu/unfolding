@@ -136,10 +136,13 @@ class HamiltonIOModel:
         return self._model.atoms
 
     def hs_and_eigen(self, k):
-        """Return (H, S) at supercell fractional k, folding the four-value
-        HamiltonIO ``HS_and_eigen`` result."""
-        out = self._model.HS_and_eigen(np.atleast_2d(np.asarray(k, dtype=float))[0])
-        return out[0], out[1]
+        """Return (H, S) at supercell fractional k, folding the batched
+        four-value HamiltonIO ``HS_and_eigen`` result."""
+        out = self._model.HS_and_eigen(np.atleast_2d(np.asarray(k, dtype=float)))
+        H, S = out[0], out[1]
+        if np.ndim(H) == 3:  # HamiltonIO returns a leading k-point axis
+            H, S = H[0], S[0]
+        return H, S
 
 
 class LCAOUnfolder:
@@ -180,16 +183,22 @@ class LCAOUnfolder:
         """
         g_k = self._fold(k)
         invT = np.linalg.inv(self._scmat.T)
-        n = int(np.abs(self._scmat).max()) + 1
+        span = max(1, int(np.abs(self._scmat).max()))
         seen = {}
-        for hx in range(n):
-            for hy in range(n):
-                for hz in range(n):
-                    cand = (g_k + np.array([hx, hy, hz], dtype=float)) @ invT
-                    key = tuple(np.round(cand % 1.0, 8) % 1.0)
-                    if key not in seen:
-                        seen[key] = cand
-        members = list(seen.values())
+        while len(seen) < self._n_cells:
+            seen = {}
+            for hx in range(span):
+                for hy in range(span):
+                    for hz in range(span):
+                        cand = (g_k + np.array([hx, hy, hz], dtype=float)) @ invT
+                        key = tuple(np.round(cand % 1.0, 8) % 1.0)
+                        if key not in seen:
+                            seen[key] = cand
+            if len(seen) < self._n_cells:
+                span *= 2
+            if span > 4096:
+                break
+        members = list(seen.values())[: self._n_cells]
         assert len(members) == self._n_cells, (len(members), self._n_cells)
         if not any(np.allclose(cand, k, atol=1e-8) for cand in members):
             members = [np.asarray(k, dtype=float)] + members[1:]
@@ -205,16 +214,21 @@ class LCAOUnfolder:
         """
         n_orb = self._n_orb_sc
         S_AO = np.zeros((n_orb, n_orb), dtype=complex)
-        sr_by_key = {_key3(T): b for T, b in self._model.SR.items()}
+        inv_scmat = np.linalg.inv(self._scmat.astype(float))
+        sr_by_key = {_key3(T): (np.asarray(_key3(T), dtype=float), b)
+                     for T, b in self._model.SR.items()}
         for c in range(self._n_cells):
             for cp in range(self._n_cells):
-                T = self._rm.scmat_keys[(c, cp)]
-                block = sr_by_key.get(_key3(T))
-                if block is None:
-                    continue
+                T0 = np.asarray(self._rm.scmat_keys[(c, cp)], dtype=float)
                 idx_c = self._rep[:, c]
                 idx_cp = self._rep[:, cp]
-                S_AO[np.ix_(idx_c, idx_cp)] += block[np.ix_(idx_c, idx_cp)]
+                # every SR translation congruent to T0 modulo the
+                # supercell lattice contributes (wrapped torus images)
+                for (Tv, block) in sr_by_key.values():
+                    h = (Tv - T0) @ inv_scmat
+                    if not np.allclose(h, np.round(h), atol=1e-6):
+                        continue
+                    S_AO[np.ix_(idx_c, idx_cp)] += block[np.ix_(idx_c, idx_cp)]
         return S_AO
 
     # -- overlap vectors ---------------------------------------------------
