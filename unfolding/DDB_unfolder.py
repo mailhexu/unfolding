@@ -45,7 +45,23 @@ def displacement_cart_to_evec(displ_cart, masses, scaled_positions, qpoint=None,
 
 
 
-def DDB_unfolder(DDB_fname, kpath_bounds,sc_mat,knames=None, kx=None,dipdip=1):
+def DDB_unfolder(DDB_fname, kpath_bounds, sc_mat, knames=None, kx=None, dipdip=1):
+    """
+    Unfold phonon bands from an Abinit DDB file along a k-path.
+
+    Args:
+        DDB_fname: DDB file name.
+        kpath_bounds: Path vertices **in fractional reciprocal coordinates of
+            the DDB structure** (the cell stored in the DDB, e.g. the
+            conventional cubic cell for an fcc DDB computed with natom=4).
+            If your special points come from ase's ``get_special_points`` on
+            the *primitive* cell, convert them first, e.g.
+            ``k_conv = k_prim @ sc_mat`` (see examples/Cu_fcc/unfold.py).
+        sc_mat: Supercell matrix in units of the DDB-cell lattice vectors
+            (rows convention ``S = A_ddb @ sc_mat``); its translation lattice
+            supplies the phase interference used for the spectral weights.
+        knames: Labels for the path vertices; defaults to the coordinates.
+    """
     DDB = abilab.abiopen(DDB_fname)
     struct = DDB.structure
     atoms = DDB.structure.to_ase_atoms()

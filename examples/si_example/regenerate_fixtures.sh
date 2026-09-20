@@ -22,16 +22,22 @@ test -f Si.psf
 run() {  # run <dir> <fdf>
   local d=$1 fdf=$2
   rm -rf "$d" && mkdir -p "$d"
-  cp "$fdf" Si.psf "$d"/
+  cp "$fdf" "$d"/
+  cp Si.psf "$d"/
+  cp P.psml "$d"/ 2>/dev/null || true
   ( cd "$d" && "$SIESTA_BIN" "$fdf" > run.out 2>&1 )
 }
 
 run prim si_prim.fdf
 run sc   si_sc.fdf
 run sc_p si_sc_p.fdf
+run sc_path si_sc_path.fdf
 
 cp prim/si_prim.HSX prim/si_prim.EIG prim/si_prim.selected.WFSX \
    prim/si_prim.fdf tests/data/si_example/
 cp sc/si_sc.HSX sc/si_sc.selected.WFSX sc/si_sc.fdf tests/data/si_example/
 cp sc_p/si_sc_p.HSX sc_p/si_sc_p.fdf tests/data/si_example/
+cp sc_path/si_sc.selected.WFSX tests/data/si_example/si_sc_path.selected.WFSX
+cp sc_path/si_sc.EIG tests/data/si_example/si_sc_path.EIG
+cp sc_path/si_sc.fdf tests/data/si_example/si_sc_path.fdf
 echo "fixtures refreshed in tests/data/si_example/"

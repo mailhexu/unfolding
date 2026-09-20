@@ -181,3 +181,50 @@ The dopant site maps onto the host site it replaces via
 `RelabelMap.from_atoms(..., match_species=False)`.
 
 {{< figure src="/images/si_p_doped_unfolded.png" title="SIESTA Si7P: one Si substituted by P; the ideal weight separates host bands (weight 1) from impurity-derived states" >}}
+
+### Wavefunction-driven unfolding: WFSX instead of diagonalizing H
+
+If the supercell run already stored wavefunctions (`SaveWFSX true` plus
+a `%block WaveFuncKPoints` list on the path), `WFSXUnfolder` evaluates
+the same weight formula from SIESTA's own coefficients and
+eigenvalues — no Hamiltonian diagonalization:
+
+```python
+from HamiltonIO.siesta.wfsx import SiestaWFSXParser
+from unfolding.wfsx_unfolder import WFSXUnfolder
+
+cell = np.asarray(sc.atoms.cell)
+wfsx = SiestaWFSXParser("si_sc_path.selected.WFSX", cell=cell).read()
+unf = WFSXUnfolder(wfsx, HamiltonIOModel(sc), rm, sc_mat=B)
+res = unf.compute(kpts, method="ideal")   # kpts: the same path
+```
+
+The overlap shells from the SC `.HSX` are still required (the weight
+is an AO-overlap matrix); only the eigen-solve is replaced. WFSX
+energies are returned exactly as SIESTA stores them — Fermi-shifted
+by the writing run (subtract the `.EIG` header value for absolute
+eigenvalues). WFSX coefficients are stored in SIESTA's orbital-position
+gauge; at generic k they are converted to the unfolder's convention
+with the per-orbital phase `exp(+2 pi i K . tau_s)` — a wrong sign
+deviates the weights by orders of magnitude and is pinned by
+`test_gauge_conversion_is_pinned`.
+
+{{< figure src="/images/si_wfsx_unfolded.png" title="SIESTA Si from the committed WFSX path run: same spectrum as the HSX path, obtained without diagonalizing H" >}}
+
+### Spinor (nspin=4) unfolding
+
+Non-collinear runs work through the same machinery: spinor orbital
+counts are doubled (4 PAO x 2 spin components), everything else is
+identical. The committed spinor fixtures use `Spin.Orbit true` with a
+scalar Si pseudopotential, so the spinor bands equal the scalar bands
+with Kramers degeneracy — the example certifies the spinor pipeline
+(parse -> relabel -> weights), not spinor physics.
+
+```python
+rm = RelabelMap.from_atoms(sc.atoms, prim.atoms, B,
+                           orb_counts_sc=[8]*8, orb_counts_prim=[8, 8])
+unf = LCAOUnfolder(HamiltonIOModel(sc), rm)
+res = unf.compute(kpts, method="ideal")
+```
+
+{{< figure src="/images/si_spinor_unfolded.png" title="SIESTA Si spinor run (nspin=4): the spinor pipeline reproduces the primitive-cell bands with Kramers degeneracy" >}}

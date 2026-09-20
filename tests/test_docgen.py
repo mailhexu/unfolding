@@ -37,6 +37,16 @@ def test_fig_siesta_p_doped():
     _run("fig_siesta_p_doped.py", "si_p_doped.png")
 
 
+def test_fig_siesta_wfsx():
+    pytest_importorskip_hamiltonio()
+    _run("fig_siesta_wfsx.py", "si_wfsx.png")
+
+
+def test_fig_siesta_spinor():
+    pytest_importorskip_hamiltonio()
+    _run("fig_siesta_spinor.py", "si_spinor.png")
+
+
 def pytest_importorskip_hamiltonio():
     try:
         import HamiltonIO  # noqa: F401

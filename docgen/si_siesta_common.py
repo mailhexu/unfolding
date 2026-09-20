@@ -60,6 +60,33 @@ def make_unfolder(sc, prim, match_species=True):
     return LCAOUnfolder(HamiltonIOModel(sc), rm)
 
 
+def path_grid(npts=NPTS):
+    """k-grid over PATH in primitive fractional coordinates.
+
+    Returns ``(kpts, seg_starts)`` where ``seg_starts`` lists the index
+    of each segment's first point (junction positions for tick marks).
+    Segment point counts are proportional to Cartesian length, matching
+    the committed si_sc_path WaveFuncKPoints list at npts=150.
+    """
+    cell = np.array([[0.0, 0.5, 0.5], [0.5, 0.0, 0.5], [0.5, 0.5, 0.0]]) * 5.430
+    bcart = 2 * np.pi * np.linalg.inv(cell).T
+    segs = list(zip(PATH, PATH[1:]))
+    lengths = [
+        np.linalg.norm((np.array(SPECIAL[b]) - np.array(SPECIAL[a])) @ bcart)
+        for a, b in segs
+    ]
+    total = sum(lengths)
+    kpts, seg_starts = [], []
+    for i, (a, b) in enumerate(segs):
+        pa, pb = np.array(SPECIAL[a]), np.array(SPECIAL[b])
+        n = max(2, round(npts * lengths[i] / total) + 1)
+        last = i == len(segs) - 1
+        t = np.linspace(0.0, 1.0, n, endpoint=last)
+        seg_starts.append(len(kpts))
+        kpts.extend(pa + (pb - pa) * t[:, None])
+    return np.array(kpts), seg_starts
+
+
 def band_path(prim_atoms):
     """Primitive high-symmetry path: (kpts, x, Xq, knames).
 
@@ -71,30 +98,12 @@ def band_path(prim_atoms):
     """
     cell = np.asarray(prim_atoms.cell)
     bcart = 2 * np.pi * np.linalg.inv(cell).T
-    segs = []
-    for a, b in zip(PATH, PATH[1:]):
-        pa = np.array(SPECIAL[a])
-        pb = np.array(SPECIAL[b])
-        segs.append((a, b, np.linalg.norm((pb - pa) @ bcart)))
-    total = sum(d for *_, d in segs)
-
-    kpts, x, Xq, knames = [], [], [], [PATH[0]]
-    x0 = 0.0
-    for i, (a, b, d) in enumerate(segs):
-        pa = np.array(SPECIAL[a])
-        pb = np.array(SPECIAL[b])
-        n = max(2, round(NPTS * d / total) + 1)
-        last = i == len(segs) - 1
-        t = np.linspace(0.0, 1.0, n, endpoint=last)
-        kpts.extend(pa + (pb - pa) * t[:, None])
-        xs = x0 + t * d
-        x.extend(xs)
-        Xq.append(xs[0])
-        knames.append(b)
-        x0 = xs[-1]
-    Xq.append(x0)
-    knames = [{"G": "Γ"}.get(k, k) for k in knames]
-    return np.array(kpts), np.array(x), np.array(Xq), knames
+    kpts, seg_starts = path_grid()
+    d = np.linalg.norm(np.diff(kpts, axis=0) @ bcart, axis=1)
+    x = np.concatenate([[0.0], np.cumsum(d)])
+    Xq = [x[i] for i in seg_starts] + [x[-1]]
+    knames = [{"G": "Γ"}.get(s, s) for s in PATH]
+    return kpts, x, np.array(Xq), knames
 
 
 def prim_bands(prim, kfrac):
