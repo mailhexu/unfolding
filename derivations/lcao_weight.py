@@ -359,11 +359,11 @@ def spinor_reduction(seed: int = SEED) -> dict:
     )  # interlaced (a=0,sig=0), (a=0,sig=1), (a=1,sig=0), (a=1,sig=1)
     cu0, cu1, cd0, cd1 = sp.symbols("cu0 cu1 cd0 cd1")
     c = sp.Matrix([cu0, cd0, cu1, cd1])  # interlaced coefficients
-    W_spinor = sp.expand((c.T * Sp_spinor.inv() * c)[0, 0])
+    W_spinor = sp.expand((c.H * Sp_spinor.inv() * c)[0, 0])
     c_up = sp.Matrix([cu0, cu1])
     c_dn = sp.Matrix([cd0, cd1])
     W_split = sp.expand(
-        (c_up.T * Sp_up.inv() * c_up)[0, 0] + (c_dn.T * Sp_dn.inv() * c_dn)[0, 0]
+        (c_up.H * Sp_up.inv() * c_up)[0, 0] + (c_dn.H * Sp_dn.inv() * c_dn)[0, 0]
     )
     assert sp.simplify(W_spinor - W_split) == 0
 

@@ -23,15 +23,25 @@ def _spinor_tables():
     """Doubled primitive tables: interlaced (a, sigma) 4x4 blocks."""
     m = toy_lcao_model()
     H, S = m["H"], m["S"]
-    lam = 0.07  # on-site spin mixing (SOC-like): i*lam*sigma_y per orbital
-    mix = np.array([[0.0, 1j * lam], [-1j * lam, 0.0]])
+    # Nonseparable SOC-like mixing: lambda*tau_x kron sigma_x
+    # + lambda'*tau_z kron sigma_y (tau = orbital Pauli, sigma = spin
+    # Pauli). The spin matrices tied to the two orbital operators do
+    # not commute, so NO global spin rotation reduces the fixture to
+    # independent spin blocks (review ST009-001).
+    lam, lam2 = 0.07, 0.05
+    sx = np.array([[0.0, 1.0], [1.0, 0.0]])
+    sy = np.array([[0.0, -1j], [1j, 0.0]])
+    tz = np.diag([1.0, -1.0]).astype(complex)
+    tau_x = np.array([[0.0, 1.0], [1.0, 0.0]], dtype=complex)
+    mix = lam * np.kron(tau_x, sx) + lam2 * np.kron(tz, sy)
     Hs, Ss = {}, {}
     for T in (-1, 0, 1):
         Hs[T] = np.kron(H[T], np.eye(N_SPIN)).astype(complex)
         Ss[T] = np.kron(S[T], np.eye(N_SPIN)).astype(complex)
-    # on-site spin mixing on every orbital (block-diagonal in a)
-    for a in range(2):
-        Hs[0][2 * a:2 * a + 2, 2 * a:2 * a + 2] += mix
+    Hs[0] += mix  # on-site (T=0) spin-orbital mixing
+    # assert nonseparability: the spin blocks of the two mixing terms
+    # must not commute (else a global spin rotation would diagonalize)
+    assert abs(np.abs((sx @ sy - sy @ sx)).max()) > 1e-12
     return Hs, Ss
 
 
