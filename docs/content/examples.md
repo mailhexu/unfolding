@@ -119,3 +119,40 @@ test()
 The resulting unfolded band structure is saved as `unfolded.png`.
 
 {{< figure src="/images/catio3_unfolded.png" title="CaTiO3 Unfolded Band Structure" >}}
+## SIESTA: Si diamond (8-atom supercell)
+
+Unfold an 8-atom conventional-cell Si supercell calculation onto the
+2-atom primitive-cell path Gamma-X-W-Gamma-L-X. The fixtures
+(`si_sc.HSX`, `si_prim.HSX`) are committed under
+`tests/data/si_example/`; the script
+`docgen/fig_siesta_si.py` regenerates the figure without SIESTA
+(the Hamiltonian is read through
+[HamiltonIO](https://github.com/aimatores/HamiltonIO)'s sisl parser).
+
+```python
+import numpy as np
+from HamiltonIO.siesta.sisl_wrapper import SislParser
+
+from unfolding.lcao_unfolder import HamiltonIOModel, LCAOUnfolder
+from unfolding.mapping import RelabelMap
+from unfolding.plotphon import plot_band_weight
+
+class TorusSislParser(SislParser):
+    def read_Rlist(self, geom=None):
+        return self.ham.lattice.sc_off
+
+prim = TorusSislParser("si_prim.fdf").get_model()
+sc   = TorusSislParser("si_sc.fdf").get_model()
+
+B = np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])  # conv = B @ prim
+rm = RelabelMap.from_atoms(sc.atoms, prim.atoms, B,
+                           orb_counts_sc=[4]*8, orb_counts_prim=[4, 4])
+unf = LCAOUnfolder(HamiltonIOModel(sc), rm)
+res = unf.compute(kpts)          # kpts: primitive-cell path
+```
+
+The one-call variant is `unfold_siesta(fdf=..., prim_atoms=...,
+unfold_sc_mat=..., kpts=...)` (see the API reference); it parses the
+fdf through HamiltonIO directly.
+
+{{< figure src="/images/si_unfolded.png" title="SIESTA Si: 8-atom supercell unfolded onto the primitive path" >}}

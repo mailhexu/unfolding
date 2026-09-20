@@ -77,6 +77,8 @@ class phonon_unfolder:
         get the weight of a mode which has the wave vector of qpt and eigenvector of evec.
         W= sum_1^N < evec| T(r_i)exp(-I (K+G) * r_i| evec>, here G=0. T(r_i)exp(-I K r_i)| evec> = evec[indices[i]]
         """
+        if G is None:
+            G = np.zeros(len(qpt))
         weight = 0j
         N = len(self._trans_rs)
         for r_i, ind in zip(self._trans_rs, self._trans_indices):
