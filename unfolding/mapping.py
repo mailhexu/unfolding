@@ -262,4 +262,18 @@ class RelabelMap:
                 "check unfold_sc_mat against the supplied cells"
             )
 
-        return cls(sc_atoms, prim_atoms, atom_to_m, atom_to_r0, counts_sc, counts_prim)
+        self = cls(sc_atoms, prim_atoms, atom_to_m, atom_to_r0,
+                   counts_sc, counts_prim)
+        self.scmat = np.asarray(unfold_sc_mat, dtype=int)
+        # translation lookup keyed by (cell c, cell cp): the supercell
+        # integer triple T whose translation carries cell c onto cell cp
+        # on the torus (scmat @ T + offsets[c] - offsets[cp] ~= 0)
+        inv_scmat = np.linalg.inv(self.scmat.astype(float))
+        scmat_keys = {}
+        for c in range(n_offsets):
+            for cp in range(n_offsets):
+                dd = atom_to_r0[c] - atom_to_r0[cp]
+                T = np.round(dd @ inv_scmat).astype(int)
+                scmat_keys[(c, cp)] = tuple(int(v) for v in T)
+        self.scmat_keys = scmat_keys
+        return self

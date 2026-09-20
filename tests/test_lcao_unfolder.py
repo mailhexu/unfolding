@@ -86,7 +86,7 @@ def unfolder():
         orb_counts_sc=[2] * N_CELLS, orb_counts_prim=[2],
     )
     snap = {T: b.copy() for T, b in model.SR.items()}
-    unf = LCAOUnfolder(model, rm, np.diag([N_CELLS, 1, 1]))
+    unf = LCAOUnfolder(model, rm)
     yield unf, model
     # no mutation of the model object
     for T, b in model.SR.items():
@@ -184,7 +184,7 @@ def test_degenerate_averaging(unfolder):
         def hs_and_eigen(self, k):
             return self._H2, S, None
 
-    deg_unf = LCAOUnfolder(DegModel(model.HR, model.SR, H2), unf._rm, np.diag([N_CELLS, 1, 1]))
+    deg_unf = LCAOUnfolder(DegModel(model.HR, model.SR, H2), unf._rm)
     res = deg_unf.compute(ks)
     raw = res.weights[0]
     # without averaging the complement bands all carry weight ~1/|complement|
@@ -199,3 +199,90 @@ def test_degenerate_averaging(unfolder):
     assert avg.weights[0].max() <= raw[deg].sum() + 1e-10
     # total spectral weight conserved by the collapse
     assert abs(avg.weights[0].sum() - raw.sum()) < 1e-10
+
+
+def test_fold_row_convention_nonsymmetric():
+    # K = k @ scmat.T (row convention): each axis folds with its own
+    # replication factor; scmat.T @ k would be wrong for nonsymmetric
+    # supercell matrices
+    prim = Atoms("Si", positions=[(0, 0, 0)], cell=np.eye(3))
+    rm = RelabelMap.from_atoms(prim.repeat((2, 1, 1)), prim, np.diag([2, 1, 1]))
+    k = np.array([0.1, 0.3, 0.0])
+    assert np.allclose(unf_fold(rm, k), k @ rm.scmat.T)
+
+
+def unf_fold(rm, k):
+    from unfolding.lcao_unfolder import LCAOUnfolder
+
+    class _Stub:
+        SR = {0: np.eye(2)}
+        HR = {0: np.eye(2)}
+
+    return LCAOUnfolder(_Stub(), rm)._fold(k)
+
+
+def test_hamiltonio_adapter():
+    """The (Rlist, SR-array, HS_and_eigen)->4-values HamiltonIO surface
+    adapts to the backend-neutral interface and produces identical
+    weights."""
+    from unfolding.lcao_unfolder import HamiltonIOModel
+
+    model = _toy_supercell_model()
+    rlist = list(model.SR.keys())
+    sr_arr = np.stack([model.SR[T] for T in rlist])
+
+    class FakeHamiltonIOChannel:
+        """HamiltonIO/SislParser-shaped single spin channel."""
+
+        def __init__(self):
+            self.Rlist = rlist
+            self.SR = sr_arr
+
+        def HS_and_eigen(self, kpts):
+            k = np.asarray(kpts, dtype=float).ravel()
+            H = np.zeros((2 * N_CELLS, 2 * N_CELLS), complex)
+            S = np.zeros((2 * N_CELLS, 2 * N_CELLS), complex)
+            for T, block in model.HR.items():
+                H += block * np.exp(2j * np.pi * k[0] * T)
+            for T, block in model.SR.items():
+                S += block * np.exp(2j * np.pi * k[0] * T)
+            return H, S, eigh(H, S, eigvals_only=True), None
+
+    prim = Atoms(
+        "Si", positions=[[0.0, 0, 0]], cell=[[1.0, 0, 0], [0, 8.0, 0], [0, 0, 8.0]]
+    )
+    sc = prim.repeat((N_CELLS, 1, 1))
+    rm = RelabelMap.from_atoms(
+        sc, prim, np.diag([N_CELLS, 1, 1]),
+        orb_counts_sc=[2] * N_CELLS, orb_counts_prim=[2],
+    )
+    adapted = HamiltonIOModel(FakeHamiltonIOChannel())
+    unf = LCAOUnfolder(adapted, rm)
+    ks = np.array([[0.25, 0, 0], [0.5, 0, 0]])
+    res = unf.compute(ks)
+    ref = LCAOUnfolder(model, rm).compute(ks)
+    assert np.abs(res.weights - ref.weights).max() < 1e-12
+
+
+def test_defect_supercell_sum_rule(unfolder):
+    """A symmetry-broken overlap (defect) still satisfies the per-state
+    grid sum rule through the position-resolved sector Gram."""
+    model = _toy_supercell_model()
+    prim = Atoms(
+        "Si", positions=[[0.0, 0, 0]], cell=[[1.0, 0, 0], [0, 8.0, 0], [0, 0, 8.0]]
+    )
+    sc = prim.repeat((N_CELLS, 1, 1))
+    rm = RelabelMap.from_atoms(
+        sc, prim, np.diag([N_CELLS, 1, 1]),
+        orb_counts_sc=[2] * N_CELLS, orb_counts_prim=[2],
+    )
+    # break primitive translation symmetry: one supercell orbital's onsite
+    # overlap shifted (a local defect in the position-resolved S)
+    model.SR[0][4, 4] += 0.15
+    model.HR[0][4, 4] += 0.1
+
+    unf = LCAOUnfolder(model, rm)
+    ks = np.array([[i / N_CELLS, 0, 0] for i in range(N_CELLS)])
+    res = unf.compute(ks)
+    # per-state grid sum rule (each column = one supercell eigenstate)
+    assert np.abs(res.weights.sum(axis=0) - 1.0).max() < 1e-8
