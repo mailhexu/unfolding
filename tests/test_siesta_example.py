@@ -13,10 +13,12 @@ Sealed here:
    skew (non-diagonal) supercell matrix
    B = [[-1,1,1],[1,-1,1],[1,1,-1]].
 
-KNOWN OPEN DEFECT (not asserted here): at generic (non-commensurate)
-k the weights deviate by up to ~0.1 for this skew supercell; the
-phase conventions were validated on diagonal supercell matrices only.
-Tracked in story-010 of the project vault.
+The generic-k behaviour is covered by two weight definitions
+(``compute(method=...)``): the exact torus projection (ring) and the
+standard Popescu-Zunger/Lee ideal weight, sealed against the
+primitive-table oracle and the synthetic multi-shell fixture
+(test_synth_kgrid). See notes/weight-definitions.md in the project
+vault.
 """
 import numpy as np
 import pytest
@@ -127,3 +129,73 @@ def test_skew_supercell_gamma_group_weights(si_models):
             g = w[start:i].sum()
             assert abs(g - round(g)) < 1e-6, (start, i, g)
             start = i
+
+
+def _group_sums(eps, w, tol=1e-8):
+    """Sum weights within exactly-degenerate eigenvalue groups."""
+    order = np.argsort(eps)
+    out = []
+    i = 0
+    while i < len(eps):
+        j = i
+        while j < len(eps) and abs(eps[order[j]] - eps[order[i]]) < tol:
+            j += 1
+        out.append(float(np.sum(w[order[i:j]])))
+        i = j
+    return sorted(out)
+
+
+def test_wfsx_gamma_weights_oracle(si_models):
+    """WFSX eigenvector oracle: unfolding weights computed from the
+    SIESTA-native WFSX coefficients (independent eigenvector source)
+    match the HSX-diagonalization path per degenerate eigenvalue group."""
+    import sisl
+
+    prim, sc = si_models
+    from unfolding.lcao_unfolder import HamiltonIOModel, LCAOUnfolder
+    from unfolding.mapping import RelabelMap
+
+    B = np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])
+    rm = RelabelMap.from_atoms(
+        sc.atoms, prim.atoms, B, orb_counts_sc=[4] * 8, orb_counts_prim=[4, 4]
+    )
+    unf = LCAOUnfolder(HamiltonIOModel(sc), rm)
+    res = unf.compute(np.array([[0.0, 0.0, 0.0]]))
+
+    st = sisl.get_sile(os.path.join(DATA, "si_sc.selected.WFSX")).read_eigenstate()
+    C = np.asarray(st.state).T.astype(complex)  # (n_orb, n_bands)
+    e_st = np.asarray(st.c, dtype=float)
+    with open(os.path.join(DATA, "si_prim.EIG")) as fh:
+        e_fermi = float(fh.readlines()[0])
+    # the SC WFSX energies are Fermi-shifted like the prim ones
+    out = sc.HS_and_eigen(np.atleast_2d(np.zeros(3)))
+    Hs, Ss = np.asarray(out[0]), np.asarray(out[1])
+    eps_sc = eigh(Hs[0], Ss[0], eigvals_only=True)
+    shift = np.sort(eps_sc - np.sort(e_st))[0]
+    e_st = e_st + shift
+
+    A = unf._bra_overlap(np.zeros(3))
+    G = unf._sector_gram_block(np.zeros(3), np.zeros(3))
+    c = A @ C
+    x = np.linalg.solve(G, c)
+    w_wfsx = np.real(np.sum(np.conj(c) * x, axis=0))
+
+    def run_sums(e, w, tol=1e-6):
+        """Weight sums over consecutive eigenvalue runs (the same grouping
+        as the Gamma group-seal test above)."""
+        order = np.argsort(e)
+        e_s, w_s = e[order], w[order]
+        out, start = [], 0
+        for i in range(1, len(e_s) + 1):
+            if i == len(e_s) or e_s[i] - e_s[i - 1] > tol:
+                out.append(float(w_s[start:i].sum()))
+                start = i
+        return out
+
+    e_u = np.sort(e_st)
+    assert np.abs(e_u - np.sort(res.eigenvalues[0])).max() < 1e-4
+    gr = run_sums(res.eigenvalues[0], res.weights[0])
+    gw = run_sums(e_st, w_wfsx)
+    assert np.abs(np.array(gr) - np.array(gw)).max() < 1e-6, (gr, gw)
+    # the SIESTA-native states are exact folded states: clean 0/1 weights
+    assert np.abs(w_wfsx - np.round(w_wfsx)).max() < 1e-6, w_wfsx
