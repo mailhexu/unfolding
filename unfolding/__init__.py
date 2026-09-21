@@ -3,6 +3,7 @@ from .wfsx_unfolder import WFSXUnfolder, WFSXWeights
 from .mapping import RelabelMap, RelabelMapError
 from .phonon_unfolder import phonon_unfolder
 from .unfolder import Unfolder
+from .pw_unfolder import PWEigenData, PWUnfolder, PWWeights
 
 __all__ = [
     "HamiltonIOModel",
@@ -10,6 +11,9 @@ __all__ = [
     "LCAOWeights",
     "WFSXUnfolder",
     "WFSXWeights",
+    "PWEigenData",
+    "PWUnfolder",
+    "PWWeights",
     "RelabelMap",
     "RelabelMapError",
     "phonon_unfolder",
