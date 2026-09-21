@@ -62,7 +62,10 @@ def unf(phonon, sc_mat, qpoints, knames=None, x=None, xpts=None):
     freqs=qpoint_phonons['frequencies']
     eigvecs=qpoint_phonons['eigenvectors']
     uf=phonon_unfolder(atoms=prim, supercell_matrix=sc_mat, eigenvectors=eigvecs, qpoints=sc_qpoints, phase=False)
-    weights = uf.get_weights()
+    # phonopy eigenvectors carry only the fold label (q folded out of the
+    # gauge); the robust weights reproduce the shipped character-sum values
+    # bit-for-bit on pure gauges while also surviving mixed/real gauges.
+    weights = uf.get_weights_robust(freqs, gauge="fold")
 
     #ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*8065.6,weights[:,:].T*0.98+0.01,xticks=[knames,xpts],style='alpha')
     ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*THZ_TO_CM,weights[:,:].T*0.99+0.001,xticks=[knames,xpts],style='alpha')

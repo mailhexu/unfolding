@@ -37,6 +37,11 @@ pipeline. 23 commits, 81 files changed (+5365/−323).
   on multi-shell archives).
 - `phonon_unfolder.get_weight` crashed on `G=None` in the
   `phase=False` branch (the documented phonopy example path).
+- ABINIT DDB Cu_fcc unfolding now uses gauge-robust Bloch-sum projectors
+  and degenerate-block diagonalization; pristine weights are binary
+  despite anaddb's real/cosine eigenvector gauge.
+- Added regression seals for synthetic mixed gauges, real phonopy data,
+  and the real Cu_fcc DDB example.
 - Packaging: renewed `pyproject.toml`, optional extras
   (`phonopy`/`abipy`/`siesta`/`dev`), lazy backend imports, pytest
   suite, and GitHub Actions CI.

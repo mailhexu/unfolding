@@ -108,9 +108,12 @@ def DDB_unfolder(DDB_fname, kpath_bounds, sc_mat, knames=None, kx=None, dipdip=1
             #evec /= np.linalg.norm(evec)
             evec=displacement_cart_to_evec(phmode.displ_cart, masses, scaled_positions, add_phase=False)
             evecs[iqpt,:,ibranch] = evec
-            
     uf = phonon_unfolder(atoms,sc_mat,evecs,qpoints,phase=False)
-    weights = uf.get_weights()
+    # anaddb eigenvectors carry the full Bloch momentum (q+g gauge); the
+    # robust projector with gauge="bloch" resolves the +-k cosine mixtures
+    # that the bare character sum get_weights() cannot (binary 0/1 weights
+    # for a pristine supercell, verified on examples/Cu_fcc/out_DDB).
+    weights = uf.get_weights_robust(evals, gauge="bloch")
     x=np.arange(nqpts)
     freqs=evals
     xpts=[]

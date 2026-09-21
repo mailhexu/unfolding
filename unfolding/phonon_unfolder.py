@@ -110,3 +110,108 @@ class phonon_unfolder:
 
         self._weights = weights
         return self._weights
+
+    def _home_orbit_columns(self):
+        """DOF columns of one representative atom per translation orbit.
+
+        The translation group partitions the supercell atoms into orbits
+        (one per primitive-cell atom); the orbit representatives supply the
+        "home" degrees of freedom on which the Bloch sums used by
+        ``get_weights_robust`` are built.
+        """
+        nat = self._trans_indices.shape[1] // self._ndim
+        seen = set()
+        columns = []
+        for j in range(nat):
+            if j in seen:
+                continue
+            seen.update(int(i) for i in self._trans_indices[:, j * self._ndim] // self._ndim)
+            columns.extend(range(j * self._ndim, (j + 1) * self._ndim))
+        return np.array(columns, dtype=int)
+
+    def get_weights_robust(self, frequencies, gauge="fold", degenerate_tol=1e-6):
+        """Gauge-robust unfolding weights at the identity target k* = q.
+
+        For every stored supercell q-point, the weight of each mode is the
+        squared projection of its eigenvector onto the Bloch sums
+
+        $$
+        |kappa, k*> = (1/sqrt(N)) sum_r exp(-2 pi i (k* - q_carry).r) T_r |kappa>,
+        $$
+
+        built on the translation group {r} and the home atoms. The weight
+        matrix H = A^dagger A (with A the projection of the eigenvector
+        matrix onto those Bloch sums) is Hermitian positive semidefinite
+        for any eigenvector gauge, and diagonalizing it within degenerate
+        frequency groups yields per-branch weights that are exactly binary
+        (0 or 1) for a pristine supercell.
+
+        Two eigenvector gauges are supported:
+
+        - ``"fold"``: the eigenvectors carry only the fold label (phonopy's
+          convention); q_carry = q.
+        - ``"bloch"``: the eigenvectors carry the full Bloch momentum q+g
+          (anaddb's convention); q_carry = 0.
+
+        This repairs the historical fractional-weights failure of the
+        Abinit DDB route: on mirror-symmetric q-paths the real dynamical
+        matrix returns eigenvectors that are cosine mixtures of the +k and
+        -k fold sectors, which the bare character sum ``get_weights``
+        cannot resolve. ``frequencies`` are the mode eigenvalues in the
+        array's native unit (eV for the DDB route, THz for the phonopy
+        route); ``degenerate_tol`` groups modes in that unit.
+        """
+        if gauge not in ("fold", "bloch"):
+            raise ValueError("gauge must be 'fold' or 'bloch'")
+        evecs = np.asarray(self._evecs)
+        nqpts = evecs.shape[0]
+        R = np.asarray(self._trans_rs, dtype=float)
+        home = self._home_orbit_columns()
+        N = len(R)
+        weights = np.zeros_like(np.asarray(frequencies, dtype=float))
+        for iqpt in range(nqpts):
+            qpt = np.asarray(self._qpts[iqpt], dtype=float)
+            qcarry = qpt if gauge == "fold" else np.zeros_like(qpt)
+            ph = np.exp(-2j * np.pi * (R @ (qpt - qcarry)))
+            E = evecs[iqpt]
+            A = np.zeros((len(home), E.shape[1]), dtype=complex)
+            for ph_i, ind in zip(ph, self._trans_indices):
+                A += ph_i * E[ind][home, :]
+            A /= np.sqrt(N)
+            H = A.conj().T @ A
+            weights[iqpt] = _block_weights(H, frequencies[iqpt], degenerate_tol)
+        self._weights = weights
+        return weights
+
+
+def _block_weights(H, freqs, tol):
+    """Per-branch weights from a Hermitian weight matrix ``H``.
+
+    Modes are grouped by (near-)degenerate frequencies and ``H`` is
+    diagonalized inside each group: degenerate modes may be stored in any
+    unitary mixture (a real dynamical matrix on mirror-symmetric paths
+    mixes the +k and -k fold sectors), and only the group-resolved
+    eigenvalues are gauge invariant. Sorted eigenvalues are assigned to
+    the group's branches (any assignment is equivalent inside a
+    degenerate group).
+    """
+    freqs = np.asarray(freqs, dtype=float)
+    n = len(freqs)
+    w = np.zeros(n)
+    order = np.argsort(freqs)
+    f = freqs[order]
+    grp = np.zeros(n, dtype=int)
+    g = 0
+    for i in range(1, n):
+        if f[i] - f[i - 1] > tol:
+            g += 1
+        grp[i] = g
+    Ho = H[np.ix_(order, order)]
+    for gg in np.unique(grp):
+        sel = grp == gg
+        if sel.sum() == 1:
+            w[order[sel]] = Ho[sel, sel].real
+        else:
+            ev = np.linalg.eigvalsh(Ho[np.ix_(sel, sel)])
+            w[order[sel]] = np.sort(ev)[::-1]
+    return np.clip(w, 0.0, 1.0)
