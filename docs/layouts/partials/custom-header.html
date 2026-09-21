@@ -1,0 +1,24 @@
+<style>
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.2rem;
+  margin-top: 1rem;
+}
+.gallery-card {
+  border: 1px solid rgba(134,134,134,.25);
+  border-radius: .4rem;
+  padding: .8rem;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  background: rgba(134,134,134,.05);
+}
+.gallery-card h3 { margin: 0; font-size: 1.05rem; }
+.gallery-card p { margin: 0; font-size: .85rem; opacity: .8; }
+.gallery-card img {
+  width: 100%;
+  height: auto;
+  border-radius: .25rem;
+}
+</style>

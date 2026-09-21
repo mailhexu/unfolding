@@ -1,0 +1,12 @@
+{{- /* Gallery card: a titled, linked figure entry for the example index.
+Params: title (required), link (page path like "/examples/foo/"),
+src (image like "/images/foo.png"), text (one-line description).
+Emits final HTML so no goldmark raw-HTML stripping applies. */ -}}
+{{- $src := .Get "src" | strings.TrimPrefix "/" | absURL -}}
+{{- $link := .Get "link" | strings.TrimPrefix "/" | relURL -}}
+{{- $title := .Get "title" -}}
+<div class="gallery-card">
+    <h3><a href="{{ $link }}">{{ $title }}</a></h3>
+    <p>{{ .Get "text" }}</p>
+    <a href="{{ $link }}"><img src="{{ $src }}" alt="{{ $title }}" loading="lazy"></a>
+</div>
