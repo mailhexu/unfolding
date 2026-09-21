@@ -35,3 +35,14 @@ def test_phonon_projection_sum_rule():
 
     res = run()
     assert res["sector_sum_err"] < 1e-10
+
+
+def test_pw_weight_translation_projection():
+    from derivations.pw_weight import run
+
+    res = run()
+    assert all(res["symbolic_seals"].values())
+    assert res["binning_vs_projector_err"] < 1e-12
+    assert res["dual_vs_binning_err"] < 1e-12
+    assert res["sum_rule_err"] < 1e-12
+    assert res["folded_binary_err"] < 1e-12
