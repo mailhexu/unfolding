@@ -32,6 +32,7 @@ dependencies = [
 [project.optional-dependencies]
 phonopy = ["phonopy"]
 abipy = ["abipy"]
+abinit = ["netCDF4"]
 siesta = ["HamiltonIO[siesta]>=0.3.8"]
 dev = ["pytest", "sympy"]
 

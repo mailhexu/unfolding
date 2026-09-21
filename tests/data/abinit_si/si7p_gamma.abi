@@ -1,0 +1,39 @@
+# Si7P substitutional 8-atom conventional-cubic supercell at Gamma.
+# The final diamond site is P; smearing handles the odd 33-electron cell.
+acell 3*10.26
+rprim 1.0 0.0 0.0
+      0.0 1.0 0.0
+      0.0 0.0 1.0
+ntypat 2
+znucl 14 15
+natom 8
+typat 1 1 1 1 1 1 1 2
+xred
+  0.000 0.000 0.000
+  0.250 0.250 0.250
+  0.000 0.500 0.500
+  0.250 0.750 0.750
+  0.500 0.000 0.500
+  0.750 0.250 0.750
+  0.500 0.500 0.000
+  0.750 0.750 0.250
+
+ixc 11
+ecut 12
+nband 24
+kptopt 0
+nkpt 1
+kpt 0.0 0.0 0.0
+wtk 1.0
+istwfk 1
+iomode 3
+chkprim 0
+iscf 17
+occopt 3
+tsmear 0.005
+tolvrs 1.0d-10
+nstep 80
+prtwf 1
+diemac 12.0
+pp_dirpath "."
+pseudos "Si.psp8, P.psp8"

@@ -14,6 +14,9 @@ __all__ = [
     "PWEigenData",
     "PWUnfolder",
     "PWWeights",
+    "WFKData",
+    "read_wfk",
+    "unfold_abinit",
     "RelabelMap",
     "RelabelMapError",
     "phonon_unfolder",
@@ -28,6 +31,10 @@ __all__ = [
 # attributes order-dependent. Use `from unfolding.DDB_unfolder import DDB_unfolder`.
 _LAZY_EXPORTS = {
     "phonopy_unfold": ("unfolding.phonopy_unfolder", "phonopy"),
+    # WFKData has no backend; read_wfk checks netCDF4 only when invoked.
+    "WFKData": ("unfolding.abinit_unfold", None),
+    "read_wfk": ("unfolding.abinit_unfold", None),
+    "unfold_abinit": ("unfolding.abinit_unfold", None),
     # unfolding.siesta_unfold imports only numpy at module level; the
     # HamiltonIO dependency is checked lazily inside unfold_siesta when
     # an fdf is parsed (a pre-parsed `model=` needs no HamiltonIO).

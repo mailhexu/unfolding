@@ -1,0 +1,34 @@
+# 2-atom diamond Si primitive reference for the 8-atom conventional cell.
+# Its explicit k-set is exactly the set that folds to supercell Gamma.
+acell 3*10.26
+rprim 0.0 0.5 0.5
+      0.5 0.0 0.5
+      0.5 0.5 0.0
+ntypat 1
+znucl 14
+natom 2
+typat 1 1
+xred
+  0.00 0.00 0.00
+  0.25 0.25 0.25
+
+ixc 11
+ecut 12
+nband 24
+kptopt 0
+nkpt 4
+kpt
+  0.0 0.0 0.0
+  0.0 0.5 0.5
+  0.5 0.0 0.5
+  0.5 0.5 0.0
+wtk 0.25 0.25 0.25 0.25
+istwfk 1 1 1 1
+iomode 3
+iscf 17
+tolvrs 1.0d-10
+nstep 80
+prtwf 1
+diemac 12.0
+pp_dirpath "."
+pseudos "Si.psp8"

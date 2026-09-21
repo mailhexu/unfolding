@@ -8,6 +8,7 @@ overlays the independently computed primitive-cell band structure.
 import os
 import sys
 
+import numpy as np
 import si_siesta_common as common
 
 
@@ -45,7 +46,6 @@ def main(out_path):
 
 
 if __name__ == "__main__":
-    import numpy as np
 
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
         common.ROOT, "docs", "static", "images", "si_unfolded.png")

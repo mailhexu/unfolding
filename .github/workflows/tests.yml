@@ -21,9 +21,9 @@ jobs:
           # only exercised on 3.12. Guard tests simulate missing backends
           # via sys.modules poisoning and never need them installed.
           - python-version: "3.9"
-            extras: "dev"
+            extras: "dev,abinit"
           - python-version: "3.12"
-            extras: "dev,phonopy"
+            extras: "dev,phonopy,abinit"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
