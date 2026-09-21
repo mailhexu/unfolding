@@ -84,6 +84,8 @@ def test_si7p_path_maps_primitive_gamma_x_to_stored_supercell_points():
     sc_kpoints = np.mod(data.kpoints, 1.0)
     kpoints = np.mod(sc_kpoints @ np.linalg.inv(MATRIX.T), 1.0)
     result = PWUnfolder(data, MATRIX).compute(kpoints)
-    assert np.allclose(result.sc_kpoints, sc_kpoints)
+    # WFK k-points may carry components outside [0, 1) (e.g. W stored as
+    # (0.5, 1, 0)); they are equivalent modulo the SC reciprocal lattice.
+    assert np.allclose(np.mod(result.sc_kpoints, 1.0), sc_kpoints)
     assert result.weights.min() >= -1e-12
     assert result.weights.max() <= 1.0 + 1e-12
