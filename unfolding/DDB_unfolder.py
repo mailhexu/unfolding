@@ -175,8 +175,13 @@ def nc_unfolder(fname, sc_mat, kx=None, knames=None, plot_width=False, weight_mu
             evec=displacement_cart_to_evec(displ_carts[iqpt, ibranch,: ], masses, scaled_positions, add_phase=False)
             evecs[iqpt,:,ibranch] = evec
             
-    uf = phonon_unfolder(atoms,sc_mat,evecs,qpoints,phase=False)
-    weights = uf.get_weights()
+    uf = phonon_unfolder(atoms, sc_mat, evecs, qpoints, phase=False)
+    # anaddb eigenvectors carry the full Bloch momentum (gauge="bloch");
+    # the bare character sum cannot resolve the +/-k cosine mixtures the
+    # real dynamical matrix produces on mirror-symmetric paths and
+    # yields fractional weights - the robust projector weights are
+    # exactly 0/1 for a pristine supercell.
+    weights = uf.get_weights_robust(evals, gauge="bloch")
     if plot_width:
         weights=(weights*(1.0-weights))**(0.5)
     if weight_multiplied_by is not None:
