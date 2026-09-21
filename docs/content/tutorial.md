@@ -84,8 +84,9 @@ produces `si_unfolded.png` without running SIESTA.
 ## Unfold electron bands from ABINIT WFK
 
 Prerequisite: `pip install unfolding[abinit]`. The adapter reads ABINIT's
-ETSF netCDF WFK directly; it does not require abipy. The committed Si and
-Si7P fixtures under `tests/data/abinit_si/` are regenerated on nic6 with:
+ETSF netCDF WFK directly; it does not require abipy. The small Si and
+Si7P validation fixtures under `tests/data/abinit_si/` are committed;
+the dense 300-point Si7P documentation WFK is regenerated on nic6 and kept outside Git:
 
 | ABINIT input setting | Why it is required |
 |---|---|
@@ -110,12 +111,13 @@ import numpy as np
 from unfolding import unfold_abinit
 
 matrix = np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])
-kpts = np.array([[0.0, t / 2.0, t / 2.0] for t in (0, .25, .5, .75, 1)])
+NPTS = 300  # matches the dense SIESTA documentation path
+kpts = np.array([[0.0, t / 2.0, t / 2.0] for t in np.linspace(0.0, 1.0, NPTS)])
 wfk = Path('tests/data/abinit_si/si7p_gamma_x_patho_DS2_WFK.nc')
 
 ax = unfold_abinit(
     wfk, matrix, kpts,
-    knames=[r'$\Gamma$', 'X'], xqpts=np.linspace(0, 1, len(kpts)),
+    knames=[r'$\Gamma$', 'X'], xqpts=np.linspace(0, 1, NPTS),
     Xqpts=[0, 1], ylabel=r'Energy relative to $E_F$ (eV)',
 )
 ```

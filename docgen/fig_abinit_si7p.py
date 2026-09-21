@@ -1,5 +1,9 @@
 #!/usr/bin/env python
-"""Render the real ABINIT Si7P Gamma--X unfolded spectral-weight figure."""
+"""Render the ABINIT Si7P Gamma--X unfolded spectral-weight figure.
+
+The committed checkout uses the small WFK fixture. A dense 300-point WFK
+regenerated on nic6 is supported automatically when supplied at the same path.
+"""
 from pathlib import Path
 import sys
 
@@ -9,28 +13,31 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "tests" / "data" / "abinit_si"
 WFK = DATA / "si7p_gamma_x_patho_DS2_WFK.nc"
 MATRIX = np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]], dtype=int)
-KPTS = np.array([[0.0, t / 2.0, t / 2.0] for t in (0.0, 0.25, 0.5, 0.75, 1.0)])
-XQPTS = np.linspace(0.0, 1.0, len(KPTS))
 
 
 def main(out_path):
-    """Render the committed Si7P WFK fixture to ``out_path``."""
+    """Render the available Si7P WFK path to ``out_path``."""
     import matplotlib.pyplot as plt
 
     from unfolding.abinit_unfold import HARTREE_TO_EV, read_wfk, unfold_abinit
     from unfolding.pw_unfolder import PWUnfolder
 
     if not WFK.is_file():
-        raise FileNotFoundError(f"committed ABINIT Si7P path WFK not found: {WFK}")
+        raise FileNotFoundError(f"ABINIT Si7P path WFK not found: {WFK}")
 
     data = read_wfk(WFK)
-    result = PWUnfolder(data, MATRIX).compute(KPTS)
+    # Use every stored path point. The dense nic6 regeneration has 300 points;
+    # the small committed fixture has four unique points plus the periodic X
+    # endpoint, and remains a valid CI/docgen fallback.
+    kpts = np.mod(data.kpoints @ np.linalg.inv(MATRIX.T), 1.0)
+    xqpts = np.linspace(0.0, 1.0, len(kpts))
+    result = PWUnfolder(data, MATRIX).compute(kpts)
     ax = unfold_abinit(
         data=data,
         unfold_sc_mat=MATRIX,
-        kpts=KPTS,
+        kpts=kpts,
         knames=[r"$\Gamma$", "X"],
-        xqpts=XQPTS,
+        xqpts=xqpts,
         Xqpts=[0.0, 1.0],
         ylabel=r"Energy relative to $E_F$ (eV)",
         ypad=1.5,
@@ -38,7 +45,7 @@ def main(out_path):
     )
 
     energies = result.eigenvalues * HARTREE_TO_EV - data.fermi_energy * HARTREE_TO_EV
-    xmesh = np.broadcast_to(XQPTS[:, None], energies.shape)
+    xmesh = np.broadcast_to(xqpts[:, None], energies.shape)
     donor_window = (np.abs(energies) < 0.5) & (result.weights < 0.7)
     if np.any(donor_window):
         ax.scatter(
