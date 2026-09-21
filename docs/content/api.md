@@ -18,14 +18,19 @@ unfolded weights on `kpts`, and plots weight-coded bands
 (`LCAOWeights`-compatible). `spin` selects the spin channel of a
 collinear run.
 
-### `unfold_abinit(wfk=None, unfold_sc_mat=None, kpts=None, *, data=None, knames=None, xqpts=None, Xqpts=None, spin=0, average_degenerate=None, fermi_shift=True, axis=None, output=None, ...)`
+### `unfold_abinit(wfk=None, unfold_sc_mat=None, kpts=None, *, data=None, knames=None, xqpts=None, Xqpts=None, spin=0, average_degenerate=None, resolve_degenerate=None, fermi_shift=True, axis=None, output=None, style="alpha", ...)`
 
 One-call ABINIT planewave unfolding. `wfk` is an ETSF netCDF WFK written
 with `iomode 3` and full-G `istwfk 1` storage, or `data` is a pre-parsed
 `WFKData`. `unfold_sc_mat` uses the row convention `A_sc = M @ A_prim`
 and `kpts` are primitive fractional coordinates. Eigenvalues cross the
 Hartree-to-eV boundary here; the default Fermi shift requires the WFK
-header. `average_degenerate` is an eV tolerance. Returns matplotlib Axes.
+header. `average_degenerate` is an eV tolerance. `resolve_degenerate`
+(eV) eigen-assigns weights inside near-degenerate groups, restoring
+gauge-invariant branch weights when degenerate states are stored as
+unitary mixtures of their fold sectors. `style` accepts `"alpha"`,
+`"width"`, or `"scatter"` (per-point alpha; best for dense k-paths).
+Returns matplotlib Axes.
 
 
 ### `phonopy_unfold(sc_mat, unfold_sc_mat, force_constants, sposcar, qpts, qnames=None, xqpts=None, Xqpts=None)`

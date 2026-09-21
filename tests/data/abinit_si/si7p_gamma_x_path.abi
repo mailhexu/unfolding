@@ -46,7 +46,6 @@ prtwf1 0
 # Frozen-density SC reciprocal path: K=0..1 along x, matching the 300-point SIESTA doc path.
 getden2 1
 iscf2 -2
-nband2 8
 tolwfr2 1.0d-16
 nstep2 40
 kptopt2 0

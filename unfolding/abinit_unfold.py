@@ -199,6 +199,7 @@ def unfold_abinit(
     Xqpts=None,
     spin: int = 0,
     average_degenerate: float | None = None,
+    resolve_degenerate: float | None = None,
     fermi_shift: bool = True,
     axis=None,
     output=None,
@@ -229,6 +230,13 @@ def unfold_abinit(
         Collinear WFK spin-channel index.
     average_degenerate : float, optional
         Band-energy grouping tolerance in eV.
+    resolve_degenerate : float, optional
+        Band-energy tolerance in eV for eigen-assigning weights inside
+        near-degenerate groups. Degenerate bands may be stored as arbitrary
+        unitary mixtures of their fold sectors, which splits the per-band
+        weights randomly between k-points and renders as dotted or broken
+        weight-coded lines; resolving restores gauge-invariant branch
+        weights (0/1 for pristine sectors) and continuous lines.
     fermi_shift : bool
         Subtract the WFK Fermi header and draw zero as the Fermi level.
         Requires that the WFK carries a fermi_energy header.
@@ -267,7 +275,13 @@ def unfold_abinit(
             "to plot unshifted energies"
         )
 
-    result = PWUnfolder(data, unfold_sc_mat).compute(kpts, spin=spin)
+    result = PWUnfolder(data, unfold_sc_mat).compute(
+        kpts, spin=spin,
+        resolve_degenerate=(
+            resolve_degenerate / HARTREE_TO_EV
+            if resolve_degenerate is not None else None
+        ),
+    )
     shift = data.fermi_energy * HARTREE_TO_EV if fermi_shift else 0.0
     result_ev = PWWeights(
         result.kpoints,

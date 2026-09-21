@@ -51,6 +51,8 @@ ax = unfold_abinit(
     xqpts=np.linspace(0.0, 1.0, npts),
     Xqpts=[0.0, 1.0],
     ylabel=r'Energy relative to $E_F$ (eV)',
+    resolve_degenerate=1e-3,       # eV; keeps degenerate branch weights 0/1
+    style='scatter',               # dense-k rendering without crossing artifacts
 )
 ```
 
@@ -60,16 +62,21 @@ maps it to the stored supercell momentum internally: primitive
 converted from Hartree to eV at this boundary and shifted by the WFK's
 Fermi energy by default (`fermi_shift=False` for absolute energies).
 `average_degenerate` (eV) optionally averages weights over near-degenerate
-groups. Collinear spin channels are selected with `spin=`.
+groups, and `resolve_degenerate` (eV) is recommended for plotting: exact
+degeneracies may be stored as arbitrary unitary mixtures of their fold
+sectors, which splits the per-band weights from k-point to k-point and
+renders as dotted lines; resolving eigen-assigns gauge-invariant branch
+weights. Collinear spin channels are selected with `spin=`.
 
-{{< figure src="/images/si7p_abinit_unfolded.png" title="Si:P unfolded: host bands at weight 1; red markers flag the fractional donor-window states" >}}
+{{< figure src="/images/si7p_abinit_unfolded.png" title="Si:P unfolded: dark host bands at weight near 1, dimmer traces where the impurity mixes fold sectors" >}}
 
 ## Reading the figure
 
-Host bands keep weight 1. The donor states introduced by the substitution
-spread over several fold sectors and show fractional weight — highlighted
-by the red markers in the figure. Weights of a normalized state over all
-fold sectors sum to 1.
+Host bands keep weight near 1 and render as the darkest traces. The donor
+states introduced by the substitution, and host states hybridized with
+impurity-scattered sectors at avoided crossings, carry fractional weight
+and appear dimmer. Weights of a normalized state over all fold sectors sum
+to 1.
 
 ## Weights without plotting
 

@@ -287,13 +287,23 @@ class PWUnfolder:
             )
         return ik
 
-    def compute(self, kpoints, spin: int = 0) -> PWWeights:
+    def compute(self, kpoints, spin: int = 0, resolve_degenerate=None) -> PWWeights:
         """Compute weights for primitive fractional ``kpoints``.
 
         Each path point uses the matching stored SC k-point and sums the
         coefficients whose primitive fold label equals that path point.
         ``spin`` selects a collinear channel; the spinor axis is always
         traced, as required for SOC/noncollinear eigendata.
+
+        ``resolve_degenerate`` (tolerance in the native eigenvalue unit,
+        i.e. Hartree for WFK data) reassigns gauge-invariant weights inside
+        each near-degenerate energy group. Degenerate bands may be stored
+        in any unitary mixture of their fold sectors: the diagonal weights
+        then split arbitrarily between band indices from one k-point to the
+        next, which renders as dotted or fragmented weight-coded lines.
+        Eigen-assigning the sector-projector Gram matrix within each group
+        restores branch weights that are invariant under that mixing
+        (for a pristine sector the group eigenvalues are again 0/1).
         """
         kpoints = np.asarray(kpoints, dtype=float)
         if kpoints.ndim == 1:
@@ -302,6 +312,8 @@ class PWUnfolder:
             raise ValueError("kpoints must have shape (nk, 3)")
         if not 0 <= spin < self.eigendata.nspin:
             raise ValueError(f"spin must be in [0, {self.eigendata.nspin})")
+        if resolve_degenerate is not None and resolve_degenerate < 0:
+            raise ValueError("resolve_degenerate must be non-negative")
 
         nband = self.eigendata.eigenvalues[0].shape[1]
         if any(eig.shape[1] != nband for eig in self.eigendata.eigenvalues):
@@ -324,7 +336,20 @@ class PWUnfolder:
             delta = self._periodic_delta(np.mod(wavevectors, 1.0), fold)
             sector = np.linalg.norm(delta, axis=1) <= self.tol_k
             eig[i] = self.eigendata.eigenvalues[ik][spin]
-            weights[i] = (np.abs(coeff[:, :, sector]) ** 2).sum(axis=(1, 2))
+            projected = coeff[:, :, sector].reshape(coeff.shape[0], -1)
+            gram = projected @ projected.conj().T
+            weights[i] = gram.real.diagonal()
+            if resolve_degenerate:
+                order = np.argsort(eig[i], kind="stable")
+                energies = eig[i][order]
+                start = 0
+                for stop in range(1, nband + 1):
+                    if stop == nband or energies[stop] - energies[stop - 1] > resolve_degenerate:
+                        idx = order[start:stop]
+                        if stop - start > 1:
+                            block_ev = np.linalg.eigvalsh(gram[np.ix_(idx, idx)])
+                            weights[i][idx] = np.clip(np.sort(block_ev)[::-1], 0.0, 1.0)
+                        start = stop
             sc_kpoints[i] = K
 
         return PWWeights(kpoints, eig, weights, folds, sc_kpoints)

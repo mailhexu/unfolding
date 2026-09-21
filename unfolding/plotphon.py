@@ -54,22 +54,29 @@ def plot_band_weight(kslist,
         for i in range(len(kslist)):
             x = kslist[i]
             y = ekslist[i]
-            lwidths = np.array(wkslist[i]) * width
+            w = np.asarray(wkslist[i], dtype=float)
+            # Segment style uses the smaller endpoint weight so that weight
+            # transferring to a neighbouring band index at a crossing fades
+            # out instead of drawing a bright connector through the crossing.
+            seg_w = np.minimum(w[:-1], w[1:])
+            if style == 'scatter':
+                a.scatter(
+                    x, y, s=width * 4, marker='.',
+                    color=[colorConverter.to_rgba(color, alpha=min(w_, 1.0)) for w_ in w],
+                    linewidths=0,
+                )
+                continue
             points = np.array([x, y]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
             if style == 'width':
-                lc = LineCollection(segments, linewidths=lwidths, colors=color)
+                lc = LineCollection(segments, linewidths=seg_w * width, colors=color)
             elif style == 'alpha':
-                alphas = [np.abs(lwidth / (width + 0.011))
-                        for lwidth in lwidths
-                    ]
                 lc = LineCollection(
                     segments,
-                    linewidths=[2] * len(x),
+                    linewidths=[2] * len(seg_w),
                     colors=[
-                        colorConverter.to_rgba(
-                            color, alpha=np.abs(lwidth / (width + 0.011)))
-                        for lwidth in lwidths
+                        colorConverter.to_rgba(color, alpha=abs(w_ / (width + 0.011)))
+                        for w_ in seg_w
                     ])
 
             a.add_collection(lc)

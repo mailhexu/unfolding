@@ -3,6 +3,10 @@
 
 The committed checkout uses the small WFK fixture. A dense 300-point WFK
 regenerated on nic6 is supported automatically when supplied at the same path.
+Degenerate bands are stored as arbitrary unitary mixtures of their fold
+sectors, which would split the per-band weights between k-points and render
+as dotted/broken lines; ``resolve_degenerate`` eigen-assigns gauge-invariant
+branch weights so pristine lines stay continuous.
 """
 from pathlib import Path
 import sys
@@ -13,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "tests" / "data" / "abinit_si"
 WFK = DATA / "si7p_gamma_x_patho_DS2_WFK.nc"
 MATRIX = np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]], dtype=int)
+DEGEN_TOL_EV = 1e-3
 
 
 def main(out_path):
@@ -31,36 +36,25 @@ def main(out_path):
     # endpoint, and remains a valid CI/docgen fallback.
     kpts = np.mod(data.kpoints @ np.linalg.inv(MATRIX.T), 1.0)
     xqpts = np.linspace(0.0, 1.0, len(kpts))
-    result = PWUnfolder(data, MATRIX).compute(kpts)
+    result = PWUnfolder(data, MATRIX).compute(
+        kpts, resolve_degenerate=DEGEN_TOL_EV / HARTREE_TO_EV
+    )
     ax = unfold_abinit(
         data=data,
         unfold_sc_mat=MATRIX,
         kpts=kpts,
-        knames=[r"$\Gamma$", "X"],
+        style="scatter",
+        width=3.0,
         xqpts=xqpts,
         Xqpts=[0.0, 1.0],
         ylabel=r"Energy relative to $E_F$ (eV)",
         ypad=1.5,
         color="navy",
+        resolve_degenerate=DEGEN_TOL_EV,
     )
 
-    energies = result.eigenvalues * HARTREE_TO_EV - data.fermi_energy * HARTREE_TO_EV
-    xmesh = np.broadcast_to(xqpts[:, None], energies.shape)
-    donor_window = (np.abs(energies) < 0.5) & (result.weights < 0.7)
-    if np.any(donor_window):
-        ax.scatter(
-            xmesh[donor_window],
-            energies[donor_window],
-            s=14,
-            c="crimson",
-            marker="o",
-            linewidths=0,
-            zorder=6,
-            label="fractional donor-window weight",
-        )
-        ax.legend(loc="upper right", fontsize=8, framealpha=0.85)
     ax.set_title("ABINIT Si$_7$P unfolded spectral weight")
-    ax.figure.savefig(out_path, dpi=150, bbox_inches="tight")
+    ax.figure.savefig(out_path, dpi=200, bbox_inches="tight")
     plt.close(ax.figure)
     return out_path
 

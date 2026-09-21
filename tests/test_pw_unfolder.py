@@ -235,3 +235,43 @@ def test_pristine_degenerate_group_weight_is_binary_after_gauge_average():
     assert np.all((per_band.weights[:2] > 1e-12) & (per_band.weights[:2] < 1.0 - 1e-12))
     assert np.allclose(grouped.weights[:2, 0], 1.0, atol=1e-12)
     assert np.allclose(grouped.weights[2:, 0], 0.0, atol=1e-12)
+
+def test_pristine_degenerate_group_weight_is_binary_after_resolve_degenerate():
+    """Eigen-assignment restores 0/1 branch weights under mixing gauges."""
+    M = np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])
+    folds = PWUnfolder.fold_kpoints(M)
+    gvecs = np.array([np.rint(M @ folds[0]).astype(int),
+                      np.rint(M @ folds[1]).astype(int)])
+    rng = np.random.default_rng(23)
+    unitary, _ = np.linalg.qr(rng.normal(size=(2, 2)) + 1j * rng.normal(size=(2, 2)))
+    coeff = unitary[None, :, None, :]
+    data = _single_k_data(
+        K=(0.0, 0.0, 0.0),
+        gvecs=gvecs,
+        coeff=coeff,
+        eig=np.array([[0.0, 0.0]]),
+    )
+
+    plain = PWUnfolder(data, M).compute(folds)
+    resolved = PWUnfolder(data, M).compute(folds, resolve_degenerate=1e-8)
+
+    # arbitrary gauge: the stored mixture splits the weights fractionally
+    assert np.all((plain.weights[:2] > 1e-12) & (plain.weights[:2] < 1.0 - 1e-12))
+    # eigen-assignment: one branch carries the full sector weight again
+    binary_residual = np.minimum(
+        np.abs(resolved.weights[:2]), np.abs(resolved.weights[:2] - 1.0)
+    ).max()
+    assert binary_residual < 1e-12
+    assert resolved.weights[2:].max() < 1e-12
+
+
+def test_resolve_degenerate_rejects_negative_tolerance():
+    M = np.eye(3, dtype=int)
+    data = _single_k_data(
+        K=(0.0, 0.0, 0.0),
+        gvecs=np.zeros((1, 3), dtype=int),
+        coeff=np.ones((1, 1, 1, 1), dtype=complex),
+        eig=np.array([[0.0]]),
+    )
+    with pytest.raises(ValueError, match="resolve_degenerate"):
+        PWUnfolder(data, M).compute(np.zeros((1, 3)), resolve_degenerate=-1.0)
