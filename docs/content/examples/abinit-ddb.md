@@ -3,8 +3,6 @@ title: "ABINIT DDB phonons"
 weight: 7
 ---
 
-# ABINIT DDB phonons
-
 Unfold phonons from an ABINIT DDB (derivatives database) — the route runs
 ABINIT's `anaddb` through abipy to obtain the supercell eigenvectors along
 your path, then computes the unfolding weights.

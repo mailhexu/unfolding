@@ -3,8 +3,6 @@ title: "SIESTA Si bands"
 weight: 2
 ---
 
-# SIESTA Si bands
-
 Unfold a SIESTA supercell calculation onto the primitive-cell band path
 using the stored Hamiltonian. The example uses an 8-atom conventional-cubic
 Si supercell unfolded onto the 2-atom primitive fcc cell.

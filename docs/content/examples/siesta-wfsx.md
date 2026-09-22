@@ -3,8 +3,6 @@ title: "SIESTA WFSX route"
 weight: 3
 ---
 
-# SIESTA WFSX route
-
 If the supercell run already stored its wavefunctions, you can unfold from
 SIESTA's own eigenvectors and eigenvalues instead of diagonalizing the
 Hamiltonian — useful for large cells where you want the exact SCF states.

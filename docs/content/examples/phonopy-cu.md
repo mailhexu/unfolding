@@ -3,8 +3,6 @@ title: "Phonopy Cu phonons"
 weight: 1
 ---
 
-# Phonopy Cu phonons
-
 Unfold the phonon band structure of a 3×3×3 fcc Cu supercell, computed with
 phonopy, onto the primitive fcc Brillouin zone.
 

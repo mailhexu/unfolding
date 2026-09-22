@@ -36,6 +36,11 @@ def test_fig_abinit_si7p():
     _run("fig_abinit_si7p.py", "abinit_si7p.png")
 
 
+def test_fig_abinit_nio():
+    pytest.importorskip("netCDF4")
+    _run("fig_abinit_nio.py", "abinit_nio.png")
+
+
 def test_fig_siesta_si():
     pytest_importorskip_hamiltonio()
     _run("fig_siesta_si.py", "si.png")

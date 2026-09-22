@@ -3,8 +3,6 @@ title: "Introduction"
 weight: 1
 ---
 
-# Unfolding
-
 `unfolding` maps band structures computed in a **supercell** back onto the
 Brillouin zone of the **primitive cell** — the standard "band unfolding"
 analysis for defect, distorted, or commensurately-modulated calculations.

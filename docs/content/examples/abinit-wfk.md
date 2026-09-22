@@ -3,8 +3,6 @@ title: "ABINIT WFK Si and Si:P"
 weight: 6
 ---
 
-# ABINIT WFK Si and Si:P
-
 Unfold an ABINIT supercell calculation directly from its wavefunction file.
 The planewave basis is orthonormal, so the weight is a pure reciprocal-coset
 projection — no overlaps or atom maps are involved. Two examples: pristine

@@ -3,8 +3,6 @@ title: "SIESTA Si:P dopant"
 weight: 4
 ---
 
-# SIESTA Si:P dopant
-
 Unfolding earns its keep on defects. Replace one Si atom by P in the
 supercell and the unfolding weight measures how much each supercell state
 still resembles the ideal crystal.

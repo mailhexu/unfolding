@@ -3,8 +3,6 @@ title: "Installation"
 weight: 10
 ---
 
-# Installation
-
 Requires Python >= 3.9. Core dependencies: numpy, scipy, matplotlib, ase.
 
 ```bash

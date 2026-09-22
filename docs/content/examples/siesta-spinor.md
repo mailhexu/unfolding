@@ -3,8 +3,6 @@ title: "SIESTA spinors"
 weight: 5
 ---
 
-# SIESTA spinors
-
 Non-collinear (spinor, `nspin=4`) supercell runs unfold through the same
 machinery: the spinor pipeline is the parse → relabel → weight chain with
 doubled orbital counts (each PAO times two spin components).

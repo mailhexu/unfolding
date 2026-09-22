@@ -3,8 +3,6 @@ title: "Wannier90 SrTiO₃"
 weight: 8
 ---
 
-# Wannier90 SrTiO₃
-
 Unfold tight-binding Hamiltonians produced by Wannier90 — pristine and
 oxygen-vacancy supercells of SrTiO₃. The route is generic for any
 Wannier-derived (or other) tight-binding model that can solve the

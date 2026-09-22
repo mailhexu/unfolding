@@ -3,8 +3,6 @@ title: "API Reference"
 weight: 30
 ---
 
-# API Reference
-
 Curated reference for the public interfaces (see `unfolding/__init__.py`).
 
 ## Consumer entry points
