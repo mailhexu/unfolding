@@ -26,6 +26,11 @@ def test_fig_phonopy_cu():
     pytest.importorskip("phonopy")
     _run("fig_phonopy_cu.py", "phonopy.png")
 
+def test_fig_abinit_si8():
+    pytest.importorskip("netCDF4")
+    _run("fig_abinit_si8.py", "abinit_si8.png")
+
+
 def test_fig_abinit_si7p():
     pytest.importorskip("netCDF4")
     _run("fig_abinit_si7p.py", "abinit_si7p.png")

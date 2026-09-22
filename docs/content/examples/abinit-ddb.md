@@ -56,7 +56,12 @@ gauge of the DDB eigenvectors and degenerate crossings automatically.
 
 ## CaTiO₃
 
-The same interface with a tetragonal-ish setting of the perovskite cell:
+CaTiO₃'s ground state is the **Pnma** orthorhombic perovskite (a⁻b⁺a⁻
+octahedral tilts): a 20-atom cell with $a \approx b \approx \sqrt{2}\,a_{pc}$,
+$c \approx 2 a_{pc}$, four formula units of the 5-atom **pseudo-cubic**
+perovskite. The DDB comes from that Pnma cell; unfolding maps its phonons
+back onto the pseudo-cubic cell along the simple-cubic path Γ–X–M–Γ–R
+(X, M, R in pseudo-cubic fractional coordinates):
 
 ```python
 ax = DDB_unfolder('./out.DDB',
@@ -67,10 +72,17 @@ ax = DDB_unfolder('./out.DDB',
                   dipdip=0)
 ```
 
+The supercell matrix rows are the Pnma axes in pseudo-cubic units
+($(1,-1,0)$, $(1,1,0)$, $(0,0,2)$), i.e. $A_{Pnma} = M \cdot A_{pc}$.
 `kpath_bounds` is in the fractional frame of the DDB cell; `dipdip`
 toggles the dipole-dipole (LO-TO) treatment passed to anaddb.
 
-{{< figure src="/images/catio3_unfolded.png" title="CaTiO₃ phonons unfolded from a DDB" >}}
+Unlike pristine Cu, the weights are not binary: the anti-phase and
+in-phase octahedral tilts mix the pseudo-cubic fold sectors, so modes
+carry genuine fractional pseudo-cubic character — exactly the physics
+the unfolding is meant to expose.
+
+{{< figure src="/images/catio3_unfolded.png" title="CaTiO₃ Pnma phonons unfolded onto the pseudo-cubic cell: tilt-mixed modes carry fractional weight" >}}
 
 ## Weight conventions
 

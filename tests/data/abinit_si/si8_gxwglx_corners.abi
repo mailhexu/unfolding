@@ -1,0 +1,61 @@
+# Pristine Si8 sparse GXWGLWX corner fixture (Gamma, X, W, L) in SC coordinates
+# K = k_prim @ M.T, committed as the small regression WFK. The dense
+# 300-point version stays external; regenerate it with
+# regenerate_on_nic6.sh (si7p_gamma_x_path.abi).
+ndtset 2
+acell 3*10.26
+rprim 1.0 0.0 0.0
+      0.0 1.0 0.0
+      0.0 0.0 1.0
+ntypat 1
+znucl 14
+natom 8
+typat 1 1 1 1 1 1 1 1
+xred
+  0.000 0.000 0.000
+  0.250 0.250 0.250
+  0.000 0.500 0.500
+  0.250 0.750 0.750
+  0.500 0.000 0.500
+  0.750 0.250 0.750
+  0.500 0.500 0.000
+  0.750 0.750 0.250
+
+ixc 11
+ecut 12
+nband 24
+iomode 3
+chkprim 0
+occopt 3
+tsmear 0.005
+diemac 12.0
+pp_dirpath "."
+pseudos "Si.psp8"
+
+# Gamma SCF density.
+iscf1 17
+tolvrs1 1.0d-10
+nstep1 80
+kptopt1 0
+nkpt1 1
+kpt1 0.0 0.0 0.0
+wtk1 1.0
+istwfk1 1
+prtden1 1
+prtwf1 0
+
+# Frozen-density corner momenta.
+getden2 1
+iscf2 -2
+tolwfr2 1.0d-16
+nstep2 40
+kptopt2 0
+nkpt2 4
+kpt2
+  0.0000000000 0.0000000000 0.0000000000
+  0.0000000000 1.0000000000 0.0000000000
+  0.5000000000 1.0000000000 0.0000000000
+  0.5000000000 0.5000000000 0.5000000000
+wtk2 0.25 0.25 0.25 0.25
+istwfk2 1 1 1 1
+prtwf2 1
