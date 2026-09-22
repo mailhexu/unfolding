@@ -1,7 +1,6 @@
 ---
 title: "ABINIT WFK Si and Si:P"
 weight: 6
-draft: true
 ---
 
 # ABINIT WFK Si and Si:P
