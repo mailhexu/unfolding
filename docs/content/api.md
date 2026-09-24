@@ -31,6 +31,30 @@ unitary mixtures of their fold sectors. `style` accepts `"alpha"`,
 Returns matplotlib Axes.
 
 
+### `unfold_tb2j(source, unfold_sc_mat, qpts, knames=None, xqpts=None, Xqpts=None, spin_conf=None, degen_tolerance=1e-5, axis=None, output=None, style="alpha", ...)`
+
+One-call magnon downfolding from TB2J. `source` is a `TB2J_results`
+directory (with `TB2J.pickle`) or a configured TB2J `Magnon`;
+`unfold_sc_mat` uses the row convention `A_sc = M @ A_prim` (the
+magnetic cell onto the primitive chemical cell) and `qpts` are primitive
+fractional momenta. The collinear reference is the default (Q=0, ẑ
+axis, moments from the pickle); `spin_conf` overrides the moments.
+Eigenvectors are converted from TB2J's Cholesky frame to canonical BdG
+amplitudes before unfolding; energies plot in meV. Requires the `tb2j`
+extra. A thin CLI ships as `unfolding-magnon` (path + `--unfold-mat` +
+`--kpath`; the primitive cell is derived from the TB2J cell).
+
+### `MagnonUnfolder(eigendata, unfold_sc_mat, tol_k=1e-6)`
+
+Backend-free magnon engine over `MagnonEigenData` (stored supercell
+momenta, positive-mode energies, canonical BdG wavefunctions
+`(nk, nmode, 2*nmag)`, magnetic-atom fractional positions).
+`compute(qpts, resolve_degenerate=...)` returns `MagnonWeights`:
+the fold label is the requested primitive momentum itself; plain
+weights satisfy the per-mode sum rule over folds, and
+`resolve_degenerate` presents near-degenerate groups through their
+gauge-invariant group totals.
+
 ### `phonopy_unfold(sc_mat, unfold_sc_mat, force_constants, sposcar, qpts, qnames=None, xqpts=None, Xqpts=None)`
 
 Phonon supercell unfolding from phonopy FORCE_CONSTANTS: builds the

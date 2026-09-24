@@ -19,6 +19,8 @@ figure) on its own page.
 {{< card title="SIESTA spinors" link="/examples/siesta-spinor/" src="/images/si_spinor_unfolded.png" text="Non-collinear (nspin=4) supercells unfold through the same pipeline." >}}
 
 {{< card title="ABINIT WFK Si and Si:P" link="/examples/abinit-wfk/" src="/images/si8_abinit_unfolded.png" text="Planewave unfolding straight from an ETSF netCDF WFK; pristine Si validated against the primitive cell." >}}
+{{< card title="TB2J magnons SrMnO3" link="/examples/tb2j-magnon-srmmo3/" src="/images/srmmo3_magnon_unfolded.png" text="Downfold TB2J magnon bands from the G-AFM cell onto the pseudo-cubic primitive cell." >}}
+
 {{< card title="ABINIT WFK AFM NiO" link="/examples/abinit-nio/" src="/images/nio_afm_unfolded.png" text="Type-II antiferromagnet unfolded per spin channel onto the 2-atom primitive cell." >}}
 
 {{< card title="ABINIT DDB phonons" link="/examples/abinit-ddb/" src="/images/cu_fcc_unfolded.png" text="Phonon unfolding from ABINIT DDB files (Cu and CaTiO₃)." >}}

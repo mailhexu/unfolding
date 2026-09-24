@@ -41,6 +41,11 @@ def test_fig_abinit_nio():
     _run("fig_abinit_nio.py", "abinit_nio.png")
 
 
+def test_fig_srmmo3_magnon():
+    pytest.importorskip("TB2J")
+    _run("fig_srmmo3_magnon.py", "srmmo3_magnon.png")
+
+
 def test_fig_siesta_si():
     pytest_importorskip_hamiltonio()
     _run("fig_siesta_si.py", "si.png")
