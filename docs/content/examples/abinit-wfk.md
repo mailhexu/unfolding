@@ -38,6 +38,14 @@ practical points learned the hard way:
   `ecut ~ 15--18` Ha, but the deeper s manifold keeps moving well past
   that (the fixtures use `ecut 25`). An under-converged `ecut` displaces
   bands by whole eV's and the unfolded map inherits every displacement.
+- Use pseudopotentials your DFT code actually parses: the first version
+  of these fixtures used a locally generated ONCVPSP-4.0.1 file whose
+  header ABINIT misparses, which silently added flat ghost bands below
+  the valence and put the Fermi level inside the valence manifold —
+  pristine Si rendered as a metal. The fixtures now use the
+  Troullier-Martins fhi pseudos from the ABINIT test-suite Pspdir; a
+  Γ-point spectrum with extra singlets below the top valence triplet is
+  the tell-tale.
 
 ## Pristine Si: a known answer
 
@@ -50,7 +58,7 @@ and the unfolded bands *are* the primitive band structure. The crimson
 overlay is an independent primitive-cell calculation: after a single
 constant potential-reference shift (the supercell run uses a Γ-only SCF
 density, the primitive run a k-sampled one) the two agree to within
-~0.13 eV everywhere along the path.
+~0.07 eV everywhere along the path.
 
 ## Si:P: a defect in the same cell
 

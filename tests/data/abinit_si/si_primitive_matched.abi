@@ -12,7 +12,7 @@ xred
   0.00 0.00 0.00
   0.25 0.25 0.25
 
-ixc 11
+ixc 7
 ecut 12
 nband 24
 kptopt 0
@@ -31,4 +31,4 @@ nstep 80
 prtwf 1
 diemac 12.0
 pp_dirpath "."
-pseudos "Si.psp8"
+pseudos "14-Si.nlcc.fhi"

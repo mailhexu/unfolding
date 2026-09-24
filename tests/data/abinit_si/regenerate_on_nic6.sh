@@ -1,20 +1,20 @@
-#!/usr/bin/env bash
 # Regenerate the committed ABINIT Si and Si7P WFK fixtures on nic6.
 #
 # Usage (from any directory):
 #   bash tests/data/abinit_si/regenerate_on_nic6.sh
 #
 # Defaults are specific to this workstation and the swmgr-recorded nic6 build.
-# Override ABINIT_HOST, ABINIT_REMOTE_DIR, SI_PSP8, or P_PSP8 when needed.
-# Pseudo-dojo PSP8 files begin with a marker that ABINIT 10.9 does not parse;
-# the generator removes only that marker before staging the records.
+# The fixtures use the trusted ABINIT Pspdir LDA pseudos (Troullier-Martins
+# fhi, committed next to the inputs): the previously used locally generated
+# Dojo-NC-SR ONCVPSP-4.0.1 files carry header fields that ABINIT misparses
+# (lloc read as 4), which injects flat ghost bands below the valence and
+# breaks the Fermi level. Do NOT swap them back in without a ghost check.
 set -euo pipefail
 
 fixture_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 host=${ABINIT_HOST:-nic6}
-remote=${ABINIT_REMOTE_DIR:-/scratch/hexu/unfolding-abinit-si-fixtures}
-si_psp8=${SI_PSP8:-/home/hexu/projects/ABACUS-orbitals/generated/Dojo-NC-SR/PBE/Si.psp8}
-p_psp8=${P_PSP8:-/home/hexu/projects/ABACUS-orbitals/generated/Dojo-NC-SR/PBE/P.psp8}
+si_psp8=${SI_PSP8:-${fixture_dir}/14-Si.nlcc.fhi}
+p_psp8=${P_PSP8:-${fixture_dir}/15-P.LDA.fhi}
 stage=${TMPDIR:-/tmp}/unfolding-abinit-si-fixtures-$$
 
 cleanup() {
@@ -24,13 +24,9 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
-
-test -f "${si_psp8}"
-test -f "${p_psp8}"
-rtk mkdir -p "${stage}"
-rtk tail -n +2 "${si_psp8}" > "${stage}/Si.psp8"
-rtk tail -n +2 "${p_psp8}" > "${stage}/P.psp8"
-rtk md5sum "${stage}/Si.psp8" "${stage}/P.psp8"
+rtk cp "${si_psp8}" "${stage}/14-Si.nlcc.fhi"
+rtk cp "${p_psp8}" "${stage}/15-P.LDA.fhi"
+rtk md5sum "${stage}/14-Si.nlcc.fhi" "${stage}/15-P.LDA.fhi"
 
 rtk ssh "${host}" "rm -rf '${remote}' && mkdir -p '${remote}'"
 rtk scp \
@@ -38,8 +34,8 @@ rtk scp \
   "${fixture_dir}/si8_gamma.abi" \
   "${fixture_dir}/si7p_gamma.abi" \
   "${fixture_dir}/si7p_gamma_x_path.abi" \
-  "${stage}/Si.psp8" \
-  "${stage}/P.psp8" \
+  "${stage}/14-Si.nlcc.fhi" \
+  "${stage}/15-P.LDA.fhi" \
   "${host}:${remote}/"
 
 rtk ssh "${host}" "bash -s -- '${remote}'" <<'REMOTE'
