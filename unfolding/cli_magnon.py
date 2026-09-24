@@ -32,9 +32,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--unfold-mat",
         nargs=9,
         type=int,
-        required=True,
+        default=None,
         metavar=("M00", "M01", "M02", "M10", "M11", "M12", "M20", "M21", "M22"),
-        help="unfold matrix rows: A_sc = M @ A_prim (row convention)",
+        help="unfold matrix rows: A_sc = M @ A_prim (row convention); "
+        "required unless --primitive-cell is given",
+    )
+    parser.add_argument(
+        "--primitive-cell",
+        default=None,
+        help="optional path to an ASE-readable structure of the primitive "
+        "cell; the unfold matrix is derived as M = A_sc @ A_prim^-1",
     )
     parser.add_argument(
         "--kpath",
@@ -110,15 +117,34 @@ def main(argv=None) -> int:
         )
         return 2
 
-    M = np.array(args.unfold_mat, dtype=int).reshape(3, 3)
+    if args.unfold_mat is not None and args.primitive_cell is not None:
+        parser.error("give either --unfold-mat or --primitive-cell, not both")
     magnon = Magnon.from_TB2J_results(path=args.path)
+    if args.unfold_mat is not None:
+        M = np.array(args.unfold_mat, dtype=int).reshape(3, 3)
+    elif args.primitive_cell is not None:
+        from ase.io import read as ase_read
+
+        prim = ase_read(args.primitive_cell).cell.array
+        Mcart = np.asarray(magnon.cell, float) @ np.linalg.inv(prim)
+        M = np.rint(Mcart).astype(int)
+        if np.max(np.abs(Mcart - M)) > 1e-6:
+            parser.error(
+                "the primitive cell is not commensurate with the TB2J "
+                f"cell: A_sc @ A_prim^-1 = {np.round(Mcart, 6).tolist()}"
+            )
+    else:
+        parser.error("one of --unfold-mat or --primitive-cell is required")
     # set_reference also initializes Snorm (required by Hq); always call
     # it with the collinear defaults, overriding moments if given
-    magmoms = (
-        np.array(args.spin_conf, dtype=float).reshape(-1, 3)
-        if args.spin_conf is not None
-        else np.asarray(magnon.magmom, dtype=float)
-    )
+    magmoms = np.asarray(magnon.magmom, dtype=float)
+    if args.spin_conf is not None:
+        if len(args.spin_conf) != 3 * len(magmoms):
+            parser.error(
+                f"--spin-conf needs 3 x nspin = {3 * len(magmoms)} values, "
+                f"got {len(args.spin_conf)}"
+            )
+        magmoms = np.array(args.spin_conf, dtype=float).reshape(-1, 3)
     magnon.set_reference(
         Q=(0, 0, 0),
         uz=np.array([[0.0, 0.0, 1.0]]),

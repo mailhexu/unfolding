@@ -27,6 +27,7 @@ __all__ = [
     "Unfolder",
     "phonopy_unfold",
     "unfold_siesta",
+    "unfold_tb2j",
 ]
 
 # Symbols whose adapter modules need optional backends: name -> (module, extra).
@@ -43,6 +44,7 @@ _LAZY_EXPORTS = {
     # HamiltonIO dependency is checked lazily inside unfold_siesta when
     # an fdf is parsed (a pre-parsed `model=` needs no HamiltonIO).
     "unfold_siesta": ("unfolding.siesta_unfold", None),
+    "unfold_tb2j": ("unfolding.tb2j_unfold", "TB2J"),
 }
 
 

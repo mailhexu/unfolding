@@ -115,7 +115,7 @@ def site_labels(positions_sc, M):
     n_vec are integer coset labels; tau_prim = tau_sc @ M.T.
     """
     M = np.asarray(M, dtype=int)
-    tau_prim_raw = np.asarray(positions_sc) @ M.T
+    tau_prim_raw = np.asarray(positions_sc) @ M
     tau_prim = np.mod(tau_prim_raw, 1.0)
     n_vec = tau_prim_raw - tau_prim
     if np.max(np.abs(n_vec - np.round(n_vec))) > 1e-8:
@@ -250,7 +250,10 @@ def run():
     omega_sym = chain_dispersion_symbolic()
     omega_fn = sp.lambdify(sp.symbols("q J S", positive=True), omega_sym, "numpy")
 
-    M = np.array([[3, 0, 0], [0, 1, 0], [0, 0, 1]])
+    # non-symmetric on purpose: positions must transform with M (not
+    # M.T) -- the shear in the dummy y/z directions leaves the chain
+    # physics untouched but seals the asymmetric branch
+    M = np.array([[3, 0, 0], [0, 1, 1], [0, 0, 1]])
     nmag = 2 * NCELL
     positions = np.array([[j / nmag, 0.0, 0.0] for j in range(nmag)])
     qpts0, labels = fold_characters(M)

@@ -27,20 +27,24 @@ __all__ = ["unfold_tb2j", "magnon_eigendata_from_tb2j"]
 def _canonical_amplitudes(H, X):
     """(nk, nmode, 2N) TB2J Cholesky-frame modes -> canonical, normalized.
 
-    Psi = K @ X with K = chol(H) (mirroring TB2J's fallback shift when H
-    is not positive definite); rows are Euclidean-normalized so both BdG
-    sectors of a clean fold state carry the same fold character exactly.
+    Psi = K @ X with K from TB2J's exact fallback sequence (chol(H),
+    then chol(H + 1e-6 I), then a minimum-eigenvalue shift of 1e-6), so
+    the frame always matches the problem whose eigenvectors X solve;
+    rows are Euclidean-normalized so both BdG sectors of a clean fold
+    state carry the same fold character exactly.
     """
     nk, nmode, dim = X.shape
-    n = dim // 2
-    psi = np.empty_like(X)
+    psi = np.empty((nk, nmode, dim), dtype=complex)
     for ik in range(nk):
         Hk = H[ik]
         try:
             K = np.linalg.cholesky(Hk)
         except np.linalg.LinAlgError:
-            shift = np.min(np.linalg.eigvalsh(Hk))
-            K = np.linalg.cholesky(Hk - (shift - 1e-9) * np.eye(dim))
+            try:
+                K = np.linalg.cholesky(Hk + 1e-6 * np.eye(dim))
+            except np.linalg.LinAlgError:
+                shift = np.min(np.linalg.eigvalsh(Hk))
+                K = np.linalg.cholesky(Hk - (shift - 1e-6) * np.eye(dim))
         cand = (K @ X[ik].T).T
         psi[ik] = cand / np.linalg.norm(cand, axis=1)[:, None]
     return psi
@@ -57,10 +61,11 @@ def magnon_eigendata_from_tb2j(magnon, kpoints_sc) -> MagnonEigenData:
     es = magnon.get_magnon_eigenstates(kpoints_sc, include_wavefunctions=True)
     H = magnon.Hq(kpoints_sc)
     psi = _canonical_amplitudes(H, es.wavefunctions)
-    # Magnon.positions are cartesian (Angstrom); the engine wants
-    # supercell fractional coordinates
+    # Magnon.positions are cartesian (Angstrom); ASE cells store the
+    # lattice vectors as rows (cart = frac @ cell), so the inverse map
+    # is frac = cart @ inv(cell)
     cell = np.asarray(magnon.cell, dtype=float)
-    positions = np.asarray(magnon.positions, dtype=float) @ np.linalg.inv(cell).T
+    positions = np.asarray(magnon.positions, dtype=float) @ np.linalg.inv(cell)
     return MagnonEigenData(
         kpoints=kpoints_sc,
         energies=es.energies,
@@ -127,6 +132,14 @@ def unfold_tb2j(
         from TB2J.magnon.magnon3 import Magnon
 
         magnon = Magnon.from_TB2J_results(path=str(source))
+        # a freshly loaded Magnon has no Snorm (Hq requires it);
+        # initialize the collinear reference with the pickle moments
+        magnon.set_reference(
+            Q=(0, 0, 0),
+            uz=np.array([[0.0, 0.0, 1.0]]),
+            n=np.array([1.0, 0.0, 0.0]),
+            magmoms=np.asarray(magnon.magmom, dtype=float),
+        )
 
     qpts = np.asarray(qpts, dtype=float)
     M = np.asarray(unfold_sc_mat, dtype=int)
@@ -154,6 +167,11 @@ def unfold_tb2j(
         res.weights,
         res.sc_kpoints,
     )
+    if (knames is None) != (Xqpts is None):
+        raise ValueError(
+            "knames and Xqpts must be given together (tick labels and "
+            "tick positions are a pair)"
+        )
     ax = res_mev.plot(
         xqpts=xqpts,
         xticks=(knames, Xqpts) if knames is not None else None,

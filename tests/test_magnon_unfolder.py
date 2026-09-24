@@ -140,3 +140,26 @@ def test_plot_smoke():
     res = unf.compute(q)
     ax = res.plot(ylabel="Energy (meV)")
     assert ax is not None
+
+
+def test_nonsymmetric_unfold_matrix():
+    """Non-symmetric M: positions transform with M, momenta with M.T.
+
+    A shear in the dummy y/z directions leaves the chain physics
+    untouched but exercises the asymmetric branch (regression guard for
+    the positions @ M.T transpose bug).
+    """
+    Mshear = np.array([[3, 0, 0], [0, 1, 1], [0, 0, 1]])  # det 3, non-symmetric
+    K = np.array([0.14, 0.0, 0.0])
+    unf = MagnonUnfolder(_eigendata(np.ones(NMAG), K), Mshear)
+    labels = np.array([[j, 0, 0] for j in range(3)])
+    qfolds = np.mod(
+        np.linalg.solve(Mshear.T.astype(float), (K + labels).T.astype(float)).T, 1.0
+    )
+    plain = unf.compute(qfolds)
+    assert np.allclose(plain.weights.sum(axis=0), 1.0, atol=1e-10)
+    res = unf.compute(qfolds, resolve_degenerate=1e-9)
+    for row in range(res.weights.shape[0]):
+        w = np.sort(res.weights[row])[::-1]
+        assert w[:2].min() > 1 - 1e-8
+        assert w[2:].max() < 1e-8

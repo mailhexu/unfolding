@@ -55,22 +55,20 @@ class MagnonEigenData:
     positions: np.ndarray
 
     def __post_init__(self):
-        kpoints = np.asarray(self.kpoints, dtype=float)
-        energies = np.asarray(self.energies, dtype=float)
-        wavefunctions = np.asarray(self.wavefunctions)
-        positions = np.asarray(self.positions, dtype=float)
-        for name, arr in (
-            ("kpoints", kpoints),
-            ("energies", energies),
-            ("wavefunctions", wavefunctions),
-            ("positions", positions),
-        ):
-            arr.setflags(write=False)
-            object.__setattr__(self, name, arr)
-        if kpoints.ndim != 2 or kpoints.shape[1] != 3:
-            raise ValueError("kpoints must have shape (nk, 3)")
-        if positions.ndim != 2 or positions.shape[1] != 3:
-            raise ValueError("positions must have shape (nmag, 3)")
+        # own every input (asarray would alias caller arrays and
+        # setflags would freeze the caller's own write flag)
+        kpoints = np.array(self.kpoints, dtype=float, copy=True)
+        energies = np.array(self.energies, dtype=float, copy=True)
+        wavefunctions = np.array(self.wavefunctions, dtype=complex, copy=True)
+        positions = np.array(self.positions, dtype=float, copy=True)
+        if kpoints.ndim != 2 or kpoints.shape[1] != 3 or len(kpoints) == 0:
+            raise ValueError("kpoints must have shape (nk, 3) with nk >= 1")
+        if positions.ndim != 2 or positions.shape[1] != 3 or len(positions) == 0:
+            raise ValueError("positions must have shape (nmag, 3) with nmag >= 1")
+        if wavefunctions.ndim != 3:
+            raise ValueError(
+                "wavefunctions must have shape (nk, nmode, 2*nmag)"
+            )
         nmag = positions.shape[0]
         if energies.shape != (len(kpoints), wavefunctions.shape[1]):
             raise ValueError("energies must have shape (nk, nmode)")
@@ -78,6 +76,16 @@ class MagnonEigenData:
             raise ValueError(
                 "wavefunctions must have shape (nk, nmode, 2*nmag)"
             )
+        for name, arr in (
+            ("kpoints", kpoints),
+            ("energies", energies),
+            ("wavefunctions", wavefunctions),
+            ("positions", positions),
+        ):
+            if not np.all(np.isfinite(arr)):
+                raise ValueError(f"{name} must be finite")
+            arr.setflags(write=False)
+            object.__setattr__(self, name, arr)
 
 
 @dataclass(frozen=True)
@@ -157,7 +165,9 @@ class MagnonUnfolder:
     def _analyze_sites(self):
         """Per magnetic atom: primitive sublattice and coset label."""
         M = self.unfold_sc_mat.astype(float)
-        tau_prim_raw = self.eigendata.positions @ M.T
+        # row convention A_sc = M @ A_prim gives tau_prim = tau_sc @ M
+        # (positions transform with M, momenta with M.T)
+        tau_prim_raw = self.eigendata.positions @ M
         tau_prim = np.mod(tau_prim_raw, 1.0)
         n_vec = tau_prim_raw - tau_prim
         if np.max(np.abs(n_vec - np.round(n_vec))) > 1e-6:
@@ -235,7 +245,7 @@ class MagnonUnfolder:
         nmag = self.eigendata.positions.shape[0]
         wf = self.eigendata.wavefunctions[ik]
         chi = np.exp(-2j * np.pi * self._coset @ np.mod(fold, 1.0))  # (nmag,)
-        out = np.zeros_like(wf)
+        out = np.zeros(wf.shape, dtype=complex)
         for m in range(self.nsublattice):
             sel = self._sublattice == m
             for s_block in (slice(0, nmag), slice(nmag, 2 * nmag)):
