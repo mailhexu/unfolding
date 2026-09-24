@@ -46,3 +46,13 @@ def test_pw_weight_translation_projection():
     assert res["dual_vs_binning_err"] < 1e-12
     assert res["sum_rule_err"] < 1e-12
     assert res["folded_binary_err"] < 1e-12
+
+
+def test_magnon_weight_coset_projector():
+    from derivations.magnon_weight import run
+
+    res = run()
+    assert all(res["symbolic_seals"].values())
+    assert res["oracle_binary_err"] < 1e-12
+    assert res["oracle_sum_rule_err"] < 1e-12
+    assert res["oracle_energy_err"] < 1e-6
