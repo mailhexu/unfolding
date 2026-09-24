@@ -3,6 +3,7 @@ from .wfsx_unfolder import WFSXUnfolder, WFSXWeights
 from .mapping import RelabelMap, RelabelMapError
 from .phonon_unfolder import phonon_unfolder
 from .unfolder import Unfolder
+from .magnon_unfolder import MagnonEigenData, MagnonUnfolder, MagnonWeights
 from .pw_unfolder import PWEigenData, PWUnfolder, PWWeights
 
 __all__ = [
@@ -11,6 +12,9 @@ __all__ = [
     "LCAOWeights",
     "WFSXUnfolder",
     "WFSXWeights",
+    "MagnonEigenData",
+    "MagnonUnfolder",
+    "MagnonWeights",
     "PWEigenData",
     "PWUnfolder",
     "PWWeights",
