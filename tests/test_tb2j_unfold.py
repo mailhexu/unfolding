@@ -58,7 +58,7 @@ def test_unfold_weights_binary_and_sum_rule():
     # gauge (0.5/0.5) with the exact per-mode sum rule
     assert np.allclose(plain.weights.sum(axis=1), 1.0, atol=1e-8)
     # the group-total presentation is binary: one mode per fold
-    res = unf.compute(qpts, resolve_degenerate=1e-8)
+    res = unf.compute(qpts, resolve_degenerate=1e-5)
     binary = np.minimum(np.abs(res.weights), np.abs(res.weights - 1.0)).max()
     assert binary < 1e-8
     assert np.allclose(res.weights.sum(axis=1), 1.0, atol=1e-8)

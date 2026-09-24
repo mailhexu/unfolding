@@ -77,7 +77,7 @@ def unfold_tb2j(
     xqpts=None,
     Xqpts=None,
     spin_conf=None,
-    degen_tolerance=1e-8,
+    degen_tolerance=1e-5,
     axis=None,
     output=None,
     style="alpha",
@@ -104,7 +104,10 @@ def unfold_tb2j(
         Override the collinear magnetic moments (e.g. ``[[0, 0, 3],
         [0, 0, -3]]``); by default the moments from the pickle are used.
     degen_tolerance : float, optional
-        Energy tolerance for the degenerate-group presentation (eV).
+        Energy tolerance for the degenerate-group presentation (eV);
+        1e-5 eV by default -- symmetry degeneracies (the Q-periodic
+        G-AFM fold pairs) hold to the DFT extraction noise of ~1e-7 eV,
+        far below any physical magnon splitting.
     axis, output, style, color, width, title, ylabel
         Plotting options forwarded to ``MagnonWeights.plot``; energies
         are converted to meV for plotting.
