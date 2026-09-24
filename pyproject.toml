@@ -34,6 +34,7 @@ phonopy = ["phonopy"]
 abipy = ["abipy"]
 abinit = ["netCDF4"]
 siesta = ["HamiltonIO[siesta]>=0.3.8"]
+tb2j = ["TB2J"]
 dev = ["pytest", "sympy"]
 
 [project.urls]
