@@ -37,6 +37,9 @@ siesta = ["HamiltonIO[siesta]>=0.3.8"]
 tb2j = ["TB2J"]
 dev = ["pytest", "sympy"]
 
+[project.scripts]
+unfolding-magnon = "unfolding.cli_magnon:main"
+
 [project.urls]
 Homepage = "https://github.com/mailhexu/unfolding"
 Documentation = "https://mailhexu.github.io/unfolding/"

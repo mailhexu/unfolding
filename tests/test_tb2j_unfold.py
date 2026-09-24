@@ -75,3 +75,27 @@ def test_one_call_adapter_plots():
         spin_conf=[[0, 0, 2.81], [0, 0, -2.81]],
     )
     assert ax is not None
+
+
+def test_cli_reproduces_figure(tmp_path):
+    from unfolding.cli_magnon import main
+
+    out = tmp_path / "fig.png"
+    js = tmp_path / "data.json"
+    rc = main(
+        [
+            str(DATA),
+            "--unfold-mat", "0", "1", "1", "1", "0", "1", "1", "1", "0",
+            "--kpath", "GXMGR",
+            "--npts", "30",
+            "--output", str(out),
+            "--json", str(js),
+        ]
+    )
+    assert rc == 0
+    assert out.stat().st_size > 1000
+    import json as jsonlib
+
+    payload = jsonlib.loads(js.read_text())
+    assert len(payload["energies_mev"]) == 30
+    assert payload["energies_mev"][0][0] < 1.0  # Goldstone in meV
