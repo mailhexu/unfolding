@@ -58,3 +58,10 @@ or distorted supercell the same plot would show fractional weights.
 `read_phonopy(sposcar, sc_mat, force_constants=...)` returns the phonopy
 object and accepts `disp_yaml`/`force_sets` instead of `FORCE_CONSTANTS`;
 `unf(phonon, sc_mat, qpoints, ...)` runs the unfolding step alone.
+
+## Reproduce this example
+
+Download the [complete input bundle](/downloads/phonopy-cu.tar.gz)
+(`phonopy-cu.tar.gz`): input files, pseudopotentials, the fixture data
+needed for the figure, a `reproduce.py` script, and a `README.txt`
+with prerequisites and exact run instructions.

@@ -73,7 +73,14 @@ dispersion is Q-periodic — ω(q) = ω(q+Q) — so the two folds sharing a
 stored supercell momentum are exactly degenerate and the stored
 eigenvector gauge mixes them; the degenerate-group presentation resolves
 this to binary per-fold weights (the gauge-invariant content is the
-group-total weight). A Goldstone mode sits at Γ (0.03 meV here, set by
+group-total weight). A Goldstone mode sits at Γ (machine precision (< 1e-4 meV) here, set by
 the small magnetic anisotropy in the exchange set). Defects or
 non-collinear orders would produce genuinely fractional weights, exactly
 as in the electronic examples.
+
+## Reproduce this example
+
+Download the [complete input bundle](/downloads/tb2j-magnon-srmmo3.tar.gz)
+(`tb2j-magnon-srmmo3.tar.gz`): input files, pseudopotentials, the fixture data
+needed for the figure, a `reproduce.py` script, and a `README.txt`
+with prerequisites and exact run instructions.

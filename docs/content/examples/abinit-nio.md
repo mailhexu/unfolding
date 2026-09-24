@@ -84,3 +84,10 @@ the gap close (a Hubbard U restores the insulator without changing the
 unfolding recipe). The Ni-3s semicore multiplet near −60 eV (the
 pseudopotential carries 18 valence electrons) is out of the plotted
 window.
+
+## Reproduce this example
+
+Download the [complete input bundle](/downloads/abinit-nio.tar.gz)
+(`abinit-nio.tar.gz`): input files, pseudopotentials, the fixture data
+needed for the figure, a `reproduce.py` script, and a `README.txt`
+with prerequisites and exact run instructions.

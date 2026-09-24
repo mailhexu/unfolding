@@ -43,3 +43,10 @@ result = unf.compute(kpts, method="ideal")   # same path as the HSX route
   weights off by orders of magnitude, so it is pinned by tests).
 
 {{< figure src="/images/si_wfsx_unfolded.png" title="Same Si spectrum as the Hamiltonian route, obtained from stored wavefunctions without diagonalizing H" >}}
+
+## Reproduce this example
+
+Download the [complete input bundle](/downloads/siesta-wfsx.tar.gz)
+(`siesta-wfsx.tar.gz`): input files, pseudopotentials, the fixture data
+needed for the figure, a `reproduce.py` script, and a `README.txt`
+with prerequisites and exact run instructions.

@@ -90,3 +90,10 @@ matrices on mirror-symmetric paths return cosine mixtures of degenerate
 sectors). The unfolder uses gauge-robust Bloch-sum projectors with
 degenerate-group resolution, so pristine weights stay binary in either
 gauge.
+
+## Reproduce this example
+
+Download the [complete input bundle](/downloads/abinit-ddb.tar.gz)
+(`abinit-ddb.tar.gz`): input files, pseudopotentials, the fixture data
+needed for the figure, a `reproduce.py` script, and a `README.txt`
+with prerequisites and exact run instructions.

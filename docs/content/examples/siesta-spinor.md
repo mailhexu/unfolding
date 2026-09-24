@@ -35,3 +35,10 @@ Kramers degeneracy — a clean certification that the spinor bookkeeping
 With SOC on, the same pipeline yields the spinor unfolded spectrum.
 
 {{< figure src="/images/si_spinor_unfolded.png" title="Spinor (nspin=4) run: the spinor pipeline reproduces the primitive bands with Kramers degeneracy" >}}
+
+## Reproduce this example
+
+Download the [complete input bundle](/downloads/siesta-spinor.tar.gz)
+(`siesta-spinor.tar.gz`): input files, pseudopotentials, the fixture data
+needed for the figure, a `reproduce.py` script, and a `README.txt`
+with prerequisites and exact run instructions.

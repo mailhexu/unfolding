@@ -4,7 +4,8 @@ weight: 20
 ---
 
 Each card links to a full walkthrough (inputs, code, and how to read the
-figure) on its own page.
+figure) on its own page. Every example page ends with a downloadable
+reproduction bundle (inputs, pseudopotentials, data, script, README).
 
 {{< gallery >}}
 

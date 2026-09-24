@@ -120,3 +120,10 @@ result = PWUnfolder(data, matrix).compute(kpts)   # -> PWWeights
 
 `read_wfk` rejects unreadable variants with actionable messages (the
 `iomode 3` and `istwfk 1` remedies above).
+
+## Reproduce this example
+
+Download the [complete input bundle](/downloads/abinit-wfk-si.tar.gz)
+(`abinit-wfk-si.tar.gz`): input files, pseudopotentials, the fixture data
+needed for the figure, a `reproduce.py` script, and a `README.txt`
+with prerequisites and exact run instructions.

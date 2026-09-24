@@ -62,3 +62,10 @@ remain at weight 1 — the electronic analogue of the
 [SIESTA dopant example](../siesta-p-doped/).
 
 {{< figure src="/images/sto_defect.png" title="SrTiO₃ with an oxygen vacancy: defect bands appear at reduced weight" >}}
+
+## Reproduce this example
+
+Download the [complete input bundle](/downloads/wannier-sto.tar.gz)
+(`wannier-sto.tar.gz`): input files, pseudopotentials, the fixture data
+needed for the figure, a `reproduce.py` script, and a `README.txt`
+with prerequisites and exact run instructions.

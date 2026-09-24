@@ -82,3 +82,10 @@ rm = RelabelMap.from_atoms(sc_atoms, prim_atoms, unfold_sc_mat)
 unf = LCAOUnfolder(HamiltonIOModel(sc_model), rm)
 result = unf.compute(kpts, method="ideal")   # -> LCAOWeights
 ```
+
+## Reproduce this example
+
+Download the [complete input bundle](/downloads/siesta-si.tar.gz)
+(`siesta-si.tar.gz`): input files, pseudopotentials, the fixture data
+needed for the figure, a `reproduce.py` script, and a `README.txt`
+with prerequisites and exact run instructions.

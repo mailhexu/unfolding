@@ -45,3 +45,10 @@ rm = RelabelMap.from_atoms(sc_atoms, prim_atoms, unfold_sc_mat,
 ```
 
 so the dopant maps onto the host site it replaces.
+
+## Reproduce this example
+
+Download the [complete input bundle](/downloads/siesta-p-doped.tar.gz)
+(`siesta-p-doped.tar.gz`): input files, pseudopotentials, the fixture data
+needed for the figure, a `reproduce.py` script, and a `README.txt`
+with prerequisites and exact run instructions.
