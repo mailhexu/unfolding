@@ -22,7 +22,7 @@ xred
   0.750 0.750 0.250
 
 ixc 11
-ecut 12
+ecut 25
 nband 24
 iomode 3
 chkprim 0

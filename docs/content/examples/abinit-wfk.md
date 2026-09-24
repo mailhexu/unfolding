@@ -33,6 +33,12 @@ practical points learned the hard way:
   which jags individual eigenvalues by tenths of an eV and renders as
   broken band lines.
 
+- Converge `ecut` before trusting the picture: with the norm-conserving
+  pseudopotentials used here the upper valence is stable by
+  `ecut ~ 15--18` Ha, but the deeper s manifold keeps moving well past
+  that (the fixtures use `ecut 25`). An under-converged `ecut` displaces
+  bands by whole eV's and the unfolded map inherits every displacement.
+
 ## Pristine Si: a known answer
 
 {{< figure src="/images/si8_abinit_unfolded.png" title="Si 8-atom conventional cell unfolded onto the primitive path (blue intensity = spectral weight); crimson curves: independently computed primitive-cell bands" >}}
@@ -44,7 +50,7 @@ and the unfolded bands *are* the primitive band structure. The crimson
 overlay is an independent primitive-cell calculation: after a single
 constant potential-reference shift (the supercell run uses a Γ-only SCF
 density, the primitive run a k-sampled one) the two agree to within
-~0.08 eV everywhere along the path.
+~0.13 eV everywhere along the path.
 
 ## Si:P: a defect in the same cell
 
