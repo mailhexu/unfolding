@@ -44,7 +44,11 @@ remote=$1
 module use ~/privatemodules
 module load abinit/dev@d5380e0cb-gcc
 cd "${remote}"
-for input in si_primitive_matched.abi si8_gamma.abi si7p_gamma.abi si7p_gamma_x_path.abi; do
+# the five remaining decks produce large external outputs (dense path
+# WFKs ~750 MB each); they run here but are fetched manually
+for input in si_primitive_matched.abi si8_gamma.abi si7p_gamma.abi \
+              si7p_gxwglx_corners.abi si8_gxwglx_corners.abi \
+              si_prim_path.abi si8_gxwglwx.abi si7p_gamma_x_path.abi; do
   base=${input%.abi}
   abinit "${input}" > "${base}.abo" 2>&1
 done
