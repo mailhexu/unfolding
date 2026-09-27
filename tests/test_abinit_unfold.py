@@ -12,8 +12,7 @@ import pytest
 matplotlib.use("Agg")
 netCDF4 = pytest.importorskip("netCDF4")
 
-from HamiltonIO.abinit import HARTREE_TO_EV, WFKData, read_wfk
-from unfolding.abinit_unfold import unfold_abinit
+from unfolding.abinit_unfold import HARTREE_TO_EV, WFKData, read_wfk, unfold_abinit
 
 
 def _write_wfk(
@@ -142,7 +141,7 @@ def test_read_wfk_trims_padding_converts_complex_and_keeps_metadata(tmp_path):
 def test_read_wfk_streams_padded_arrays_per_kpoint(tmp_path, monkeypatch):
     path = tmp_path / "streamed_WFK.nc"
     _write_wfk(path)
-    module = importlib.import_module("HamiltonIO.abinit.wfk")
+    module = importlib.import_module("unfolding.abinit_unfold")
     monkeypatch.setattr(module, "_require_netcdf4", lambda: _StreamingDataset)
 
     data = read_wfk(path)

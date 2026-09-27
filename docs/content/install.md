@@ -17,9 +17,7 @@ Install the extra matching the code you want to read output from:
 |---|---|---|
 | `phonopy` | `phonopy_unfold` (phonon supercell unfolding) | phonopy |
 | `siesta` | `unfold_siesta` (SIESTA LCAO unfolding) | HamiltonIO >= 0.3.8, sisl |
-| `abinit` | `unfold_abinit` (ABINIT WFK unfolding); `HamiltonIO.abinit.read_wfk` parses the WFK | HamiltonIO >= 0.3.8, netCDF4 |
-| `abinit-paw` (manual) | PAW WFK + JTH XML spectral weights | HamiltonIO, pypao, abinao |
-| `vasp-paw` (manual) | PAW WAVECAR + licensed POTCAR spectral weights | HamiltonIO, pymatgen, pypao |
+| `abinit` | `read_wfk`, `unfold_abinit` (ABINIT WFK unfolding) | netCDF4 |
 | `abipy` | `DDB_unfolder` (ABINIT DDB phonon unfolding) | abipy + a working `anaddb` |
 | `dev` | test suite | pytest, sympy |
 
@@ -29,10 +27,6 @@ pip install unfolding[abinit]      # ABINIT WFK
 pip install unfolding[abipy]       # ABINIT DDB (needs anaddb)
 pip install unfolding[phonopy]     # phonopy force constants
 ```
-
-PAW backends also need `pypao` and `abinao` (ABINIT route), or
-`pymatgen` and `pypao` (VASP route). Install those packages in
-the same environment as unfolding; no VASP POTCAR is shipped or fetched.
 
 ## Notes
 

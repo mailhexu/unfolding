@@ -62,7 +62,7 @@ def match_path_subset(wfk_path, matrix=MATRIX):
     selects the frame of the stored k-points (supercell by default;
     identity for a primitive-cell WFK already on the path).
     """
-    from HamiltonIO.abinit import read_wfk
+    from unfolding.abinit_unfold import read_wfk
 
     kpts, xqpts, _ = siesta_style_path()
     data = read_wfk(wfk_path)
@@ -78,15 +78,9 @@ def match_path_subset(wfk_path, matrix=MATRIX):
     return data, kpts[sel], xqpts[sel]
 
 
-
-def pw_data(data):
-    """Transfer HamiltonIO WFK arrays to the backend-free unfolding core."""
-    from unfolding.pw_unfolder import PWEigenData
-    return PWEigenData(data.kpoints, data.gvecs, data.coefficients, data.eigenvalues)
-
 def spectral_weight_map(res, data):
     """(x, egrid, A, E) Gaussian-smeared effective-band-structure map."""
-    from HamiltonIO.abinit import HARTREE_TO_EV
+    from unfolding.abinit_unfold import HARTREE_TO_EV
 
     E = res.eigenvalues * HARTREE_TO_EV - data.fermi_energy * HARTREE_TO_EV
     W = np.clip(res.weights, 0.0, 1.0)

@@ -111,12 +111,11 @@ weights. Collinear spin channels are selected with `spin=`.
 ## Weights without plotting
 
 ```python
-from HamiltonIO.abinit import read_wfk
-from unfolding.pw_unfolder import PWEigenData, PWUnfolder
+from unfolding.abinit_unfold import read_wfk
+from unfolding.pw_unfolder import PWUnfolder
 
-data = read_wfk('si7p_patho_DS2_WFK.nc')
-eigen = PWEigenData(data.kpoints, data.gvecs, data.coefficients, data.eigenvalues)
-result = PWUnfolder(eigen, matrix).compute(kpts)
+data = read_wfk('si7p_patho_DS2_WFK.nc')   # -> immutable WFKData
+result = PWUnfolder(data, matrix).compute(kpts)   # -> PWWeights
 ```
 
 `read_wfk` rejects unreadable variants with actionable messages (the

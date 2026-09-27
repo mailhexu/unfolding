@@ -3,9 +3,9 @@ title: "Examples"
 weight: 20
 ---
 
-Each card links to a walkthrough with input settings and runnable
-reproduction scripts. Some fixtures are generated locally instead of
-bundled (large GPAW restarts and VASP's licensed POTCAR/WAVECAR).
+Each card links to a full walkthrough (inputs, code, and how to read the
+figure) on its own page. Every example page ends with a downloadable
+reproduction bundle (inputs, pseudopotentials, data, script, README).
 
 {{< gallery >}}
 
@@ -16,12 +16,6 @@ bundled (large GPAW restarts and VASP's licensed POTCAR/WAVECAR).
 {{< card title="SIESTA WFSX route" link="/examples/siesta-wfsx/" src="/images/si_wfsx_unfolded.png" text="Use SIESTA's own wavefunctions instead of diagonalizing the Hamiltonian." >}}
 
 {{< card title="SIESTA Si:P dopant" link="/examples/siesta-p-doped/" src="/images/si_p_doped_unfolded.png" text="A substitutional defect turns selected weights fractional." >}}
-{{< card title="OpenMX Si and Si:P" link="/examples/openmx-si/" src="/images/openmx_si_unfolded.png" text="Unfold OpenMX LCAO supercell bands from scfout Hamiltonian and overlap data." >}}
-{{< card title="GPAW LCAO Si and Si:P" link="/examples/gpaw-si/" src="/images/gpaw_si_unfolded.png" text="Unfold GPAW LCAO supercells using their finite-range orbital overlaps." >}}
-{{< card title="GPAW plane-wave Si and Si:P" link="/examples/gpaw-si-pw/" src="/images/gpaw_si_pw_unfolded.png" text="Unfold GPAW pseudo plane-wave coefficients, without PAW augmentation." >}}
-{{< card title="ABACUS LCAO Si and Si:P" link="/examples/abacus-si/" src="/images/abacus_si_unfolded.png" text="Unfold ABACUS numerical-orbital Hamiltonians with overlap-aware weights." >}}
-{{< card title="ABACUS plane-wave Si and Si:P" link="/examples/abacus-si-pw/" src="/images/abacus_si_pw_unfolded.png" text="Unfold ABACUS plane-wave coefficients on the primitive-cell path." >}}
-{{< card title="ABINIT and VASP PAW plane waves" link="/examples/paw-plane-wave/" src="/images/abinit_paw_si7p.png" text="Use PAW overlap augmentation for ABINIT Si:P and licensed VASP WAVECAR/POTCAR." >}}
 
 {{< card title="SIESTA spinors" link="/examples/siesta-spinor/" src="/images/si_spinor_unfolded.png" text="Non-collinear (nspin=4) supercells unfold through the same pipeline." >}}
 
