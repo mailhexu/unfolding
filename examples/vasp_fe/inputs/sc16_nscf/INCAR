@@ -1,0 +1,16 @@
+SYSTEM = bcc Fe 2x2x2 conv supercell (NSCF path, ICHARG=11)
+ISTART = 0
+ICHARG = 11
+KPAR = 8
+ISPIN = 2
+MAGMOM = 16*2.2
+ENCUT = 300
+NBANDS = 96
+ISMEAR = 0
+SIGMA = 0.05
+EDIFF = 1E-6
+ISYM = -1
+LREAL = .FALSE.
+PREC = Normal
+LWAVE = .TRUE.
+LCHARG = .FALSE.

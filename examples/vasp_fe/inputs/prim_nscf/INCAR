@@ -1,0 +1,16 @@
+SYSTEM = bcc Fe primitive cell (NSCF path, ICHARG=11)
+ISTART = 0
+ICHARG = 11
+ALGO = Exact
+ISPIN = 2
+MAGMOM = 1*2.2
+ENCUT = 300
+NBANDS = 96
+ISMEAR = 0
+SIGMA = 0.05
+EDIFF = 1E-6
+ISYM = -1
+LREAL = .FALSE.
+PREC = Normal
+LWAVE = .TRUE.
+LCHARG = .FALSE.

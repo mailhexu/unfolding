@@ -133,3 +133,127 @@ def test_paw_route_tracks_norm_conserving_route():
     host = [block[0] for block in paw_blocks
             if len(block) == 1 and -13.5 < paw_e[block[0]] < -12.0]
     assert host and paw_w[0, host[0]] > 0.8
+
+
+# --- dense 305-point GXWGLWX path fixtures (external, gitignored) ---
+PATH_PRIM = DATA / "si_prim_paw_patho_DS2_WFK.nc"
+PATH_SI = DATA / "si8_paw_patho_DS2_WFK.nc"
+PATH_DOPED = DATA / "si7p_paw_patho_DS2_WFK.nc"
+NC_DENSE = NC / "si8_gxwglwxo_DS2_WFK.nc"
+NPATH = 305
+
+_path_guard = pytest.mark.skipif(
+    not all(path.exists() for path in (PATH_PRIM, PATH_SI, PATH_DOPED)),
+    reason="dense-path PAW WFKs absent; regenerate with "
+           "tests/data/abinit_paw/regenerate_path_on_nic6.sh",
+)
+
+
+def _load_path_example():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "abinit_paw_unfold_path",
+        Path(__file__).resolve().parents[1] / "examples/abinit_paw/unfold_path.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture(scope="module")
+def dense_path():
+    """(example module, primitive, {name: (result, energies eV vs E_F)})."""
+    if not all(path.exists() for path in (PATH_PRIM, PATH_SI, PATH_DOPED)):
+        pytest.skip("dense-path PAW WFKs absent; regenerate with "
+                    "tests/data/abinit_paw/regenerate_path_on_nic6.sh")
+    example = _load_path_example()
+    primitive = read_paw_wfk(PATH_PRIM, XML)
+    results = {
+        name: example.unfold_system(path, primitive)
+        for name, path in (("si8", PATH_SI), ("si7p", PATH_DOPED))
+    }
+    return example, primitive, results
+
+
+@_path_guard
+def test_dense_path_axes_and_fixture_shape(dense_path):
+    example, primitive, results = dense_path
+    prim_k = primitive.wavefunctions.kpoints
+    assert prim_k.shape == (NPATH, 3)
+    x = example.path_positions(prim_k)
+    ticks = example.path_ticks(prim_k, x)
+    assert len(ticks) == len(example.PATH) == 7
+    assert ticks[0] == 0.0 and ticks[-1] == x[-1]
+    assert np.all(np.diff(ticks) > 0)
+    for result, energies in results.values():
+        assert result.weights.shape == (NPATH, 32)
+        assert energies.shape == (NPATH, 32)
+        assert np.max(np.abs(result.norm_residuals)) < 1e-5
+
+
+@_path_guard
+def test_dense_path_pristine_weights_stay_binary(dense_path):
+    """Away from Gamma the 4 sectors no longer share an eigenspace, but the
+    resolved pristine weights must still be binary at every generic point.
+
+    Scoped to the converged window: the top of the 32-band manifold
+    (above ~7 eV) is Davidson-tail and not weight-converged.
+    """
+    example, _, results = dense_path
+    result, energies = results["si8"]
+    window = (example.YRANGE[0], example.CONVERGED_EV)
+    # Measured worst 9.9e-4 (w = 0.999): every non-degenerate band point
+    # below 6 eV is binary to within the 1e-3 classifier tolerance.
+    assert example.binary_error(result, energies, window=window) < 2e-3
+    assert example.binary_fraction(result, energies, window=window) > 0.99
+    frac_e, frac_w = example.fractional_weights(result, energies, window=window)
+    assert frac_w.size == 0
+
+
+@_path_guard
+def test_dense_path_donor_sector_fractions(dense_path):
+    """Si7P: the donor window carries fractional single-sector weights.
+
+    The substitutional P breaks the primitive-cell translations that
+    define the sectors, so sector states mix along the whole path: the
+    donor window is densely fractional (donor charge spread over the four
+    sectors, median ~0.36 as in the Gamma-fold fixture), and even host
+    bands anticross into fractional states at isolated crossings.
+    """
+    example, _, results = dense_path
+    result, energies = results["si7p"]
+    window = (example.YRANGE[0], example.CONVERGED_EV)
+    frac_e, frac_w = example.fractional_weights(result, energies, window=window)
+    assert frac_w.size > 2000
+    assert np.all((frac_w > 0.05) & (frac_w < 0.95))
+    de, dw = example.fractional_weights(result, energies, window=(-1.5, 2.5))
+    assert de.size > 300
+    assert np.all((de > -1.5) & (de < 2.5))
+    assert 0.2 < np.median(dw) < 0.45
+    # The pristine reference system has no such mixing below 6 eV.
+    result8, energies8 = results["si8"]
+    _, frac8 = example.fractional_weights(
+        result8, energies8, window=window)
+    assert frac8.size == 0
+
+
+@pytest.mark.skipif(
+    not (NC_DENSE.exists() and PATH_PRIM.exists() and PATH_SI.exists()),
+    reason="dense PAW or norm-conserving path WFKs absent",
+)
+def test_dense_path_paw_bands_track_norm_conserving_bands():
+    """PAW and NC unfolded band positions agree on the shared 305-point path.
+
+    Both runs used a Gamma-only SCF density and the same Si8 geometry, so
+    after the global median shift the high-weight (binary) band positions
+    differ only by pseudo/PAW convergence (ecut 10 vs 25). Sorted-energy
+    matching can mispair conduction bands at crossings, so the median
+    deviation is pinned much tighter than the max.
+    """
+    example = _load_path_example()
+    primitive = read_paw_wfk(PATH_PRIM, XML)
+    result, energies = example.unfold_system(PATH_SI, primitive)
+    max_dE, shift, med_dE = example.compare_norm_conserving(result, energies, NC_DENSE)
+    assert np.abs(shift) < 0.2
+    assert max_dE < 0.25
+    assert med_dE < 0.05

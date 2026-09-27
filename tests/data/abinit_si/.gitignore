@@ -1,0 +1,5 @@
+# Dense 305-point path WFKs (~800 MB each) stay external: regenerate
+# with regenerate_on_nic6.sh. The corner DS2 WFKs are small and committed.
+/nio_afm_patho_DS2_WFK.nc
+/si8_gxwglwxo_DS2_WFK.nc
+/si_prim_patho_DS2_WFK.nc

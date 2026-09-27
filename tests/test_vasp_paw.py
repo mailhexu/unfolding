@@ -4,6 +4,8 @@ The POTCAR/WAVECAR are NOT redistributed. Set UNFOLDING_VASP_FE_SEED to a
 private directory with matching POSCAR, POTCAR and WAVECAR to exercise this.
 """
 import os
+import re
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -189,3 +191,75 @@ def test_resolution_removes_degenerate_gauge_scrambling():
     assert scrambled > 0.05
     assert np.max(np.minimum(np.abs(resolved.weights),
                              np.abs(1 - resolved.weights))) < 1e-4
+
+
+PATH_RUNS = Path(os.environ.get("UNFOLDING_VASP_FE_PATH", ""))
+PATH_FILES = (
+    "sc16_nscf/WAVECAR", "sc16_nscf/POSCAR",
+    "prim_nscf/WAVECAR", "prim_nscf/POSCAR",
+    "sc16_scf/OUTCAR", "prim_scf/OUTCAR",
+)
+
+
+def _run_efermi(outcar):
+    match = re.search(r"E-fermi\s*:\s*([-\d.]+)", Path(outcar).read_text())
+    return float(match.group(1))
+
+
+@pytest.mark.skipif(
+    not os.environ.get("UNFOLDING_VASP_FE_PATH")
+    or not os.environ.get("UNFOLDING_VASP_FE_SEED")
+    or not all((PATH_RUNS / file).is_file() for file in PATH_FILES),
+    reason="private VASP supercell-path fixtures unavailable",
+)
+def test_supercell_path_unfold_is_sector_binary_and_matches_primitive():
+    """Real 16-fold bcc-Fe NSCF along the folded GHNGPH path.
+
+    UNFOLDING_VASP_FE_PATH points at the run tree of examples/vasp_fe
+    (make_inputs.py + vasp: sc16_scf/sc16_nscf supercell and prim_scf/
+    prim_nscf primitive reference, same POTCAR and ENCUT). The example's
+    dense-path reader parses the WAVECAR with G lists enumerated in
+    VASP's stored k frame, which pymatgen's wrapped-k assumption gets
+    wrong for unwrapped KPAR k-points. Checks: the PAW S-metric restores
+    real supercell state norms, resolved weights are sector binary away
+    from degeneracies, and weight-1 branches reproduce the directly
+    computed primitive dispersion after E_F alignment.
+    """
+    sys.path.insert(
+        0, str(Path(__file__).resolve().parents[1] / "examples" / "vasp_fe")
+    )
+    from make_inputs import MATRIX
+    from read_wavecar_ordered import read_wavecar_ordered
+
+    subset = list(range(0, 250, 25))  # ten points spanning GHNGPH
+    sc = read_wavecar_ordered(
+        PATH_RUNS / "sc16_nscf/WAVECAR", PATH_RUNS / "sc16_nscf/POSCAR",
+        kpoint_indices=subset,
+    )
+    prim = read_wavecar_ordered(
+        PATH_RUNS / "prim_nscf/WAVECAR", PATH_RUNS / "prim_nscf/POSCAR",
+        kpoint_indices=subset,
+    )
+    ef_sc = _run_efermi(PATH_RUNS / "sc16_scf/OUTCAR")
+    ef_prim = _run_efermi(PATH_RUNS / "prim_scf/OUTCAR")
+    for spin in (0, 1):
+        result = unfold_vasp_paw(sc, prim, SEED / "POTCAR", np.asarray(MATRIX),
+                                 spin=spin, resolve_degenerate=1e-3)
+        assert np.max(np.abs(result.norm_residuals)) < 1e-4
+        weights = np.clip(result.weights, 0.0, 1.0)
+        energies = result.eigenvalues - ef_sc
+        window = (energies > -8.0) & (energies < 8.0)
+        gap = np.minimum(weights, np.abs(1 - weights))
+        assert np.mean(gap[window] > 0.05) < 0.01
+        primitive = np.asarray(prim.eigenvalues)[:, spin, :] - ef_prim
+        counted = 0
+        for ik in range(len(energies)):
+            for ib in np.flatnonzero((weights[ik] > 0.9) & window[ik]):
+                nearest = np.argmin(np.abs(primitive[ik] - energies[ik, ib]))
+                deviation = abs(energies[ik, ib] - primitive[ik, nearest])
+                assert deviation < 0.15
+                counted += 1
+        # ~6 d/sp branches per sampled path point have their fold partner
+        # at that momentum; the remaining supercell states belong to the
+        # other star points visited elsewhere along the path
+        assert counted > 40

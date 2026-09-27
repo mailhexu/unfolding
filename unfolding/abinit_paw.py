@@ -9,6 +9,7 @@ projection, not an assertion that a finite primitive band bank is complete.
 """
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -123,7 +124,11 @@ def unfold_abinit_paw(supercell, primitive, datasets, matrix, *, spin=0,
     if s.nspin != p.nspin or not 0 <= spin < s.nspin:
         raise ValueError("incompatible WFK spin channels")
     all_w, all_pseudo, all_e, all_norm = [], [], [], []
-    projector_cache = {}
+    # Each entry holds npw-scale projector blocks, so a dense path with
+    # hundreds of distinct momenta must not keep them all: bound to the
+    # last few folds (repeated high-symmetry folds are far apart anyway).
+    projector_cache: OrderedDict = OrderedDict()
+    PROJECTOR_CACHE_MAX = 4
     for ik, k in enumerate(p.kpoints):
         K = np.mod(k @ matrix.T, 1.0)
         distances = np.abs((np.mod(s.kpoints, 1.0) - K + .5) % 1.0 - .5).max(axis=1)
@@ -134,6 +139,8 @@ def unfold_abinit_paw(supercell, primitive, datasets, matrix, *, spin=0,
         ket = s.coefficients[isk][spin, :, 0, :]
         if isk not in projector_cache:
             projector_cache[isk] = _projector_blocks(supercell, isk)
+            if len(projector_cache) > PROJECTOR_CACHE_MAX:
+                projector_cache.popitem(last=False)
         blocks, corrections = projector_cache[isk]
         gram = _s_overlap(bra, bra, blocks, corrections)
         cross = _s_overlap(bra, ket, blocks, corrections)
