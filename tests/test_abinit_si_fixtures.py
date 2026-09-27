@@ -23,9 +23,11 @@ pytestmark = pytest.mark.skipif(not all(path.is_file() for path in FIXTURES), re
 
 def _reader_and_unfolder():
     pytest.importorskip("netCDF4")
-    from unfolding.abinit_unfold import HARTREE_TO_EV, read_wfk
-    from unfolding.pw_unfolder import PWUnfolder
-    return HARTREE_TO_EV, read_wfk, PWUnfolder
+    from HamiltonIO.abinit import HARTREE_TO_EV, read_wfk
+    from unfolding.pw_unfolder import PWEigenData, PWUnfolder
+    def unfolder(data, matrix):
+        return PWUnfolder(PWEigenData(data.kpoints, data.gvecs, data.coefficients, data.eigenvalues), matrix)
+    return HARTREE_TO_EV, read_wfk, unfolder
 
 
 def _max_norm_residual(data):
