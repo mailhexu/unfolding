@@ -14,12 +14,12 @@ import numpy as np
 
 from abinit_si_common import (
     DATA, DEGEN_TOL_EV, MATRIX, ROOT, match_path_subset, spectral_weight_map,
-    draw_map, siesta_style_path,
+    draw_map, siesta_style_path, pw_data,
 )
 
 
 def main(out_path):
-    from unfolding.abinit_unfold import HARTREE_TO_EV
+    from HamiltonIO.abinit import HARTREE_TO_EV
     from unfolding.pw_unfolder import PWUnfolder
 
     dense = DATA / "si8_gxwglwxo_DS2_WFK.nc"
@@ -29,7 +29,7 @@ def main(out_path):
         raise FileNotFoundError(f"no Si8 path WFK found (tried {dense.name}, {sparse.name})")
 
     data, kpts, x = match_path_subset(wfk)
-    res = PWUnfolder(data, MATRIX).compute(
+    res = PWUnfolder(pw_data(data), MATRIX).compute(
         kpts, resolve_degenerate=DEGEN_TOL_EV / HARTREE_TO_EV
     )
     E, W, egrid, A = spectral_weight_map(res, data)
@@ -38,7 +38,7 @@ def main(out_path):
     prim_wfk = DATA / "si_prim_patho_DS2_WFK.nc"
     if prim_wfk.is_file():
         pdata, pkpts, px = match_path_subset(prim_wfk, np.eye(3, dtype=int))
-        pres = PWUnfolder(pdata, np.eye(3, dtype=int)).compute(pkpts)
+        pres = PWUnfolder(pw_data(pdata), np.eye(3, dtype=int)).compute(pkpts)
         pe = pres.eigenvalues * HARTREE_TO_EV - pdata.fermi_energy * HARTREE_TO_EV
         # Align the potential reference by the median high-weight offset.
         hi = W > 0.9

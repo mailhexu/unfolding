@@ -1,0 +1,34 @@
+# ABINIT 10.5.8 PAW Si8 at supercell Gamma; primitive folds form 4 sectors.
+acell 3*10.26
+rprim 1 0 0  0 1 0  0 0 1
+ntypat 1
+znucl 14
+natom 8
+typat 8*1
+xred
+0 0 0
+0.25 0.25 0.25
+0 0.5 0.5
+0.25 0.75 0.75
+0.5 0 0.5
+0.75 0.25 0.75
+0.5 0.5 0
+0.75 0.75 0.25
+ixc 11
+ecut 10
+pawecutdg 20
+nband 24
+kptopt 0
+nkpt 1
+kpt 0 0 0
+wtk 1
+istwfk 1
+iomode 3
+chkprim 0
+iscf 17
+tolvrs 1.0d-8
+nstep 50
+prtwf 1
+diemac 12
+pp_dirpath "."
+pseudos "Si.xml"

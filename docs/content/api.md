@@ -103,7 +103,7 @@ Spinor (nspinor=2) variant: `RelabelMapSpinor.from_atoms`,
 
 ## Building blocks (planewave WFK path)
 
-### `read_wfk(path) -> WFKData`
+### `HamiltonIO.abinit.read_wfk(path) -> WFKData`
 
 Reads ABINIT 9/10 ETSF netCDF WFKs through the optional `netCDF4`
 dependency. It trims each padded plane-wave and band axis before storing
@@ -111,9 +111,29 @@ immutable per-k arrays; only full-G `istwfk == 1` complex storage is accepted.
 
 ### `WFKData`
 
-A `PWEigenData` subclass retaining the row-oriented WFK `rprimd`, `codvsn`,
-per-k `istwfk`, and Hartree Fermi energy. Pass it directly to `PWUnfolder`
-or through `unfold_abinit(data=...)`.
+A HamiltonIO record retaining row-oriented WFK `rprimd`, `codvsn`, per-k
+`istwfk`, and Hartree Fermi energy. Pass it to `unfold_abinit(data=...)`;
+for direct `PWUnfolder` use `PWEigenData(data.kpoints, data.gvecs,
+data.coefficients, data.eigenvalues)`.
+
+### `unfold_abinit_paw(supercell, primitive, datasets, matrix, spin=0, resolve_degenerate=None)`
+
+`HamiltonIO.abinit.read_paw_wfk` parses netCDF WFK and matching
+JTH XML data. The adapter embeds primitive reference bands into the
+supercell reciprocal basis and evaluates the PAW overlap metric.
+Returns PAW weights, pseudo-only coset fractions, Hartree energies,
+and per-band PAW norm residuals. The optional degeneracy tolerance is
+in Hartree. Scalar full-G WFKs only; a PAW WFK is rejected by the
+norm-conserving `unfold_abinit` shortcut.
+
+### `unfold_vasp_paw(supercell, primitive, potcar, matrix, spin=0, resolve_degenerate=None)`
+
+`HamiltonIO.vasp.read_wavecar` parses full-sphere scalar WAVECARs;
+`read_potcar_paw` parses the caller-supplied licensed POTCAR.
+Accepts parsed data or `(WAVECAR, POSCAR)` pairs. Returns PAW
+reference-band weights, pseudo fractions and eV energies. The optional
+degeneracy tolerance is in eV. VASP gamma-half and spinor WAVECARs
+are not supported; private POTCAR files must never be redistributed.
 
 ### `PWEigenData`, `PWUnfolder(eigendata, unfold_sc_mat)`, and `PWWeights`
 

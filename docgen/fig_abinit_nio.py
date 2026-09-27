@@ -14,8 +14,8 @@ import sys
 
 import numpy as np
 
-from abinit_si_common import DATA, KNAMES, ROOT, match_path_subset
-from unfolding.abinit_unfold import HARTREE_TO_EV
+from abinit_si_common import DATA, KNAMES, ROOT, match_path_subset, pw_data
+from HamiltonIO.abinit import HARTREE_TO_EV
 from unfolding.pw_unfolder import PWUnfolder
 
 # AFM magnetic supercell = 2x the 2-atom rocksalt primitive cell.
@@ -42,7 +42,7 @@ def main(out_path):
     data, kpts, x = match_path_subset(wfk, M_AFM)
     _, _, Xqpts = siesta_style_path()
 
-    res = PWUnfolder(data, M_AFM).compute(
+    res = PWUnfolder(pw_data(data), M_AFM).compute(
         kpts, spin=0, resolve_degenerate=1e-3 / HARTREE_TO_EV
     )
     E = res.eigenvalues * HARTREE_TO_EV - data.fermi_energy * HARTREE_TO_EV

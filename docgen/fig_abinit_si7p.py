@@ -11,12 +11,12 @@ import sys
 
 from abinit_si_common import (
     DATA, DEGEN_TOL_EV, MATRIX, ROOT, draw_map, match_path_subset,
-    siesta_style_path, spectral_weight_map,
+    siesta_style_path, spectral_weight_map, pw_data,
 )
 
 
 def main(out_path):
-    from unfolding.abinit_unfold import HARTREE_TO_EV
+    from HamiltonIO.abinit import HARTREE_TO_EV
     from unfolding.pw_unfolder import PWUnfolder
 
     wfk = DATA / "si7p_gamma_x_patho_DS2_WFK.nc"
@@ -24,7 +24,7 @@ def main(out_path):
         raise FileNotFoundError(f"ABINIT Si7P path WFK not found: {wfk}")
 
     data, kpts, x = match_path_subset(wfk)
-    res = PWUnfolder(data, MATRIX).compute(
+    res = PWUnfolder(pw_data(data), MATRIX).compute(
         kpts, resolve_degenerate=DEGEN_TOL_EV / HARTREE_TO_EV
     )
     _, _, egrid, A = spectral_weight_map(res, data)

@@ -1,0 +1,36 @@
+# ABINIT PAW Si7P Gamma, same lattice and site order as si8_gamma.
+acell 3*10.26
+rprim 1 0 0  0 1 0  0 0 1
+ntypat 2
+znucl 14 15
+natom 8
+typat 2 1 1 1 1 1 1 1
+xred
+0 0 0
+0.25 0.25 0.25
+0 0.5 0.5
+0.25 0.75 0.75
+0.5 0 0.5
+0.75 0.25 0.75
+0.5 0.5 0
+0.75 0.75 0.25
+ixc 11
+ecut 10
+pawecutdg 20
+nband 24
+kptopt 0
+nkpt 1
+kpt 0 0 0
+wtk 1
+istwfk 1
+iomode 3
+chkprim 0
+occopt 3
+tsmear 0.01
+iscf 17
+tolvrs 1.0d-8
+nstep 80
+prtwf 1
+diemac 12
+pp_dirpath "."
+pseudos "Si.xml, P.xml"
