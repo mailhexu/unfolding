@@ -1,0 +1,30 @@
+# VASP PAW bcc Fe: the 2x2x2 conventional supercell (16 atoms) unfolded
+# onto the 1-atom bcc primitive cell, spin-up channel. WAVECARs and the
+# POTCAR are user-supplied (never redistributed): produce them with
+# make_inputs.py + VASP as described in README.txt.
+route = "vasp-paw"
+
+[input]
+supercell = "runs/sc16_nscf/WAVECAR"
+supercell_poscar = "runs/sc16_nscf/POSCAR"
+primitive = "runs/prim_nscf/WAVECAR"
+primitive_poscar = "runs/prim_nscf/POSCAR"
+# YOUR licensed PAW_PBE Fe POTCAR; never shipped
+potcar = "POTCAR"
+
+[structure]
+# 2x2x2 conventional bcc cell = M @ primitive, det 16
+supercell_matrix = [[0, 2, 2], [2, 0, 2], [2, 2, 0]]
+
+[path]
+# tick labels along the stored Gamma-H-N-Gamma-P-H path
+# (xticks required with names)
+names = ["Γ", "H", "N", "Γ", "P", "H"]
+xticks = [0.0, 2.1923186696, 3.7425220675, 5.2927254653, 7.1913291264, 9.0899327875]
+
+[options]
+spin = 0
+resolve_degenerate = 0.001
+
+[output]
+output = "vasp_fe_spin_up.png"

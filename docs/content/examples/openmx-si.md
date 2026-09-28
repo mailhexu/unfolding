@@ -12,15 +12,42 @@ written with `HS.fileout on`), parsed by the HamiltonIO OpenMX adapter
 
 ## Running the example
 
-From your OpenMX run:
+Download the [openmx-si bundle](/downloads/openmx-si.tar.gz), unpack it,
+and work from the unpacked directory:
 
-- the `.scfout` file (written with `HS.fileout on`),
-- the primitive-cell structure (any ASE-readable file, or just the
-  lattice vectors).
+```bash
+tar xzf openmx-si.tar.gz && cd openmx-si
+python reproduce.py                     # -> openmx_si_unfolded.png
+```
 
-Use a k-sampled SCF (`scf.EigenvalueSolver band` plus `scf.Kgrid`): the
-stored real-space tables then cover a symmetric cube of periodic images
-(`atv_ijk` in OpenMX notation), which is what the unfolding sums over.
+The bundle ships the committed OpenMX outputs (`data/openmx_si_sc.scfout`
+for the 8-atom supercell and the 2-atom primitive reference) plus the
+`.dat` inputs, so the pristine figure needs no OpenMX installation —
+only the `unfolding` package importable (`pip install -e <unfolding
+repo checkout>`) with numpy, matplotlib, ase and HamiltonIO.
+
+The same computation through the unified CLI:
+
+```bash
+unfolding --config unfold.toml          # the bundled config
+# or, with explicit flags:
+unfolding openmx --scfout data/openmx_si_sc.scfout \
+  --primitive data/si_prim.vasp \
+  --unfold-mat -1 1 1 1 -1 1 1 1 -1 \
+  --special-points GXWGLWX --npts 300 --method ideal \
+  --output openmx_si_unfolded.png
+```
+
+```python
+# the same TOML through the Python entry points
+from unfolding import load_config, run
+
+run(load_config("unfold.toml"))
+```
+
+and the same computation from Python, either through the config file
+(`unfolding.config.load_config` validates, `unfolding.run` executes) or
+with explicit adapter parameters:
 
 ```python
 import numpy as np
@@ -34,7 +61,7 @@ prim = Atoms('Si2',
              pbc=True)
 
 ax = unfold_openmx(
-    scfout='si_sc.scfout',                     # 8-atom conventional cell
+    scfout='data/openmx_si_sc.scfout',         # 8-atom conventional cell
     prim_atoms=prim,                           # 2-atom fcc primitive cell
     unfold_sc_mat=np.array([[-1, 1, 1],        # conv cell = M @ prim
                             [1, -1, 1],
@@ -44,36 +71,68 @@ ax = unfold_openmx(
 )
 ```
 
-`unfold_sc_mat` uses the row convention `supercell = M @ primitive`;
-`method="ring"` selects the exact torus projection at commensurate
-momenta instead of the default ideal weight. The adapter parses the
-scfout through [HamiltonIO](https://github.com/aimatores/HamiltonIO)'s
-OpenmxParser, matches every supercell atom onto the primitive cell,
-computes the weights, and plots weight-coded bands in eV. For the doped
-supercell, substitute one Si by P (same 13-orbital `P7.0-s2p2d1` basis)
-and map the dopant onto the host site it replaces
-(`match_species=False`), as in the
-[SIESTA Si:P example](/examples/siesta-p-doped/).
+The doped figure (`openmx_si_p_doped.png`) needs the Si7P scfout, which
+is not shipped (three scfouts exceed the 10 MB bundle cap): produce it
+with OpenMX from the bundled `inputs/openmx_si_sc_p.dat` — copy your
+`Si_PBE19.vps` / `P_PBE19.vps` pseudopotentials next to it, run
+`openmx openmx_si_sc_p.dat`, place the resulting scfout in `data/`, then
+`python reproduce.py --doped`.
 
 {{< figure src="/images/openmx_si_unfolded.png" title="Unfolded OpenMX Si$_8$ bands along Γ-X-W-Γ-L-X; blue color intensity encodes the unfolding weight, red curves are the independently diagonalized OpenMX primitive-cell bands; energies in eV with zero at the run's Fermi level (ChemP)" >}}
 
 {{< figure src="/images/openmx_si_p_doped.png" title="Unfolded OpenMX Si$_7$P bands along the same path, dopant mapped onto the host site (match_species=False); same encoding, energies referenced to the Si:P run's Fermi level" >}}
 
-A runnable user-facing version of the workflow lives in
-`examples/openmx_si/unfold.py`.
+## Structures
+
+- **Primitive cell**: 2-atom fcc, a = 5.43 Å —
+  `cell = [[0, a/2, a/2], [a/2, 0, a/2], [a/2, a/2, 0]]`, Si at
+  (0,0,0) and (1/4,1/4,1/4) fractional. Shipped as
+  `data/si_prim.vasp` (any ASE-readable format works).
+- **Supercell**: 8-atom conventional cubic cell, related by the
+  supercell matrix `M = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]` with the
+  row convention **supercell = M @ primitive**; supercell momenta are
+  `K = k_prim @ M.T`.
+- **Basis**: Si7.0-s2p2d1 (13 orbitals per Si atom), Si_PBE19
+  pseudopotentials (OpenMX 2019 data set), GGA-PBE, spin unpolarized.
+- For Si:P, substitute one Si by P (same 13-orbital `P7.0-s2p2d1`
+  basis) and map the dopant onto the host site it replaces
+  (`match_species=false`, as in the
+  [SIESTA Si:P example](/examples/siesta-p-doped/)).
+
+## K-path
+
+Γ–X–W–Γ–L–W–X, 300 points; fcc special points in **primitive reciprocal
+fractional coordinates** (Setyawan–Curtarolo): Γ (0,0,0),
+X (½,0,½), W (½,¼,¾), L (½,½,½). Segment point counts are proportional
+to Cartesian length. Energies are in eV with **zero at the Fermi level
+of the run being unfolded** (OpenMX `ChemP` parsed from the scfout);
+the plot window is −13…8 eV.
+
+## Parameters
+
+| Parameter | Meaning |
+|---|---|
+| `scfout` | binary OpenMX output (needs `HS.fileout on`); parsed by HamiltonIO |
+| `primitive` | primitive-cell structure (ASE-readable) the branches are labeled with |
+| `unfold_sc_mat` | supercell matrix `M`, row convention supercell = M @ primitive |
+| `method` | `ideal` (default) generic-k spectral weight; `ring` is the exact torus projection at commensurate momenta |
+| `spin` | omit for unpolarized runs; collinear channel otherwise |
+| `match_species` | map supercell atoms onto same-species primitive sites (`false` for substitutional dopants) |
+| `tol_r` | atom-matching tolerance in Å (default 0.04) |
+| `efermi` | Fermi level in eV; the default 0.0 means "use ChemP from the scfout" |
+| `special_points` / `kpoints` | path as special-point letters on the primitive cell, or an explicit fractional list |
+| `npts` | points per path in special-points mode (default 200; the example uses 300) |
 
 ## Calculation background
 
-The committed fixtures under `tests/data/si_example/` are the exact runs
-used for the figures: `openmx_si_prim.scfout` (2-atom primitive cell,
-4×4×4 k-grid) and `openmx_si_sc.scfout` / `openmx_si_sc_p.scfout`
-(8-atom conventional cells, 2×2×2 k-grid), all GGA-PBE and spin
-unpolarized with the Si7.0-s2p2d1 / P7.0-s2p2d1 basis and Si_PBE19
-pseudopotentials (OpenMX 2019 data set, a = 5.43 Å). Conventions:
-OpenMX builds `H(k) = sum_R exp(+2 pi i k.R) H(R)` with fractional
-k-points and the integer image translations `R` from `atv_ijk`
-(`EigenValue_Problem.c`), identical to HamiltonIO convention 2; scfout
-energies are Hartree and the geometry Bohr, both converted on parse;
-each panel is shifted so the parsed Fermi level (`ChemP`) of the run
-being unfolded sits at zero. Regenerate the figures headless with
-`python docgen/fig_openmx_si.py`.
+The committed fixtures are the exact runs behind the figures, produced
+with OpenMX 3.9 (2019 data files), GGA-PBE, `scf.EigenvalueSolver
+band`, `HS.fileout on`: a 2-atom primitive cell on a 4×4×4 k-grid and
+8-atom conventional cells on 2×2×2 k-grids. A k-sampled SCF is
+essential: a Γ-only run collapses all supercell image shells into a
+single R = 0 block, which cannot be unfolded at generic momenta.
+Conventions: OpenMX builds `H(k) = Σ_R exp(+2πi k·R) H(R)` with
+fractional k-points and the integer image translations `R` from
+`atv_ijk`; scfout energies are Hartree and the geometry Bohr, both
+converted on parse. The supercell inputs ship in `inputs/` so every run
+can be regenerated from scratch.

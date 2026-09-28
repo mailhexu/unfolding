@@ -3,61 +3,101 @@ title: "Phonopy Cu phonons"
 weight: 1
 ---
 
-Unfold the phonon band structure of a 3×3×3 fcc Cu supercell, computed with
-phonopy, onto the primitive fcc Brillouin zone with the `phonopy_unfold`
-adapter.
+Unfold the phonon band structure of a 3×3×3 fcc Cu supercell, computed
+with phonopy, onto the primitive fcc Brillouin zone. For a pristine
+crystal every supercell phonon folds from exactly one primitive
+momentum, so the weights are binary: three bold branches trace the
+primitive Cu dispersion while the other 24 folded copies of the
+27-atom cell stay invisible. In a defective or distorted supercell the
+same plot shows fractional weights.
 
-## Running the example
+## The bundle
 
-A finished phonopy run on the supercell provides two inputs:
+Download [phonopy-cu.tar.gz](/downloads/phonopy-cu.tar.gz) and unpack
+it:
 
-- `FORCE_CONSTANTS` — the second-order force constants,
-- `SPOSCAR` — the supercell structure.
+```console
+tar xf phonopy-cu.tar.gz && cd phonopy-cu
+```
+
+Shipped: the phonopy run's `FORCE_CONSTANTS` (27×27) and `SPOSCAR`
+(the 3×3×3 supercell, a = 3.61 Å), `unfold.toml`, and `reproduce.py`.
+Prerequisites: `pip install "unfolding[phonopy]"` (phonopy, ase,
+spglib). No DFT is involved.
+
+## Structure and k-path
+
+| | |
+|---|---|
+| supercell | `SPOSCAR`, the 3×3×3 cell itself; reading matrix `sc_mat = diag(1,1,1)` |
+| unfolding matrix | `M = diag(3,3,3)`, row convention `A_sc = M @ A_prim`; the path cell is derived as `inv(M) @` SPOSCAR cell (the primitive fcc cell) |
+| q-path | Γ-X-W-Γ-L, 300 points in primitive reciprocal fractional coordinates (Setyawan–Curtarolo points via ase) |
+| units | frequencies read from phonopy in THz, plotted in cm⁻¹ |
+
+## Run it
+
+From the unpacked bundle directory, one command with the shipped
+config:
+
+```console
+unfolding --config unfold.toml          # -> unfolded_band_structure.png
+```
+
+The same TOML can be passed as the only Python input:
+
+```python
+from unfolding import load_config, run
+run(load_config("unfold.toml"))
+```
+
+or with explicit flags:
+
+```console
+unfolding phonopy --force-constants FORCE_CONSTANTS --sposcar SPOSCAR \
+    --unfold-mat 3 0 0 0 3 0 0 0 3 --special-points GXWGL \
+    --npts 300 --output unfolded_band_structure.png
+```
+
+or through the Python API with explicit parameters:
 
 ```python
 import numpy as np
-import matplotlib.pyplot as plt
 from ase.build import bulk
 from ase.dft.kpoints import bandpath, get_special_points
 from unfolding.phonopy_unfolder import phonopy_unfold
 
-# 1. Primitive-cell q-path (fcc Cu, primitive fractional coordinates)
-atoms = bulk('Cu', 'fcc', a=3.61)
-points = get_special_points('fcc', atoms.cell, eps=0.01)
-kpts, x, X = bandpath([points[k] for k in 'GXWGL'], atoms.cell, 300)
+atoms = bulk("Cu", "fcc", a=3.61)
+points = get_special_points("fcc", atoms.cell, eps=0.01)
+kpts, x, X = bandpath([points[k] for k in "GXWGL"], atoms.cell, 300)
 
-# 2. Unfold the 3x3x3 supercell calculation back onto the primitive cell
 ax = phonopy_unfold(
-    sc_mat=np.diag([1, 1, 1]),          # supercell phonopy used (SPOSCAR)
-    unfold_sc_mat=np.diag([3, 3, 3]),   # supercell being unfolded
-    force_constants='FORCE_CONSTANTS',
-    sposcar='SPOSCAR',
+    sc_mat=np.diag([1, 1, 1]),          # the cell stored in SPOSCAR
+    unfold_sc_mat=np.diag([3, 3, 3]),   # the supercell the FC belong to
+    force_constants="FORCE_CONSTANTS",
+    sposcar="SPOSCAR",
     qpts=kpts, xqpts=x, Xqpts=X,
-    qnames=[r'$\Gamma$', 'X', 'W', r'$\Gamma$', 'L'],
+    qnames=[r"$\Gamma$", "X", "W", r"$\Gamma$", "L"],
 )
-plt.savefig('unfolded_band_structure.png', dpi=300)
+ax.figure.savefig("unfolded_band_structure.png", dpi=300)
 ```
 
-`sc_mat` describes the cell stored in `SPOSCAR` (here the identity: the
-SPOSCAR itself is the 3×3×3 cell); `unfold_sc_mat` describes the
-supercell the force constants belong to. Frequencies are converted from
-phonopy's THz to cm$^{-1}$.
+`reproduce.py` runs the same call and saves the same figure:
+
+```console
+python reproduce.py
+```
 
 {{< figure src="/images/phonopy_unfolded_band_structure.png" title="Unfolded Cu phonon branches along Γ-X-W-Γ-L; blue color intensity encodes the unfolding weight of each mode; frequencies in cm⁻¹" >}}
 
-A complete input bundle is available as
-[phonopy-cu.tar.gz](/downloads/phonopy-cu.tar.gz): input files, the
-fixture data needed for the figure, a `reproduce.py` script, and a
-`README.txt` with prerequisites and exact run instructions.
+## Your own system
 
-## Calculation background
-
-The fixture is the committed phonopy calculation in `examples/phonopy/`
-(`FORCE_CONSTANTS` + `SPOSCAR` for a 3×3×3 fcc Cu supercell, a = 3.61 Å,
-phonopy default settings). The unfolding path is Γ-X-W-Γ-L with 300
-points, in primitive reciprocal fractional coordinates (Setyawan–Curtarolo
-special points via ase). Regenerate the figure headless with
-`python docgen/fig_phonopy_cu.py [out.png]`, which runs the same workflow
-as the user-facing copy in `examples/phonopy/run_unfold.py`;
-`read_phonopy(sposcar, sc_mat, force_constants=...)` stages the phonopy
-object and accepts `disp_yaml`/`force_sets` instead of `FORCE_CONSTANTS`.
+Point the `[input]` section (or the flags) at your phonopy run's
+`FORCE_CONSTANTS`/`SPOSCAR` and set the supercell matrix you used; the
+reader also accepts `phonopy.disp.yaml`/force-set style inputs through
+the lower-level staging (`read_phonopy(sposcar, sc_mat,
+force_constants=...)`, and `phonopy_unfold(phonon, sc_mat, qpoints,
+...)` for an already-staged phonopy object). The two matrices matter:
+`sc_mat` describes what is stored in `SPOSCAR` (the identity when the
+SPOSCAR is the unfolded cell), `unfold_sc_mat` describes the supercell
+being unfolded — primitive-frame q-points are multiplied by it before
+the supercell dynamical matrix is evaluated.

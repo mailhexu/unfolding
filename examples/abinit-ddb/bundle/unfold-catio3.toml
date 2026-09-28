@@ -1,0 +1,30 @@
+# ABINIT DDB phonons: CaTiO3 from the 20-atom Pnma cell onto the 5-atom
+# pseudo-cubic cell. Run from the unpacked bundle root
+# (requires anaddb on PATH, pip install unfolding[abipy]):
+#   unfolding --config unfold-catio3.toml
+# or with explicit flags:
+#   unfolding abinit-ddb --ddb data/out.DDB \
+#     --sc-mat 1 -1 0 1 1 0 0 0 2 \
+#     --kpoints 0 0 0  0 0.5 0  0.5 0.5 0  0 0 0  0.5 0.5 0.5 \
+#     --names G X M G R --dipdip 0 --output catio3_unfolded_cli.png
+#
+# The Pnma cell is A_Pnma = sc_mat @ A_pc with rows (1,-1,0), (1,1,0),
+# (0,0,2) in pseudo-cubic units; the vertices below are the pseudo-cubic
+# Gamma-X-M-Gamma-R points expressed in the DDB-cell fractional frame.
+route = "abinit-ddb"
+
+[input]
+ddb = "data/out.DDB"                   # CaTiO3 Pnma DDB (20 atoms)
+
+[structure]
+sc_mat = [[1, -1, 0], [1, 1, 0], [0, 0, 2]]
+
+[path]
+kpoints = [[0, 0, 0], [0, 0.5, 0], [0.5, 0.5, 0], [0, 0, 0], [0.5, 0.5, 0.5]]
+names = ["G", "X", "M", "G", "R"]
+
+[options]
+dipdip = 0                             # no dipole-dipole term (as published)
+
+[output]
+output = "catio3_unfolded_cli.png"

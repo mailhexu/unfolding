@@ -1,0 +1,44 @@
+# Sketch of a Wannier90 seedname.win for a supercell Wannierisation whose
+# seedname_hr.dat this bundle's unfolding route consumes.
+# This is an annotated TEMPLATE, not a runnable input: fill in the
+# system-specific numbers (taken here from the published SrTiO3 example:
+# 2x2x2 supercell of the 5-atom primitive cell, 56 Wannier functions).
+
+num_bands   = 100                # bands in the disentanglement window
+num_wann    = 56                 # Wannier functions (supercell!)
+                            # e.g. 12 O-centred sp-p-like (3 x 12)
+                            #    + 4 Ti-centred d (5 x 4)
+
+# disentanglement window (eV, relative to your energy reference)
+dis_win_min  = -10.0
+dis_win_max  =  25.0
+dis_froz_min =  -5.0
+dis_froz_max =  10.0
+
+projections = Ti:d; O:p
+
+# supercell k-grid for the Wannierisation (must match the supercell)
+mp_grid = 2 2 2
+begin kpoints
+  0.00  0.00  0.00
+  0.00  0.00  0.50
+  0.00  0.50  0.00
+  0.00  0.50  0.50
+  0.50  0.00  0.00
+  0.50  0.00  0.50
+  0.50  0.50  0.00
+  0.50  0.50  0.50
+end kpoints
+
+# optional: interpolation path only for the w90 band-structure check
+begin kpoint_path
+  G  0.000 0.000 0.000  X  0.500 0.000 0.000
+  X  0.500 0.000 0.000  M  0.500 0.500 0.000
+  M  0.500 0.500 0.000  G  0.000 0.000 0.000
+  G  0.000 0.000 0.000  R  0.500 0.500 0.500
+end kpoint_path
+
+# outputs
+write_hr = true               # -> seedname_hr.dat  (REQUIRED here)
+write_lm  = false
+conv_only = false

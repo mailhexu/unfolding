@@ -62,6 +62,16 @@ class WannierUnfolder(object):
         path = bandpath(kvectors, cell_sc, npoints)
         kpts = path.kpts
         x, X, _ = path.get_linear_kpoint_axis()
+        # the axis may either collapse a revisited vertex (ase dedupe ->
+        # one tick per label) or split the path there (duplicate tick);
+        # mirror whichever it did so tick count always matches
+        tick_labels = list(knames)
+        revisits = [i for i, vertex in enumerate(kvectors)
+                    if any(np.allclose(vertex, prev) for prev in kvectors[:i])]
+        for i in revisits[: max(0, len(list(X)) - len(knames))]:
+            tick_labels.insert(i + 1, knames[i])
+        if len(tick_labels) != len(list(X)):
+            tick_labels = None  # never crash on an unmappable path
         kslist = [x] * len(self.positions)
         wkslist = self.unfold(kpts).T * 0.98 + 0.01
         ekslist = self.evals  # [nband, nk]: one row per band, as plot_band_weight expects
@@ -76,27 +86,234 @@ class WannierUnfolder(object):
             axis=ax,
             ylabel='Energy (eV)',
             ypad=float(np.ptp(self.evals) * 0.05 + 1e-3),
-            xticks=[knames, X])
+            xticks=[tick_labels, X] if tick_labels is not None else None)
         return ax
 
 
-def run(path, prefix, labels, scmat, output_figure, kvectors, knames, npoints=200):
-    """Convenience driver reading a Wannier90 directory via minimulti's MyTB.
+_BOHR_TO_ANG = 0.529177210903
 
-    Requires the `minimulti` package (pip install minimulti). See
-    examples/wannier_STO for a runnable version with data. Hopping pruning,
-    if needed, is configured on the MyTB model before unfolding.
+
+def read_wannier90_hr(path):
+    """Parse a Wannier90 ``*_hr.dat`` file.
+
+    Returns ``(Rs, H)``: integer R vectors ``(NR, 3)`` (rows sorted) and
+    the real-space Hamiltonian blocks ``H[i]`` for ``Rs[i]`` (eV, complex,
+    ``(num_wann, num_wann)``). Handles the standard degeneracy preamble
+    and the 15-values-per-line wrapping; spin-polarized ``*_hr.dat``
+    files (``num_wann`` doubled) parse unchanged.
     """
+    def is_int(token):
+        return token.lstrip("+-").isdigit()
+
+    with open(path) as fh:
+        lines = fh.readlines()
+    if not lines:
+        raise ValueError(f"empty hr file: {path}")
+    norb = int(lines[0].split()[0])
+    blocks = {}
+    ndata = 0
+    for line in lines[1:]:
+        tok = line.split()
+        if len(tok) != 7 or not all(is_int(t) for t in tok[:5]):
+            continue  # degeneracy preamble / blank / wrapped header
+        rx, ry, rz, m, n = (int(t) for t in tok[:5])
+        blocks.setdefault((rx, ry, rz), np.zeros((norb, norb), dtype=complex)
+                          )[m - 1, n - 1] = float(tok[5]) + 1j * float(tok[6])
+        ndata += 1
+    if not blocks:
+        raise ValueError(f"no R-matrix entries found in {path}")
+    if ndata % (norb * norb):
+        raise ValueError(
+            f"truncated hr file: {ndata} data lines for {norb} orbitals")
+    Rs = np.array(sorted(blocks), dtype=float)
+    if len(blocks) != ndata // (norb * norb):
+        raise ValueError(
+            f"inconsistent hr file: {len(blocks)} blocks for "
+            f"{ndata // (norb * norb)} R vectors")
+    return Rs, np.stack([blocks[tuple(R)] for R in Rs])
+
+
+def _win_unit_block(lines, begin, unit_line_index):
+    """Matrix rows of a win block with an Ang/Bohr/Alat unit line.
+
+    A unit-less block (first line already a coordinate row) is read as
+    Angstrom, matching wannier90's default.
+    """
+    unit = lines[unit_line_index].strip().lower()
+    if unit.split() and unit.split()[0].lstrip("+-").replace(".", "", 1) \
+            .replace("e", "", 1).replace("-", "", 1).isdigit():
+        unit_line_index -= 1  # no unit keyword: rows start right away
+        unit = "ang"
+    factor = {"ang": 1.0, "bohr": _BOHR_TO_ANG, "alat": None}.get(unit)
+    if factor is None:
+        # alat: multiples of the first lattice vector's length
+        first = lines[unit_line_index + 1].split()
+        factor = float(np.linalg.norm([float(v) for v in first[:3]]))
+    rows = []
+    for line in lines[unit_line_index + 1:]:
+        tok = line.split()
+        if tok and tok[0].lower() in ("end", "begin"):
+            break
+        if len(tok) >= 3:
+            try:
+                rows.append([factor * float(v) for v in tok[:3]])
+            except ValueError:
+                break
+        if len(rows) == 3:
+            break
+    if len(rows) != 3:
+        raise ValueError(f"incomplete {begin} block")
+    return np.asarray(rows, dtype=float)
+
+
+def read_wannier90_win(path):
+    """Parse ``unit_cell_cart`` and ``atoms_frac``/``atoms_cart`` from a win.
+
+    Returns ``(cell (3,3) Ang, sites (nsites, 3) fractional or None)``.
+    """
+    with open(path) as fh:
+        lines = [line.split("#")[0] for line in fh]
+    lowered = [line.lower() for line in lines]
+
+    cell = None
+    idx = next((i for i, t in enumerate(lowered) if "unit_cell_cart" in t), None)
+    if idx is not None:
+        cell = _win_unit_block(lines, "unit_cell_cart", idx + 1)
+
+    sites = None
+    idx = next((i for i, t in enumerate(lowered) if "atoms_frac" in t), None)
+    if idx is not None:
+        rows = []
+        for line in lines[idx + 1:]:
+            tok = line.split()
+            if not tok or tok[0].lower() in ("end", "begin"):
+                break
+            try:
+                rows.append([float(v) for v in tok[1:4]])
+            except ValueError:
+                break
+        if rows:
+            sites = np.asarray(rows, dtype=float)
+    else:
+        idx = next((i for i, t in enumerate(lowered) if "atoms_cart" in t), None)
+        if idx is not None:
+            cart = _win_unit_block(lines, "atoms_cart", idx + 1)
+            if cell is not None:
+                sites = cart @ np.linalg.inv(cell)
+    if cell is None:
+        raise ValueError(f"{path}: no unit_cell_cart block")
+    return cell, sites
+
+
+def _sc_site_positions(prim_frac, scmat):
+    """Supercell-fractional copies of the primitive sites under ``scmat``."""
+    det = int(round(abs(np.linalg.det(scmat))))
+    inv = np.linalg.inv(np.asarray(scmat, dtype=float))
+    out = []
+    for f in np.asarray(prim_frac, dtype=float):
+        for n0 in range(-2, 3):
+            for n1 in range(-2, 3):
+                for n2 in range(-2, 3):
+                    cand = (f + np.array([n0, n1, n2], dtype=float)) @ inv
+                    cand = np.mod(cand, 1.0)
+                    cand = np.where(np.abs(cand - 1.0) < 1e-6, 0.0, cand)
+                    if not any(np.allclose(cand, c, atol=1e-6) for c in out):
+                        out.append(cand)
+    if len(out) != det * len(prim_frac):
+        raise ValueError(
+            f"site expansion gave {len(out)} positions, expected "
+            f"{det * len(prim_frac)} (supercell matrix inconsistent)")
+    return np.asarray(out, dtype=float)
+
+
+class Wannier90Model:
+    """Duck-typed WannierUnfolder model from a Wannier90 directory.
+
+    Reads ``<prefix>_hr.dat``; the unit cell and atomic positions come
+    from ``<prefix>.win`` (``cell`` overrides the win cell). Orbital
+    positions (``_orb``, supercell-fractional) are the WF centres from
+    ``<prefix>_centres.xyz`` when present, else each orbital sits on its
+    atom's supercell position (uniform per-site orbital counts).
+    Exposes minimulti's MyTB surface: ``.atoms`` (unit cell), ``._orb``,
+    ``.solve_all(k_list=, eig_vectors=)``.
+    """
+
+    def __init__(self, model_dir, prefix, cell=None, scmat=None):
+        from ase import Atoms
+        from ase.io import read as ase_read
+
+        import os
+
+        hr = os.path.join(model_dir, f"{prefix}_hr.dat")
+        if not os.path.isfile(hr):
+            raise FileNotFoundError(f"Wannier90 hr file not found: {hr}")
+        self.Rs, self.H = read_wannier90_hr(hr)
+        self.norb = self.H.shape[1]
+
+        win = os.path.join(model_dir, f"{prefix}.win")
+        win_cell, sites = read_wannier90_win(win) if os.path.isfile(win) \
+            else (None, None)
+        cell = np.asarray(cell, dtype=float) if cell is not None else win_cell
+        if cell is None:
+            raise ValueError(
+                f"{win}: no unit_cell_cart; pass the unit cell explicitly")
+        self.atoms = Atoms(cell=cell, pbc=True)
+
+        centres = os.path.join(model_dir, f"{prefix}_centres.xyz")
+        if os.path.isfile(centres):
+            cart = ase_read(centres).positions
+            self._orb = np.mod(cart @ np.linalg.inv(cell), 1.0)
+            if len(self._orb) != self.norb:
+                raise ValueError(
+                    f"{centres}: {len(self._orb)} centres for "
+                    f"{self.norb} orbitals")
+            return
+        if sites is None:
+            sites = np.zeros((1, 3))  # one-site primitive cell at the origin
+        scmat = np.eye(3) if scmat is None else np.asarray(scmat, dtype=float)
+        site_pos = _sc_site_positions(sites, scmat)
+        if self.norb % len(site_pos):
+            raise ValueError(
+                f"{self.norb} orbitals cannot be split uniformly over "
+                f"{len(site_pos)} supercell sites; provide "
+                f"{prefix}_centres.xyz")
+        self._orb = np.repeat(site_pos, self.norb // len(site_pos), axis=0)
+
+    def solve_all(self, k_list, eig_vectors=False):
+        k = np.atleast_2d(np.asarray(k_list, dtype=float))
+        phase = np.exp(2j * np.pi * k @ self.Rs.T)
+        hk = np.einsum("kr,rmn->kmn", phase, self.H)
+        hk = 0.5 * (hk + np.conj(np.transpose(hk, (0, 2, 1))))
+        evals, evecs = np.linalg.eigh(hk)
+        if not eig_vectors:
+            return evals.T
+        return evals.T, np.transpose(evecs, (1, 0, 2))
+
+
+def run(path, prefix, labels, scmat, output_figure, kvectors, knames,
+        npoints=200, cell=None):
+    """Convenience driver reading a Wannier90 directory.
+
+    Uses minimulti's MyTB reader when that (older) API is available,
+    else the built-in :class:`Wannier90Model` reader, which needs only
+    ``<prefix>_hr.dat`` plus a ``<prefix>.win`` (or an explicit ``cell``)
+    and drives the same :class:`WannierUnfolder`. Hopping pruning, if
+    needed, is configured on the model before unfolding.
+    """
+    tb = None
     try:
         from minimulti.unfolding.wannier.myTB import MyTB
     except ImportError as exc:
-        if exc.name not in ("minimulti", "minimulti.unfolding", "minimulti.unfolding.wannier", "minimulti.unfolding.wannier.myTB"):
+        # fall back to the built-in reader when minimulti is absent OR its
+        # own package internals are broken on this install; unrelated
+        # ImportErrors still surface
+        root = (getattr(exc, "name", "") or "").split(".")[0]
+        if root != "minimulti":
             raise
-        raise ImportError(
-            "minimulti is required for the Wannier90 reader (MyTB). "
-            "Install it with: pip install minimulti"
-        ) from exc
-    tb = MyTB.read_from_wannier_dir(path=path, prefix=prefix)
+    else:
+        tb = MyTB.read_from_wannier_dir(path=path, prefix=prefix)
+    if tb is None:
+        tb = Wannier90Model(path, prefix, cell=cell, scmat=scmat)
     u = WannierUnfolder(tb, labels=labels, sc_matrix=scmat)
     ax = u.plot_unfolded_band(kvectors=kvectors, knames=knames, npoints=npoints)
     plt.savefig(output_figure)

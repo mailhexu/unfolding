@@ -1,0 +1,59 @@
+# AFM-II NiO (Ni moments along [111], type-II) in the 4-atom magnetic
+# primitive cell: A_afm = M @ A_prim with M = [[1,1,0],[1,0,1],[0,1,1]]
+# (2x the 2-atom rocksalt primitive cell). The reciprocal-coset unfolding
+# maps onto the 2-atom primitive cell; nsppol 2 lets the spin-up and
+# spin-down channels be unfolded separately.
+# Dataset 1: AFM SCF on a 4x4x4 mesh. Dataset 2: non-SCF path
+# (K = k_prim @ M.T) on the frozen AFM density.
+ndtset 2
+acell 3*7.8817
+rprim 1.0 0.5 0.5
+      0.5 1.0 0.5
+      0.5 0.5 1.0
+ntypat 2
+znucl 28 8
+natom 4
+typat 1 1 2 2
+xred
+  0.00 0.00 0.00
+  0.50 0.50 0.50
+  0.25 0.25 0.25
+  0.75 0.75 0.75
+spinat 0 0 2.0  0 0 -2.0  0 0 0  0 0 0
+
+ixc 11
+ecut 40
+nband 40
+iomode 3
+chksymbreak 0
+nsppol 2
+nspden 2
+occopt 3
+tsmear 0.01
+diemac 10.0
+pp_dirpath "."
+pseudos "Ni.psp8, O.psp8"
+
+iscf1 17
+tolvrs1 1.0d-10
+nstep1 120
+kptopt1 1
+ngkpt1 4 4 4
+shiftk1 0 0 0
+prtden1 1
+prtwf1 0
+
+getden2 1
+iscf2 -2
+tolwfr2 1.0d-16
+nstep2 500
+kptopt2 0
+nkpt2 4
+kpt2
+   0.0000000000  0.0000000000  0.0000000000
+  -1.0000000000  0.5000000000  0.5000000000
+  -0.7500000000 -1.0000000000  0.7500000000
+  -1.0000000000 -1.0000000000 -1.0000000000
+wtk2 0.25 0.25 0.25 0.25
+istwfk2 1 1 1 1
+prtwf2 1

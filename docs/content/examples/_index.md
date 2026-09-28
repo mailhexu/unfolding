@@ -65,6 +65,6 @@ bundled (large GPAW restarts and VASP's licensed POTCAR/WAVECAR).
 
 {{< gallery >}}
 
-{{< card title="Wannier90 SrTiO₃" link="/examples/wannier-sto/" src="/images/sto_nodefect.png" text="Unfold Wannier90 tight-binding supercells (pristine and defect)." >}}
+{{< card title="Wannier90 synthetic t2g" link="/examples/wannier-sto/" src="/images/sto_nodefect.png" text="Unfold the bundled 2×2×2 tight-binding supercell and a one-site perturbation." >}}
 
 {{< /gallery >}}

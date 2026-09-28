@@ -27,6 +27,7 @@ dependencies = [
     "numpy",
     "matplotlib",
     "ase",
+    "tomli; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
@@ -38,6 +39,7 @@ tb2j = ["TB2J"]
 dev = ["pytest", "sympy"]
 
 [project.scripts]
+unfolding = "unfolding.cli:main"
 unfolding-magnon = "unfolding.cli_magnon:main"
 
 [project.urls]

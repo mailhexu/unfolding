@@ -3,84 +3,110 @@ title: "ABINIT DDB phonons"
 weight: 7
 ---
 
-Unfold phonons from an ABINIT DDB (derivatives database) onto a primitive
-cell with the `DDB_unfolder` adapter: the route runs ABINIT's `anaddb`
-through abipy to obtain the supercell eigenvectors along your path, then
-computes the unfolding weights. Two examples: fcc Cu from a
+Unfold phonons from an ABINIT DDB (derivatives database) onto a
+primitive cell: the route runs ABINIT's `anaddb` through abipy to
+obtain the supercell eigenvectors along your path, then computes the
+unfolding weights with gauge-robust Bloch-sum projectors and
+degenerate-group resolution, so eigenvector storage gauges do not
+change the weights. Two bundled systems: fcc Cu from a
 conventional-cubic-cell DDB, and CaTiO₃ from its 20-atom Pnma cell onto
 the 5-atom pseudo-cubic cell.
 
-## Running the example
+## The bundle
 
-You need a DDB from your supercell phonon calculation,
-`pip install unfolding[abipy]`, and a working `anaddb` on your `PATH`
-(or configured in abipy's `manager.yml`).
+Download [abinit-ddb.tar.gz](/downloads/abinit-ddb.tar.gz) and unpack
+it:
 
-Cu in the conventional cell — mind the k-path frame: ase's
-`get_special_points` returns fcc special points in *primitive-cell*
-fractional coordinates, while abipy reads `qptbounds` in the fractional
-frame of the cell stored in the DDB (for a conventional-cubic-cell DDB:
-X=(0,1,0), W=(1/2,1,0), L=(1/2,1/2,1/2)). Convert with the supercell
-matrix before passing them on — feeding primitive-frame points straight
-to abipy plots the wrong path:
+```console
+tar xf abinit-ddb.tar.gz && cd abinit-ddb
+```
+
+Shipped: both DDBs (`data/out_DDB` Cu, `data/out.DDB` CaTiO₃ — the
+files behind the published figures), the SCF + DFPT decks that produced
+them (`inputs/`), the pseudopotentials (`pseudos/`), two `unfolding`
+configs (`unfold.toml` for Cu, `unfold-catio3.toml`), and
+`reproduce.py`. Prerequisites: `pip install "unfolding[abipy]"` and a
+working `anaddb` on your `PATH` (or configured in abipy's
+`manager.yml`).
+
+## Structure and k-path — the part that bites
+
+Cu: the DDB stores the conventional cubic cell (natom 4) with
+`sc_mat = [[-1,1,1],[1,-1,1],[1,1,-1]]`, i.e. DDB cell = sc_mat @
+primitive. Mind the k-path frame: ase's `get_special_points` returns
+fcc points in *primitive-cell* fractional coordinates, while abipy
+reads path vertices in the fractional frame of the cell stored in the
+DDB — for this DDB, X=(0,1,0), W=(1/2,1,0), L=(1/2,1/2,1/2). The
+configs therefore pass explicit vertices in the DDB frame; anaddb
+interpolates between consecutive vertices (no point density needed).
+
+CaTiO₃: the DDB cell is the Pnma ground-state cell (20 atoms,
+a ≈ b ≈ √2·a_pc, c ≈ 2·a_pc); `sc_mat = [[1,-1,0],[1,1,0],[0,0,2]]`
+has the Pnma axes as rows in pseudo-cubic units (A_Pnma = sc_mat @
+A_pc). The vertices are the pseudo-cubic Γ–X–M–Γ–R points in the DDB
+frame; `dipdip` toggles the dipole-dipole (LO-TO) treatment passed to
+anaddb (0 for CaTiO₃, as published; 1 for Cu).
+
+## Run it
+
+From the unpacked bundle directory, one command per system with the
+shipped configs:
+
+```console
+unfolding --config unfold.toml            # Cu     -> cu_fcc_unfolded_cli.png
+unfolding --config unfold-catio3.toml     # CaTiO3 -> catio3_unfolded_cli.png
+```
+
+The same TOML can be passed as the only Python input:
+
+```python
+from unfolding import load_config, run
+run(load_config("unfold.toml"))         # Cu
+run(load_config("unfold-catio3.toml"))  # CaTiO3
+```
+
+or with explicit flags (Cu):
+
+```console
+unfolding abinit-ddb --ddb data/out_DDB \
+    --sc-mat -1 1 1 1 -1 1 1 1 -1 \
+    --kpoints 0 0 0 0 1 0 0.5 1 0 0 0 0 0.5 0.5 0.5 \
+    --names G X W G L --output cu_fcc_unfolded_cli.png
+```
+
+or through the Python API with explicit parameters:
 
 ```python
 import numpy as np
-import matplotlib.pyplot as plt
-from ase.build import bulk
-from ase.dft.kpoints import get_special_points
 from unfolding.DDB_unfolder import DDB_unfolder
 
 # Conventional cell = sc_mat @ primitive cell
 sc_mat = np.linalg.inv(np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]]) / 2.0)
+knames = [r"$\Gamma$", "X", "W", r"$\Gamma$", "L"]
+kpath_bounds = [[0, 0, 0], [0, 1, 0], [0.5, 1, 0], [0, 0, 0], [0.5, 0.5, 0.5]]
 
-atoms = bulk('Cu', 'fcc')
-points = get_special_points(atoms.cell, eps=0.01)     # primitive frame!
-knames = [r'$\Gamma$', 'X', 'W', r'$\Gamma$', 'L']
-kpath_prim = [points[k] for k in 'GXWGL']
-kpath_bounds = [np.dot(k, sc_mat) for k in kpath_prim]  # -> DDB frame
-
-ax = DDB_unfolder('./out_DDB', sc_mat=sc_mat,
+ax = DDB_unfolder("data/out_DDB", sc_mat=sc_mat,
                   kpath_bounds=kpath_bounds, knames=knames)
+```
+
+CaTiO₃ (`data/out.DDB`) takes the same form with
+`sc_mat=[[1,-1,0],[1,1,0],[0,0,2]]`, vertices
+`[[0,0,0],[0,.5,0],[.5,.5,0],[0,0,0],[.5,.5,.5]]`, names
+Γ-X-M-Γ-R and `dipdip=0`. `reproduce.py` renders both published figures:
+
+```console
+python reproduce.py                       # Cu     -> cu_unfolded.png
+python reproduce.py --system catio3       #        -> catio3_unfolded.png
 ```
 
 {{< figure src="/images/cu_fcc_unfolded.png" title="Cu phonons unfolded from a conventional-cubic-cell DDB onto the fcc primitive cell along Γ-X-W-Γ-L: spectral-weight map on the phonon branches (degenerate-group resolved), frequency axis from anaddb" >}}
 
-CaTiO₃ — the DDB comes from the Pnma orthorhombic ground-state cell
-(20 atoms, $a \approx b \approx \sqrt{2}\,a_{pc}$, $c \approx 2 a_{pc}$,
-four formula units of the 5-atom pseudo-cubic perovskite); unfolding maps
-its phonons onto the pseudo-cubic cell along Γ–X–M–Γ–R (X, M, R in
-pseudo-cubic fractional coordinates). The supercell matrix rows are the
-Pnma axes in pseudo-cubic units ($(1,-1,0)$, $(1,1,0)$, $(0,0,2)$), i.e.
-$A_{Pnma} = M \cdot A_{pc}$; `kpath_bounds` is in the fractional frame of
-the DDB cell; `dipdip` toggles the dipole-dipole (LO-TO) treatment passed
-to anaddb:
-
-```python
-ax = DDB_unfolder('./out.DDB',
-                  sc_mat=[[1, -1, 0], [1, 1, 0], [0, 0, 2]],
-                  kpath_bounds=[[0, 0, 0], [0, .5, 0], [.5, .5, 0],
-                                [0, 0, 0], [.5, .5, .5]],
-                  knames=[r'$\Gamma$', 'X', 'M', r'$\Gamma$', 'R'],
-                  dipdip=0)
-```
-
 {{< figure src="/images/catio3_unfolded.png" title="CaTiO₃ phonons unfolded from the 20-atom Pnma cell onto the pseudo-cubic cell along Γ-X-M-Γ-R: spectral-weight map on the pseudo-cubic branches, no dipole-dipole term" >}}
 
-## Calculation background
+## Producing your own DDB
 
-- Code: ABINIT DDB + `anaddb` (via abipy); the unfolder uses
-  gauge-robust Bloch-sum projectors with degenerate-group resolution, so
-  eigenvector storage gauges (phonopy folds the path momentum out,
-  anaddb keeps the full Bloch phase) do not change the weights.
-- Cu: DDB `examples/Cu_fcc/out_DDB`, computed for the conventional cubic
-  fcc cell (natom 4); `sc_mat = inv([[0,1,1],[1,0,1],[1,1,0]]/2)`; path
-  Γ–X–W–Γ–L. Figure: `python examples/Cu_fcc/unfold.py`.
-- CaTiO₃: DDB `examples/CaTiO3_unfold/out.DDB`, Pnma cell; `sc_mat =
-  [[1,-1,0],[1,1,0],[0,0,2]]`, `dipdip=0`; path Γ–X–M–Γ–R. Figure:
-  `python examples/CaTiO3_unfold/unfold.py`.
-
-Download the [complete input bundle](/downloads/abinit-ddb.tar.gz)
-(`abinit-ddb.tar.gz`): input files, pseudopotentials, the fixture data
-needed for the figure, a `reproduce.py` script, and a `README.txt`
-with prerequisites and exact run instructions.
+A phonon DDB comes from an ABINIT response-function run: a
+ground-state SCF, then a DFPT run with `optdriver 1`, `rfphon 1`,
+`rfatpol 1 natom`, `rfdir 1 1 1`, one q-point per run (`nqpt 1`,
+`qpt 0 0 0`, …), `prtddb 1`; merge partial DDBs with `mrgddb`. The
+bundled `inputs/` decks are worked examples for both systems.

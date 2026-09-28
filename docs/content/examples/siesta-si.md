@@ -5,76 +5,102 @@ weight: 2
 
 Unfold a SIESTA supercell calculation onto the primitive-cell band path
 using the stored Hamiltonian: an 8-atom conventional-cubic Si supercell
-(`SaveHS true`) unfolded onto the 2-atom primitive fcc cell with the
-`unfold_siesta` adapter, which parses the run through
-[HamiltonIO](https://github.com/aimatores/HamiltonIO)/sisl.
+(`SaveHS true`) unfolded onto the 2-atom primitive fcc cell. Pristine
+weights are binary, so the bold branches are the primitive band
+structure and the independent primitive-cell calculation (red) checks
+them branch for branch.
 
-## Running the example
+## The bundle
 
-From your SIESTA runs:
+Download [siesta-si.tar.gz](/downloads/siesta-si.tar.gz) and unpack it:
 
-- the supercell run with the Hamiltonian saved (`SaveHS true`), producing
-  `.HSX`/fdf output the adapter can parse,
-- the primitive-cell structure (any ASE-readable file).
+```console
+tar xf siesta-si.tar.gz && cd siesta-si
+```
 
-The supercell archive should come from a k-sampled SCF run: a Gamma-only
-`SaveHS` collapses all supercell image shells into a single R=0 block,
-which cannot be unfolded at generic momenta.
+Everything needed ships in the bundle: the SIESTA fixtures
+(`data/si_prim.fdf` + `si_prim.HSX`, `data/si_sc.fdf` + `si_sc.HSX` —
+each parser input sits next to its Hamiltonian archive), the primitive
+cell as a POSCAR (`data/si_prim.vasp`), the `unfold.toml` config, the
+`reproduce.py` script, and this README-adjacent note on
+pseudopotentials. Prerequisites: `pip install unfolding` plus
+`pip install HamiltonIO sisl` (the SIESTA parser). No SIESTA run is
+needed.
+
+## Structure and k-path
+
+| | |
+|---|---|
+| primitive cell | 2-atom fcc Si, a = 5.430 Å (`data/si_prim.vasp`) |
+| supercell | 8-atom conventional cubic cell, `A_sc = M @ A_prim` with `M = [[-1,1,1],[1,-1,1],[1,1,-1]]` |
+| k-path | Γ-X-W-Γ-L-W-X, 300 points, fcc special points in primitive reciprocal fractional coordinates (Setyawan–Curtarolo) |
+| weight | `method = "ideal"` — the standard Popescu–Zunger/Lee weight for generic (off-grid) momenta; `"ring"` is the exact torus projection, defined only on the supercell torus grid |
+
+## Run it
+
+From the unpacked bundle directory — one command with the shipped
+config:
+
+```console
+unfolding --config unfold.toml          # -> si_unfolded_cli.png
+```
+
+The same TOML can be passed as the only Python input:
+
+```python
+from unfolding import load_config, run
+run(load_config("unfold.toml"))
+```
+
+or with explicit flags (the same call the TOML encodes):
+
+```console
+unfolding siesta --fdf data/si_sc.fdf --primitive data/si_prim.vasp \
+    --unfold-mat -1 1 1 1 -1 1 1 1 -1 --special-points GXWGLX \
+    --npts 300 --method ideal --output si_unfolded_cli.png
+```
+
+or through the Python API with explicit parameters:
 
 ```python
 import numpy as np
-import matplotlib.pyplot as plt
 from ase.io import read
-from ase.dft.kpoints import bandpath, get_special_points
 from unfolding import unfold_siesta
 
-prim_atoms = read('primitive.xsf')            # 2-atom primitive cell
-points = get_special_points('fcc', prim_atoms.cell, eps=0.01)
-kpts, x, X = bandpath([points[k] for k in 'GXWGLX'], prim_atoms.cell, 300)
-
 ax = unfold_siesta(
-    fdf='si_sc.fdf',                          # supercell SIESTA input
-    prim_atoms=prim_atoms,
-    unfold_sc_mat=np.array([[-1, 1, 1],        # 8-atom conventional cell
-                            [1, -1, 1],        # = M @ primitive cell
-                            [1, 1, -1]]),
-    kpts=kpts, xqpts=x, Xqpts=X,
-    knames=[r'$\Gamma$', 'X', 'W', r'$\Gamma$', 'L', 'X'],
+    fdf="data/si_sc.fdf",               # supercell run; reads si_sc.HSX
+    prim_atoms=read("data/si_prim.vasp"),
+    unfold_sc_mat=np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]]),
+    kpts=kpts, knames=knames, xqpts=x, Xqpts=X,
+    method="ideal",
 )
 ```
 
-`unfold_sc_mat` uses the row convention `supercell = M @ primitive`. The
-adapter matches every supercell atom onto the primitive cell, computes
-the weights, and plots weight-coded bands in eV.
+The published figure adds the primitive-cell overlay; `reproduce.py`
+builds it:
+
+```console
+python reproduce.py                     # -> si_unfolded.png
+```
+
+`unfold_sc_mat` uses the row convention `supercell = M @ primitive`.
+The adapter matches every supercell atom onto the primitive cell,
+computes the weights, and plots weight-coded bands in eV with zero at
+the Fermi level. For a pre-parsed Hamiltonian pass `model=` instead of
+`fdf=`; collinear spin-polarized runs select the channel with
+`spin="up"` or `spin="down"`.
 
 {{< figure src="/images/si_unfolded.png" title="Unfolded SIESTA Si$_8$ bands along Γ-X-W-Γ-L-X; blue color intensity encodes the unfolding weight, red curves are the independently computed primitive-cell bands; energies in eV with zero at the Fermi level" >}}
 
-Two weight definitions are available through
-`LCAOUnfolder.compute(kpts, method=...)`: `method="ring"` (exact torus
-projection, binary at momenta commensurate with the supercell torus) and
-`method="ideal"` (the standard Popescu–Zunger/Lee weight for generic
-off-grid momenta, used along arbitrary k-paths). For a pre-parsed
-Hamiltonian, pass `model=` instead of `fdf=`; collinear spin-polarized
-runs select the channel with `spin="up"` or `spin="down"`. For custom
-pipelines the stages behind `unfold_siesta` are public
-(`RelabelMap.from_atoms`, `LCAOUnfolder(HamiltonIOModel(model), rm)`),
-and the WFSX variant of this example is described in
-[SIESTA WFSX route](../siesta-wfsx/).
+## The fixtures
 
-A complete input bundle is available as
-[siesta-si.tar.gz](/downloads/siesta-si.tar.gz): input files,
-pseudopotentials, the fixture data needed for the figure, a
-`reproduce.py` script, and a `README.txt` with prerequisites and exact
-run instructions.
-
-## Calculation background
-
-The committed fixtures live in `tests/data/si_example/`: SIESTA runs
-with a Si pseudopotential and single-zeta PAO basis (`PAO.BasisSize SZ`),
-GGA-PBE, `MeshCutoff 100 Ry`, a 2×2×2 Monkhorst-Pack grid, and lattice
-constant a = 5.430 Å — the 8-atom conventional-cubic supercell
-(`si_sc.fdf` + `si_sc.HSX`) and the 2-atom primitive cell
-(`si_prim.fdf`). The supercell matrix is the conventional cube in
-primitive-lattice units, `B = [[-1,1,1],[1,-1,1],[1,1,-1]]`; the path is
-Γ-X-W-Γ-L-X with 300 points. Regenerate the figure headless with
-`python docgen/fig_siesta_si.py`.
+Both runs are GGA-PBE, single-zeta PAO basis (`PAO.BasisSize SZ`),
+`MeshCutoff 100 Ry`, `SaveHS true`: the primitive cell from a 4×4×4
+k-grid SCF and the 8-atom supercell from a 2×2×2 grid matched to it. A
+k-sampled SCF is essential — a Gamma-only `SaveHS` run collapses all
+supercell image shells into a single R=0 block, which cannot be
+unfolded at generic momenta. To re-run SIESTA from scratch you need
+`Si.psf` (norm-conserving, from the SIESTA distribution's
+Examples/Si_Optical set); it is not bundled and never read by the
+unfolding (the shipped `.HSX` carries the Hamiltonian and overlap) —
+see `pseudos/` in the bundle.

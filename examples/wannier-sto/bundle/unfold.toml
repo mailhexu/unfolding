@@ -1,0 +1,30 @@
+# Wannier90 tight-binding SrTiO3-like supercell -> primitive cell
+# (the bundled synthetic t2g model; see README.txt).
+# Run from the unpacked bundle root (requires pip install unfolding):
+#   unfolding --config unfold.toml
+# or with explicit flags:
+#   unfolding wannier --path data --prefix example \
+#     --unfold-mat 2 0 0 0 2 0 0 0 2 \
+#     --labels d_xy d_yz d_zx ... (one label per supercell orbital, 24 total) \
+#     --kpoints 0 0 0  0.5 0 0  0.5 0.5 0  0 0 0  0.5 0.5 0.5 \
+#     --names G X M G R --npoints 200 --output sto_unfolded.png
+route = "wannier"
+
+[input]
+path = "data"                          # wannier90 directory (example.win + example_hr.dat)
+prefix = "example"
+
+[structure]
+cell = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]   # win unit cell (the synthetic model's primitive a0 = 1)
+supercell_matrix = [[2, 0, 0], [0, 2, 0], [0, 0, 2]]   # A_sc = M @ A_prim
+labels = ["d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx"]
+
+[path]
+kpoints = [[0, 0, 0], [0.5, 0, 0], [0.5, 0.5, 0], [0, 0, 0], [0.5, 0.5, 0.5]]
+names = ["Γ", "X", "M", "Γ", "R"]
+
+[options]
+npoints = 200
+
+[output]
+output = "sto_unfolded.png"

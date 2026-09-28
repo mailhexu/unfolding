@@ -1,0 +1,42 @@
+# DFPT phonon run for CaTiO3 (Pnma, natom=20) that writes the phonon DDB.
+# Second half of the two-run recipe producing a DDB like the bundled
+# data/out.DDB.  The shipped DDB contains the 8 q-points of the 2x2x2
+# q-mesh (all listed below, as recorded in the DDB), which anaddb's
+# nqsmall=2 interpolation uses.
+#
+# Run this AFTER catio3_phonon_scf.in.
+
+optdriver 1
+iscf     7
+
+#------------- Perturbation ----------------------------------------------
+rfphon   1
+rfatpol  1 20
+rfdir    1 1 1
+
+#------------- q-points: the 2x2x2 mesh (as in the shipped DDB) ----------
+nqpt     8
+qpt
+   0.0  0.0  0.0
+   0.5  0.0  0.0
+   0.0  0.5  0.0
+   0.5  0.5  0.0
+   0.0  0.0  0.5
+   0.5  0.0  0.5
+   0.0  0.5  0.5
+   0.5  0.5  0.5
+
+#------------- Input taken from the GS run -------------------------------
+getden   -1
+getwfk   -1
+#acell/rprim/natom/typat/xred/znucl/ixc/pseudos/usepaw/pawecutdg/ecut/
+#nband/occopt/tsmear/kpt settings are inherited in a multi-dataset run;
+#repeat them from catio3_phonon_scf.in when running as separate files.
+
+#------------- Output ----------------------------------------------------
+prtddb   1                     # -> out.DDB
+prteig   1
+
+%%
+# Run:  abinit catio3_phonon_rf.in > catio3_phonon_rf.log
+# Then: python reproduce.py --system catio3    (in the bundle root)

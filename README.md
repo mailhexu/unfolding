@@ -34,6 +34,24 @@ pip install .
 
 ## Usage
 
+The [example gallery](https://mailhexu.github.io/unfolding/examples/)
+provides downloadable input bundles. After unpacking one, run either
+the unified CLI or the same TOML file through Python:
+
+```bash
+unfolding --config unfold.toml
+```
+
+```python
+from unfolding import load_config, run
+run(load_config("unfold.toml"))
+```
+
+`unfolding <route> --help` lists explicit flags for that route.
+The CLI takes either all flags or `--config unfold.toml` as its sole
+parameter; each example page documents its structures, k-path, and
+route parameters.
+
 Here is a simple example of how to unfold the phonon band structure of a 3x3x3 FCC Cu supercell to the primitive cell, using data from a Phonopy calculation.
 
 ```python

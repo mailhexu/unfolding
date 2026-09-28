@@ -67,9 +67,10 @@ class _ToyTBModel:
 
 
 def test_wannier_module_imports_and_unfolds():
-    # minimulti / MyTB are NOT installed: the module must still import, and
-    # the unfolder must work with any injected tight-binding model.
-    assert importlib.util.find_spec("minimulti") is None
+    # The module must import and the unfolder must work with any injected
+    # tight-binding model, whether or not minimulti is installed (the
+    # Wannier90 reader is imported lazily inside wannier_unfold.run and
+    # falls back to the built-in reader).
     from unfolding.wannier_unfold import WannierUnfolder
 
     kpts = np.array([[k / 8, 0, 0] for k in range(-4, 5)])

@@ -1,0 +1,61 @@
+# DFPT phonon run for fcc Cu (conventional cubic cell, natom=4) that
+# writes the phonon DDB.  Second half of the two-run recipe producing a
+# DDB like the bundled data/out_DDB.  The shipped DDB contains the 4
+# inequivalent q-points of the 2x2x2 q-mesh in the conventional cubic
+# IBZ (Gamma, X, N, P -- see the qpt list below), exactly what anaddb's
+# nqsmall=2 interpolation (used by unfolding.DDB_unfolder) needs.
+#
+# Run this AFTER cu_phonon_scf.in (it reads its density and wavefunctions).
+
+optdriver 1                    # response-function run
+iscf     7                     # as recorded in the shipped DDB header
+
+#------------- Perturbation ----------------------------------------------
+rfphon   1                     # phonon perturbation
+rfatpol  1 4                   # perturb all atoms
+rfdir    1 1 1
+
+#------------- q-points: 2x2x2 mesh, conventional-cubic IBZ --------------
+nqpt     1                     # one q-point per dataset; run the 4
+qpt      0.0 0.0 0.0           # Gamma
+# then, in the same multi-dataset file or by repeating this deck:
+#   qpt  0.5 0.0 0.0            # X
+#   qpt  0.5 0.5 0.0            # N
+#   qpt  0.5 0.5 0.5            # P
+# (multiple q-points can also be given in a single dataset with
+#  nqpt 4 followed by 4 qpt lines, as recorded in the shipped DDB.)
+
+#------------- Input taken from the GS run -------------------------------
+getden   -1                    # density from cu_phonon_scf
+getwfk   -1                    # wavefunctions from cu_phonon_scf
+# acell/rprim/natom/typat/xred/znucl/ixc/ecut/nband/occopt/tsmear/kpt... are
+# inherited from the GS dataset in a multi-dataset run; repeat them here
+# when running as separate files:
+#acell    3*6.64968453
+#rprim    1 0 0  0 1 0  0 0 1
+#natom    4
+#typat    1 1 1 1
+#xred     0 0 0  0.5 0.5 0  0.5 0 0.5  0 0.5 0.5
+#ntypat   1
+#znucl    29
+#ixc      -1009
+#pseudos  "Cu_paw.psp8"
+#usepaw   1
+#pawecutdg 50.0
+#ecut     25.0
+#nband    48
+#occopt   3
+#tsmear   0.003674932248
+#kptopt   1
+#ngkpt    8 8 8
+#shiftk   0.5 0.5 0.5
+
+#------------- Output ----------------------------------------------------
+prtddb   1                     # WRITE THE DDB  -> out_DDB
+prteig   1
+
+%%
+# Run:  abinit cu_phonon_rf.in > cu_phonon_rf.log
+# Collect the DDB parts into ./out_DDB (ABINIT appends per-q blocks;
+# mrgddb can merge multi-run DDBs).  Then:
+#   python reproduce.py            # in the bundle root

@@ -1,31 +1,76 @@
 ---
-title: "Wannier90 SrTiO₃"
+title: "Wannier90 synthetic t2g model"
 weight: 8
 ---
 
-Unfold tight-binding Hamiltonians produced by Wannier90 — pristine and
-oxygen-vacancy supercells of SrTiO₃ — onto the primitive cell with the
-`unfolding.wannier_unfold` driver: the Wannier90 output is converted to a
-tight-binding model (reader from the
-[minimulti](https://github.com/minimulti/minimulti) package,
-`pip install minimulti`), the supercell generalized eigenproblem is
-solved along the path, and each supercell state is assigned its
-primitive-cell spectral weight. The route is generic for any
-Wannier-derived (or other) tight-binding model exposing
-`.atoms`, `._orb`, and `.solve_all(k_list=..., eig_vectors=...)`.
+Unfold a bundled synthetic Ti $t_{2g}$ Wannier90-format tight-binding
+model: a 2×2×2 simple-cubic supercell (24 orbitals) onto a 3-orbital
+primitive cell along Γ-X-M-Γ-R. The included `example_hr.dat` and
+`example.win` are sufficient to run the package's built-in Wannier90
+reader; minimulti is not required.
 
-## Running the example
+## The bundle
 
-You need a Wannier90 run on the supercell producing at least
-`wannier90_hr.dat` (centres optional but useful). The convenience driver
-reads a Wannier90 directory and plots:
+Download [wannier-sto.tar.gz](/downloads/wannier-sto.tar.gz) and unpack
+it:
+
+```console
+tar xf wannier-sto.tar.gz && cd wannier-sto
+```
+
+The bundle ships `data/example_hr.dat` and `data/example.win` for a
+synthetic Ti $t_{2g}$ nearest-neighbor model (3 orbitals per primitive
+site, 24 in the 2×2×2 supercell, hopping 1 eV). The annotated
+`inputs/seedname.win.example` shows how to prepare a real Wannier90
+dataset. The figures below are generated from the **bundled** model.
+
+## Structure and k-path
+
+| | |
+|---|---|
+| supercell matrix | `scmat = diag(2,2,2)` of the primitive cell (row convention) |
+| labels | one per supercell orbital: the bundled model uses d_xy/d_yz/d_zx × 8 sites (24) |
+| k-path | Γ-X-M-Γ-R, 200 points, vertices in primitive fractional coordinates: (0,0,0), (.5,0,0), (.5,.5,0), (0,0,0), (.5,.5,.5) |
+
+## Run it
+
+From the unpacked bundle directory, one command with the shipped
+config (the `cell` line pins the win unit cell of the synthetic model,
+so the CLI runs as shipped — with a real Wannier90 run the cell is read
+from the `.win` instead):
+
+```console
+unfolding --config unfold.toml          # -> sto_unfolded.png
+```
+
+The same TOML can be passed as the only Python input:
+
+```python
+from unfolding import load_config, run
+run(load_config("unfold.toml"))
+```
+
+or with explicit flags (`--labels` takes one label per supercell
+orbital, 24 here):
+
+```console
+unfolding wannier --path data --prefix example \
+    --unfold-mat 2 0 0 0 2 0 0 0 2 \
+    --labels d_xy d_yz d_zx d_xy d_yz d_zx d_xy d_yz d_zx d_xy d_yz d_zx \
+            d_xy d_yz d_zx d_xy d_yz d_zx d_xy d_yz d_zx d_xy d_yz d_zx \
+    --kpoints 0 0 0 0.5 0 0 0.5 0.5 0 0 0 0 0.5 0.5 0.5 \
+    --names G X M G R --npoints 200 --output sto_unfolded.png
+```
+
+or through the Python API with explicit parameters:
 
 ```python
 from unfolding.wannier_unfold import run
 
 ax = run(
-    path='data', prefix='wannier90',
-    labels=['O'], scmat=np.diag([2, 2, 2]),
+    path='data', prefix='example',     # data/example.win + data/example_hr.dat
+    labels=['d_xy', 'd_yz', 'd_zx'] * 8,
+    scmat=[[2, 0, 0], [0, 2, 0], [0, 0, 2]],
     output_figure='sto_unfolded.png',
     kvectors=[[0.0, 0.0, 0.0], [0.5, 0.0, 0.0], [0.5, 0.5, 0.0],
               [0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
@@ -33,46 +78,16 @@ ax = run(
 )
 ```
 
-`labels` names the orbitals of the primitive model; `scmat` is the
-supercell matrix; `kvectors` are the path vertices in primitive
-fractional coordinates.
+`reproduce.py` draws the bundled pristine and defect models;
+`--defect` changes one site's hoppings to 30% and adds a +6 eV on-site
+term.
 
-Driving any tight-binding model directly:
-
-```python
-from unfolding.wannier_unfold import WannierUnfolder
-
-u = WannierUnfolder(tbmodel, labels=labels, sc_matrix=scmat)
-weights = u.unfold(kpts)                 # weight matrix along the path
-ax = u.plot_unfolded_band(kvectors=..., knames=...)
+```console
+python reproduce.py --engine builtin              # pristine -> sto_unfolded.png
+python reproduce.py --defect --engine builtin     # defect   -> sto_defect.png
 ```
 
-{{< figure src="/images/sto_nodefect.png" title="Pristine SrTiO₃: supercell Wannier model unfolded onto the primitive cell along Γ-X-M-Γ-R; line opacity encodes the unfolded spectral weight, faint gray curves are the folded supercell bands; energy axis in eV, E_F = 0" >}}
 
-{{< figure src="/images/sto_defect.png" title="SrTiO₃ with an oxygen vacancy in the supercell, unfolded with the same call and encoded as the pristine figure (opacity = unfolded spectral weight, gray curves = folded supercell bands, E_F = 0)" >}}
+{{< figure src="/images/sto_nodefect.png" title="Bundled synthetic t2g supercell unfolded onto its primitive cell along Γ-X-M-Γ-R; opacity encodes unfolded weight, gray curves are folded supercell bands; energies in eV." >}}
 
-The committed runnable version with data lives in
-`examples/wannier_STO` — see also the
-[SIESTA dopant example](../siesta-p-doped/) for the DFT-side route.
-
-## Calculation background
-
-- Model: Wannier90 on a 20-atom SrTiO₃ supercell
-  (`scmat = [[1,-1,0],[1,1,0],[0,0,2]]`, det 4, of the 5-atom
-  pseudo-cubic cell); 32 orbitals = O-2p (`pz, px, py` × 12 O) + Ti-3d
-  (`dz2, dxy, dyz, dx2, dxz` × 4 Ti); hoppings pruned with
-  `min_hopping_norm=0.05`.
-- Data (`examples/wannier_STO/`): `data_nodefect/` (pristine) and
-  `data/` (one oxygen vacancy) hold the Wannier90 runs (`wannier90.eig`,
-  `wannier90.win`, `wannier90.wout`).
-- Figures: `test_nodefect()` / `test_defect()` in
-  `examples/wannier_STO/wannier_unfold.py` write
-  `STO_nodefect.png` / `STO_defect.png`
-  (copies of these are `docs/static/images/sto_nodefect.png` /
-  `sto_defect.png`). Requires `pip install minimulti pythtb` (the
-  Wannier90 reader).
-
-Download the [complete input bundle](/downloads/wannier-sto.tar.gz)
-(`wannier-sto.tar.gz`): input files, pseudopotentials, the fixture data
-needed for the figure, a `reproduce.py` script, and a `README.txt`
-with prerequisites and exact run instructions.
+{{< figure src="/images/sto_defect.png" title="Bundled synthetic t2g supercell with one perturbed site, unfolded on the same path and scale; opacity encodes weight." >}}

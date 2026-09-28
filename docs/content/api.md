@@ -5,6 +5,31 @@ weight: 30
 
 Curated reference for the public interfaces (see `unfolding/__init__.py`).
 
+## CLI and TOML configuration
+
+The `unfolding` console script exposes the same routes as the Python API.
+From an unpacked [example bundle](/examples/), run either the complete
+set of route flags or a TOML file as the **only** argument:
+
+```console
+unfolding siesta --fdf data/si_sc.fdf --primitive data/si_prim.vasp \
+    --unfold-mat -1 1 1 1 -1 1 1 1 -1 --special-points GXWGLX \
+    --npts 300 --method ideal --output si_unfolded.png
+unfolding --config unfold.toml
+```
+
+For the Python equivalent, pass explicit parameters to the adapter
+(shown on each example page), or load the same TOML file:
+
+```python
+from unfolding import load_config, run
+run(load_config("unfold.toml"))
+```
+
+`unfolding --help` lists routes; `unfolding <route> --help` lists that
+route's flags and optional backend requirements. Paths in TOML are
+relative to the current working directory (the unpacked bundle root).
+
 ## Consumer entry points
 
 ### `unfold_siesta(fdf=None, model=None, prim_atoms=None, unfold_sc_mat=None, spin="up", kpts=None, knames=None, xqpts=None, Xqpts=None, tol_r=0.04, orb_counts_prim=None, efermi=0.0, axis=None, output=None, ...)`

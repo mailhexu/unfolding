@@ -5,6 +5,8 @@ from .phonon_unfolder import phonon_unfolder
 from .unfolder import Unfolder
 from .magnon_unfolder import MagnonEigenData, MagnonUnfolder, MagnonWeights
 from .pw_unfolder import PWEigenData, PWUnfolder, PWWeights
+from .config import ROUTES, ConfigError, load_config
+from .routes import run
 
 __all__ = [
     "HamiltonIOModel",
@@ -27,6 +29,10 @@ __all__ = [
     "unfold_siesta",
     "unfold_openmx",
     "unfold_tb2j",
+    "ROUTES",
+    "ConfigError",
+    "load_config",
+    "run",
 ]
 
 # Symbols whose adapter modules need optional backends: name -> (module, extra).

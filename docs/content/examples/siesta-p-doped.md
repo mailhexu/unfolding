@@ -4,51 +4,97 @@ weight: 4
 ---
 
 Unfold a substituted SIESTA supercell — one Si atom of the 8-atom
-conventional-cubic cell replaced by P — onto the primitive fcc cell band
-path with the same `unfold_siesta` adapter as the
-[pristine Si example](../siesta-si/).
+conventional-cubic cell replaced by P — onto the primitive fcc cell
+band path. The substitution breaks the translation symmetry: host bands
+keep weight 1 while donor-derived states appear with fractional weight.
 
-## Running the example
+## The bundle
 
-The ingredients are the same as the pristine example, but from a
-supercell in which one atom is substituted (geometry otherwise relaxed
-as you see fit). No code changes are needed: the weight kernel reads the
-position-resolved overlap.
+Download [siesta-p-doped.tar.gz](/downloads/siesta-p-doped.tar.gz) and
+unpack it:
+
+```console
+tar xf siesta-p-doped.tar.gz && cd siesta-p-doped
+```
+
+Shipped: the Si₇P supercell fixtures (`data/si_sc_p.fdf` +
+`si_sc_p.HSX`), the pristine primitive cell (`data/si_prim.fdf` +
+`si_prim.HSX`, POSCAR copy in `data/si_prim.vasp`), the P
+pseudopotential (`pseudos/P.psml`), and `reproduce.py`. Prerequisites:
+`pip install unfolding` plus `pip install HamiltonIO sisl`. No SIESTA
+run is needed.
+
+## Structure and k-path
+
+Identical to the [pristine example](../siesta-si/): primitive 2-atom
+fcc cell (a = 5.430 Å), supercell matrix
+`M = [[-1,1,1],[1,-1,1],[1,1,-1]]` (row convention), path
+Γ-X-W-Γ-L-W-X with 300 points in primitive reciprocal coordinates,
+weight `"ideal"`.
+
+## Run it
+
+The dopant needs one extra setting: atom matching must ignore species
+(`match_species = false`), so the P atom maps onto the host site it
+replaces (same position and orbital count). From the unpacked bundle
+directory, one command with the shipped config:
+
+```console
+unfolding --config unfold.toml          # -> si_p_doped_unfolded_cli.png
+```
+
+The same TOML can be passed as the only Python input:
 
 ```python
-ax = unfold_siesta(
-    fdf='si_p_sc.fdf',                 # one Si replaced by P
-    prim_atoms=prim_atoms,
-    unfold_sc_mat=unfold_sc_mat,
-    kpts=kpts, xqpts=x, Xqpts=X, knames=knames,
+from unfolding import load_config, run
+run(load_config("unfold.toml"))
+```
+
+or with explicit flags (the same call the TOML encodes):
+
+```console
+unfolding siesta --fdf data/si_sc_p.fdf --primitive data/si_prim.vasp \
+    --unfold-mat -1 1 1 1 -1 1 1 1 -1 --special-points GXWGLX \
+    --npts 300 --method ideal --no-match-species \
+    --output si_p_doped_unfolded_cli.png
+```
+
+or through the Python API with explicit parameters:
+
+```python
+import numpy as np
+from ase.io import read
+from HamiltonIO.siesta import SislParser
+from unfolding.lcao_unfolder import HamiltonIOModel, LCAOUnfolder
+from unfolding.mapping import RelabelMap
+
+sc = SislParser("data/si_sc_p.fdf").get_model()
+prim = SislParser("data/si_prim.fdf").get_model()
+M = np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])
+
+rm = RelabelMap.from_atoms(
+    sc.atoms, prim.atoms, M,
+    orb_counts_sc=[4] * 8, orb_counts_prim=[4, 4],
+    match_species=False,   # the P dopant maps onto the Si site it replaces
 )
+unf = LCAOUnfolder(HamiltonIOModel(sc), rm)
+result = unf.compute(kpts, method="ideal")
 ```
 
-When you drive the building blocks directly, atom matching defaults to
-same-species matching; for a substituted site use
+`reproduce.py` renders the published figure:
 
-```python
-rm = RelabelMap.from_atoms(sc_atoms, prim_atoms, unfold_sc_mat,
-                           match_species=False)
+```console
+python reproduce.py                     # -> si_p_doped_unfolded.png
 ```
-
-so the dopant maps onto the host site it replaces.
 
 {{< figure src="/images/si_p_doped_unfolded.png" title="Unfolded SIESTA Si$_7$P bands along Γ-X-W-Γ-L-X; blue color intensity encodes the unfolding weight, red curves are the pristine primitive-cell bands; energies in eV with zero at the Fermi level" >}}
 
-A complete input bundle is available as
-[siesta-p-doped.tar.gz](/downloads/siesta-p-doped.tar.gz): input files,
-pseudopotentials, the fixture data needed for the figure, a
-`reproduce.py` script, and a `README.txt` with prerequisites and exact
-run instructions.
+## The fixtures
 
-## Calculation background
-
-The committed fixture is `tests/data/si_example/si_sc_p.fdf` +
-`si_sc_p.HSX`: the 8-atom conventional-cubic Si supercell with one Si
-replaced by P, otherwise the same SIESTA setup as the pristine example
-(SZ PAO basis, GGA-PBE, `MeshCutoff 100 Ry`, 2×2×2 k-grid, a = 5.430 Å).
-The dopant site maps onto the host site it replaces via
-`match_species=False`; the supercell matrix and path are identical to
-the pristine example. Regenerate the figure headless with
-`python docgen/fig_siesta_p_doped.py`.
+Same SIESTA setup as the pristine example (GGA-PBE, SZ PAO basis,
+`MeshCutoff 100 Ry`, 2×2×2 k-grid SCF, a = 5.430 Å) with one
+substitutional P. For your own doped supercell: relax the geometry as
+you see fit, keep `SaveHS true` and a k-sampled SCF, and pass
+`match_species=False` as above. The unperturbed host bands must stay at
+weight 1 — if they do not, the dopant site is mapping to the wrong
+host.

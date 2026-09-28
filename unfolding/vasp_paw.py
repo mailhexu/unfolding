@@ -126,3 +126,114 @@ def unfold_vasp_paw(supercell, primitive, potcar, matrix, *, spin=0,
     return VaspPawWeights(primitive.kpoints.copy(), np.asarray(energies),
                           np.asarray(weights), np.asarray(pseudo),
                           np.asarray(residuals))
+
+
+def _fold_lex_indices(bound):
+    """(3, M) integer grid in VASP/pymatgen iteration order (x fastest)."""
+    rng = np.arange(2 * bound + 1)
+    fold = np.where(rng <= bound, rng, rng - 2 * bound - 1)
+    i3, j2, k1 = np.meshgrid(fold, fold, fold, indexing="ij")
+    return np.stack([k1.ravel(), j2.ravel(), i3.ravel()], axis=0).T
+
+
+def read_wavecar_ordered(path, poscar, *, kpoint_indices=None):
+    """Parse a standard (rtag 45200/53300, spin-polarized) WAVECAR.
+
+    Identical record parsing to HamiltonIO's pymatgen-based reader, but
+    each k-point's G-vectors are enumerated around the k *as stored* in
+    VASP's own fold-lexicographic order (KPAR builds store unwrapped
+    components >1, and pymatgen's wrapped enumeration pairs the same
+    plane waves to different coefficients, silently corrupting overlaps
+    that involve the augmentation charge on high-energy bands). The
+    plane-wave count of every spin-0 k-point is verified against the
+    stored record. Returns a ``HamiltonIO.vasp.VaspPWData``; this is the
+    reader the vasp-paw route uses (ported from
+    ``examples/vasp_fe/read_wavecar_ordered.py``).
+    """
+    from pathlib import Path
+
+    from pymatgen.io.vasp.inputs import Poscar
+
+    path = Path(path)
+    with open(path, "rb") as fin:
+        recl, spin, rtag = np.fromfile(fin, dtype=np.float64, count=3).astype(int)
+        if rtag not in (45200, 45210, 53300, 53310):
+            raise ValueError(f"unsupported WAVECAR rtag {rtag}")
+        recl8 = int(recl / 8)
+        np.fromfile(fin, dtype=np.float64, count=recl8 - 3)
+        nk, nb = np.fromfile(fin, dtype=np.float64, count=2).astype(int)
+        encut = float(np.fromfile(fin, dtype=np.float64, count=1)[0])
+        lattice = np.fromfile(fin, dtype=np.float64, count=9).reshape(3, 3)
+        efermi = float(np.fromfile(fin, dtype=np.float64, count=1)[0])
+        np.fromfile(fin, dtype=np.float64, count=recl8 - 13)
+        # reciprocal vectors in VASP's convention: rows of 2*pi*inv(A).T
+        bcell = 2 * np.pi * np.linalg.inv(lattice).T
+
+        # generous per-axis enumeration bound
+        bmag = np.linalg.norm(bcell, axis=1)
+        gmax = np.sqrt(encut * 0.262465831) / bmag + 2.0
+        structure = Poscar.from_file(str(poscar)).structure
+
+        gvecs, coefficients, eigenvalues, kpoints = [], [], [], []
+        for ispin in range(spin):
+            for ik in range(nk):
+                head = np.fromfile(fin, dtype=np.float64, count=4)
+                nplane = int(head[0])
+                kpt = head[1:4]
+                enocc = np.fromfile(
+                    fin, dtype=np.float64, count=3 * nb
+                ).reshape(nb, 3)[:, 0]
+                skip = (recl8 - 4 - 3 * nb) % recl8
+                if skip:
+                    np.fromfile(fin, dtype=np.float64, count=skip)
+                rows = np.empty((nb, nplane), dtype=complex)
+                for ib in range(nb):
+                    rows[ib] = np.fromfile(fin, dtype=np.complex64, count=nplane)
+                    np.fromfile(fin, dtype=np.float64, count=recl8 - nplane)
+                if ispin == 0:
+                    kpoints.append(kpt)
+                    bound = int(np.ceil(gmax.max() + np.abs(kpt).max()))
+                    grid = _fold_lex_indices(bound)
+                    shifted = kpt + grid
+                    kin = np.einsum("ij,ij->i", shifted @ bcell, shifted @ bcell)
+                    keep = np.flatnonzero(kin / 0.262465831 <= encut)
+                    if len(keep) != nplane:
+                        raise ValueError(
+                            f"{path.name}: k-point {ik} enumerates {len(keep)} "
+                            f"plane waves, WAVECAR stores {nplane}"
+                        )
+                    gvecs.append(grid[keep])
+                    eigenvalues.append(enocc[None, :])
+                    coefficients.append(rows[None, :, None, :])
+                else:
+                    if not np.allclose(kpt, kpoints[ik], atol=1e-7):
+                        raise ValueError(
+                            f"{path.name}: spin-1 k-point {ik} differs: {kpt}"
+                        )
+                    if len(gvecs[ik]) != nplane:
+                        raise ValueError(
+                            f"{path.name}: spin-1 plane-wave count {nplane} "
+                            f"differs from spin 0 ({len(gvecs[ik])})"
+                        )
+                    eigenvalues[ik] = np.concatenate([eigenvalues[ik], enocc[None, :]])
+                    coefficients[ik] = np.concatenate(
+                        [coefficients[ik], rows[None, :, None, :]], axis=0
+                    )
+    if kpoint_indices is None:
+        selected = range(nk)
+    else:
+        selected = [int(i) for i in kpoint_indices]
+        if not selected or min(selected) < 0 or max(selected) >= nk:
+            raise ValueError("kpoint_indices outside WAVECAR range")
+    from HamiltonIO.vasp import VaspPWData
+
+    return VaspPWData(
+        lattice,
+        np.asarray([kpoints[i] for i in selected]),
+        tuple(gvecs[i] for i in selected),
+        tuple(coefficients[i] for i in selected),
+        tuple(eigenvalues[i] for i in selected),
+        efermi,
+        tuple(str(site.specie.symbol) for site in structure),
+        np.asarray(structure.frac_coords),
+    )

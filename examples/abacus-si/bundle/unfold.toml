@@ -1,0 +1,23 @@
+# ABACUS LCAO Si: 8-atom conventional-cubic supercell (committed fixture)
+# unfolded onto the 2-atom fcc primitive cell along Gamma-X-W-Gamma-L-W-X.
+# Companion of reproduce.py; see README.txt.
+route = "abacus"
+
+[input]
+supercell = "data/si_conv/OUT.si_conv"
+
+[structure]
+# 2-atom fcc primitive OUT directory; supercell = M @ primitive
+primitive = "data/si_prim/OUT.si_prim"
+supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
+
+[path]
+special_points = "GXWGLWX"
+npts = 300
+
+[options]
+mode = "lcao"
+method = "ideal"
+
+[output]
+output = "abacus_si_unfolded.png"

@@ -119,8 +119,10 @@ def unfold_siesta(
     xqpts=None,
     Xqpts=None,
     tol_r=0.04,
+    match_species=True,
     orb_counts_prim=None,
     efermi=0.0,
+    method="ring",
     axis=None,
     output=None,
     style="alpha",
@@ -152,12 +154,21 @@ def unfold_siesta(
         k-path exactly as in :func:`unfolding.phonopy_unfolder.phonopy_unfold`.
     tol_r : float
         Cartesian atom-matching tolerance (Angstrom) for the relabel map.
+    match_species : bool
+        Require equal symbols for a relabel-map match; pass ``False``
+        for substitutional defects (the dopant maps onto the host site
+        it replaces).
     orb_counts_prim : sequence of int or dict, optional
         Per-atom orbital counts of the primitive cell (HamiltonIO
         ``orb_dict`` form). Supercell counts come from the parsed
         model's ``orb_dict``.
     efermi : float
         Fermi level (passed to the plotter).
+    method : {"ring", "ideal"}
+        Weight definition forwarded to
+        :meth:`~unfolding.lcao_unfolder.LCAOUnfolder.compute`: ``"ring"``
+        (exact torus projection) is only defined on the supercell torus
+        grid; arbitrary k-paths need ``"ideal"``.
     axis : matplotlib Axes, optional
         Draw into an existing axes instead of creating one.
     output : str, optional
@@ -206,9 +217,10 @@ def unfold_siesta(
     rm = RelabelMap.from_atoms(
         adapted.atoms, prim_atoms, unfold_sc_mat, tol_r=tol_r,
         orb_counts_sc=raw_orb_dict, orb_counts_prim=orb_counts_prim,
+        match_species=match_species,
     )
     unf = LCAOUnfolder(adapted, rm)
-    res = unf.compute(kpts)
+    res = unf.compute(kpts, method=method)
 
     from unfolding.plotphon import plot_band_weight
 

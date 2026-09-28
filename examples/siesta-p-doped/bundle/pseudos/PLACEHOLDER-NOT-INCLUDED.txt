@@ -1,0 +1,18 @@
+PLACEHOLDER -- pseudopotential file not included: Si.psf
+
+The SIESTA inputs in this bundle reference Si.psf (element Si,
+norm-conserving pseudopotential). The file is not distributed with the
+unfolding repository and therefore not included here.
+
+It is NOT needed to reproduce the bundled figure: the committed .HSX
+fixture already contains the Hamiltonian and overlap, and the parse /
+unfolding path never opens the pseudopotential file.
+
+To re-run SIESTA from scratch (regenerate the fixtures), obtain:
+  Si.psf -- Si norm-conserving pseudopotential from the SIESTA
+  distribution's Examples/Si_Optical set,
+and place it in the run directory next to the fdf inputs.
+
+Note: P.psml (needed only by the siesta-p-doped bundle) IS distributed
+with the unfolding repository and ships in that bundle's pseudos/
+directory.

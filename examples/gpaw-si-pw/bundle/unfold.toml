@@ -1,0 +1,24 @@
+# GPAW plane-wave Si:P: the shipped Gamma-point restart unfolded into its
+# four primitive folds of supercell Gamma (companion of
+# `python reproduce.py --doped`; see README.txt).
+route = "gpaw"
+
+[input]
+supercell = "data/si7p_pw.gpw"
+
+[structure]
+# supercell = M @ primitive (conventional cubic cell in primitive units)
+supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
+
+[path]
+# the four primitive momenta folding to supercell Gamma
+kpoints = [[0.0, 0.0, 0.0], [0.0, 0.5, 0.5], [0.5, 0.0, 0.5], [0.5, 0.5, 0.0]]
+names = ["Γ", "(0,½,½)", "(½,0,½)", "(½,½,0)"]
+xticks = [0.0, 1.0, 2.0, 3.0]
+
+[options]
+mode = "pw"
+resolve_degenerate = 0.001
+
+[output]
+output = "gpaw_si_p_pw_unfolded.png"

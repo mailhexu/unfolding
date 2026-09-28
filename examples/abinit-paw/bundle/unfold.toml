@@ -1,0 +1,26 @@
+# ABINIT PAW Si:P: the shipped Gamma-point WFKs unfolded onto the four
+# primitive folds of supercell Gamma (companion of reproduce.py; see
+# README.txt). Weights live at the primitive WFK's stored k-points.
+route = "abinit-paw"
+
+[input]
+supercell = "data/si7p_gammao_WFK.nc"
+primitive = "data/si_primitive_foldso_WFK.nc"
+# directory holding the JTH datasets <Symbol>.xml (Si.xml, P.xml)
+paw = "data"
+
+[structure]
+# supercell = M @ primitive (conventional cubic cell in primitive units)
+supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
+
+[path]
+# tick labels for the four stored folds (xticks required with names)
+names = ["Γ", "(0,½,½)", "(½,0,½)", "(½,½,0)"]
+xticks = [0.0, 1.0, 2.0, 3.0]
+
+[options]
+spin = 0
+resolve_degenerate = 0.001
+
+[output]
+output = "abinit_paw_si7p_gamma.png"

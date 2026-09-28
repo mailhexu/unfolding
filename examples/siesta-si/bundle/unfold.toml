@@ -1,0 +1,24 @@
+# SIESTA Si: 8-atom conventional-cubic supercell -> 2-atom primitive fcc cell.
+# Run from the unpacked bundle root:  unfolding --config unfold.toml
+# or with explicit flags:
+#   unfolding siesta --fdf data/si_sc.fdf --primitive data/si_prim.vasp \
+#     --unfold-mat -1 1 1 1 -1 1 1 1 -1 --special-points GXWGLX \
+#     --npts 300 --method ideal --output si_unfolded_cli.png
+route = "siesta"
+
+[input]
+fdf = "data/si_sc.fdf"            # supercell run; the parser reads si_sc.HSX next to it
+
+[structure]
+primitive = "data/si_prim.vasp"   # 2-atom primitive fcc cell (a = 5.430 Ang)
+supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]   # conventional = M @ primitive
+
+[path]
+special_points = "GXWGLX"         # letters resolved on the primitive cell (Setyawan-Curtarolo)
+npts = 300
+
+[options]
+method = "ideal"                  # generic-k-path weight; "ring" is torus-grid only
+
+[output]
+output = "si_unfolded_cli.png"

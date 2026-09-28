@@ -1,0 +1,76 @@
+# Ground-state SCF for CaTiO3 in the Pnma orthorhombic cell (natom=20,
+# a-minus b-plus a-minus octahedral tilts).  First half of the two-run
+# recipe producing a phonon DDB like the bundled data/out.DDB.
+# Parameters reconstructed from that DDB's header (ecut 50 Ha, PAW with
+# pawecutdg 80, 100 bands, Gaussian smearing tsmear 0.002, ixc 7);
+# this file is a faithful template, not the literal historical deck.
+#
+# Pseudopotentials: the shipped DDB header records znucl/zion
+# (Ca z=20 zion=10, Ti z=22 zion=12, O z=8 zion=6), matching the
+# pseudos/ files shipped in this bundle (from the abipy distribution).
+
+abcd     = catio3_phonon_scf
+
+#------------- Structure of the system ------------------------------------
+acell    9.97688602  10.18903385  14.20347797    # Bohr (Pnma axes)
+rprim    1 0 0
+         0 1 0
+         0 0 1
+
+natom    20
+ntypat   3
+typat    1 1 1 1  2 2 2 2  3 3 3 3 3 3 3 3 3 3 3 3
+znucl    20 22 8
+xred
+   -0.0102018488  0.0466923812  0.2500000000    # Ca
+    0.0102018488  0.9533076188  0.7500000000    # Ca
+    0.5102018488  0.5466923812  0.2500000000    # Ca
+    0.4897981512  0.4533076188  0.7500000000    # Ca
+    0.0000000000  0.5000000000  0.0000000000    # Ti
+    0.0000000000  0.5000000000  0.5000000000    # Ti
+    0.5000000000  0.0000000000  0.0000000000    # Ti
+    0.5000000000  0.0000000000  0.5000000000    # Ti
+    0.0815524848  0.4788798846  0.2500000000    # O
+    0.9184475152  0.5211201154  0.7500000000    # O
+    0.5815524848  0.0211201154  0.7500000000    # O
+    0.4184475152  0.9788798846  0.2500000000    # O
+    0.7072278446  0.2919715261  0.0429245171    # O
+    0.2927721554  0.7080284739  0.9570754829    # O
+    0.2927721554  0.7080284739  0.5429245171    # O
+    0.7072278446  0.2919715261  0.4570754829    # O
+    0.7927721554  0.7919715261  0.0429245171    # O
+    0.2072278446  0.2080284739  0.9570754829    # O
+    0.2072278446  0.2080284739  0.5429245171    # O
+    0.7927721554  0.7919715261  0.4570754829    # O
+
+#------------- Exchange-correlation and pseudopotentials ------------------
+ixc      7
+pseudos  "Ca.psp8, Ti-sp.psp8, O.psp8"
+usepaw   1
+pawecutdg 80.0
+
+#------------- Numerical parameters of the calculation --------------------
+ecut     50.0
+nband    100
+occopt   3
+tsmear   0.002
+iscf     7
+nstep    50
+toldfe   1.0d-10
+
+#------------- k-point grid ----------------------------------------------
+# the shipped DDB used 108 irreducible points of a 6x6x6 grid shifted
+# by (1/12,1/12,1/12)
+kptopt   1
+ngkpt    6 6 6
+shiftk   0.0833333333 0.0833333333 0.0833333333
+
+#------------- Output -----------------------------------------------------
+prtden   1
+prtwf    0
+optcell  0
+dilatmx  1.0
+
+%%
+# Run:  abinit catio3_phonon_scf.in > catio3_phonon_scf.log
+# Then run catio3_phonon_rf.in.

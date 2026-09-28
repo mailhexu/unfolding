@@ -1,0 +1,11 @@
+num_wann = 24
+
+unit_cell_cart
+ ang
+  1.0  0.0  0.0
+  0.0  1.0  0.0
+  0.0  0.0  1.0
+
+begin atoms_frac
+  Ti  0.0  0.0  0.0
+end atoms_frac

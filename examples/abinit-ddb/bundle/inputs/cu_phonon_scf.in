@@ -1,0 +1,61 @@
+# Ground-state SCF for fcc Cu in the CONVENTIONAL cubic cell (natom=4).
+# First half of the two-run recipe that produces a phonon DDB like the
+# bundled data/out_DDB.  Parameters reconstructed from that DDB's header
+# (ecut 25 Ha, PAW with pawecutdg 50, 48 bands, Gaussian smearing
+# tsmear 0.00367 Ha, ixc -1009); this file is a faithful template, not
+# the literal historical deck.
+#
+# Provide your own Cu PAW pseudopotential with znucl 29 / zion 19 in
+# pseudos/ (see README.txt).
+
+#------------- Fundamental variables (header of the .in file) -------------
+abcd     = cu_phonon_scf
+
+#------------- Structure of the system ------------------------------------
+acell    3*6.64968453          # conventional cubic a = 6.6497 Bohr = 3.5189 A
+rprim    1 0 0                 # cubic (the DDB cell IS the conventional
+         0 1 0                 # cubic cell; acell given in Bohr)
+         0 0 1
+
+natom    4
+typat    1 1 1 1
+xred
+    0.00000000  0.00000000  0.00000000
+    0.50000000  0.50000000  0.00000000
+    0.50000000  0.00000000  0.50000000
+    0.00000000  0.50000000  0.50000000
+
+ntypat   1
+znucl    29
+
+#------------- Exchange-correlation and pseudopotentials ------------------
+ixc      -1009                 # as recorded in the shipped DDB header
+pseudos  "Cu_paw.psp8"         # <- your Cu PAW pseudo (zion 19)
+usepaw   1
+pawecutdg 50.0
+
+#------------- Numerical parameters of the calculation --------------------
+ecut     25.0
+nband    48
+occopt   3
+tsmear   0.003674932248
+iscf     7                     # SCF cycle as recorded in the DDB header
+nstep    50
+toldfe   1.0d-10
+
+#------------- k-point grid ----------------------------------------------
+# the shipped DDB was computed on a 256-point shifted grid; a standard
+# 8x8x8 shifted grid is equivalent in spirit for this demo
+kptopt   1
+ngkpt    8 8 8
+shiftk   0.5 0.5 0.5
+
+#------------- Output -----------------------------------------------------
+prtden   1                     # density for the DFPT run below
+prtwf    0
+optcell  0
+dilatmx  1.0
+
+%%
+# Run:  abinit cu_phonon_scf.in > cu_phonon_scf.log
+# Then run cu_phonon_rf.in, which reads this density (getden -1).
