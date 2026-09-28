@@ -4,10 +4,12 @@ weight: 2
 ---
 
 Unfold a SIESTA supercell calculation onto the primitive-cell band path
-using the stored Hamiltonian. The example uses an 8-atom conventional-cubic
-Si supercell unfolded onto the 2-atom primitive fcc cell.
+using the stored Hamiltonian: an 8-atom conventional-cubic Si supercell
+(`SaveHS true`) unfolded onto the 2-atom primitive fcc cell with the
+`unfold_siesta` adapter, which parses the run through
+[HamiltonIO](https://github.com/aimatores/HamiltonIO)/sisl.
 
-## What you need
+## Running the example
 
 From your SIESTA runs:
 
@@ -18,8 +20,6 @@ From your SIESTA runs:
 The supercell archive should come from a k-sampled SCF run: a Gamma-only
 `SaveHS` collapses all supercell image shells into a single R=0 block,
 which cannot be unfolded at generic momenta.
-
-## One-call unfolding
 
 ```python
 import numpy as np
@@ -44,48 +44,37 @@ ax = unfold_siesta(
 ```
 
 `unfold_sc_mat` uses the row convention `supercell = M @ primitive`. The
-adapter parses the fdf through
-[HamiltonIO](https://github.com/aimatores/HamiltonIO)/sisl, matches every
-supercell atom onto the primitive cell, computes the weights, and plots
-weight-coded bands in eV.
+adapter matches every supercell atom onto the primitive cell, computes
+the weights, and plots weight-coded bands in eV.
 
-{{< figure src="/images/si_unfolded.png" title="Unfolded Si bands with the independently computed primitive-cell bands overlaid in red" >}}
-
-## Reading the figure
-
-The red overlay is the primitive-cell band structure diagonalized
-independently. Every weight-1 unfolded branch lies on a primitive band,
-which is the practical validation of the unfolding.
-
-## Weights at generic momenta
+{{< figure src="/images/si_unfolded.png" title="Unfolded SIESTA Si$_8$ bands along Γ-X-W-Γ-L-X; blue color intensity encodes the unfolding weight, red curves are the independently computed primitive-cell bands; energies in eV with zero at the Fermi level" >}}
 
 Two weight definitions are available through
-`LCAOUnfolder.compute(kpts, method=...)`:
+`LCAOUnfolder.compute(kpts, method=...)`: `method="ring"` (exact torus
+projection, binary at momenta commensurate with the supercell torus) and
+`method="ideal"` (the standard Popescu–Zunger/Lee weight for generic
+off-grid momenta, used along arbitrary k-paths). For a pre-parsed
+Hamiltonian, pass `model=` instead of `fdf=`; collinear spin-polarized
+runs select the channel with `spin="up"` or `spin="down"`. For custom
+pipelines the stages behind `unfold_siesta` are public
+(`RelabelMap.from_atoms`, `LCAOUnfolder(HamiltonIOModel(model), rm)`),
+and the WFSX variant of this example is described in
+[SIESTA WFSX route](../siesta-wfsx/).
 
-- `method="ring"` — exact torus projection; binary and Parseval-exact at
-  momenta commensurate with the supercell torus,
-- `method="ideal"` — the standard Popescu–Zunger/Lee weight for generic
-  (off-grid) momenta; use it along arbitrary k-paths.
+A complete input bundle is available as
+[siesta-si.tar.gz](/downloads/siesta-si.tar.gz): input files,
+pseudopotentials, the fixture data needed for the figure, a
+`reproduce.py` script, and a `README.txt` with prerequisites and exact
+run instructions.
 
-For a pre-parsed Hamiltonian, pass `model=` instead of `fdf=`; collinear
-spin-polarized runs select the channel with `spin="up"` or `spin="down"`.
+## Calculation background
 
-## Building blocks
-
-For custom pipelines, the stages behind `unfold_siesta` are public:
-
-```python
-from unfolding.lcao_unfolder import HamiltonIOModel, LCAOUnfolder
-from unfolding.mapping import RelabelMap
-
-rm = RelabelMap.from_atoms(sc_atoms, prim_atoms, unfold_sc_mat)
-unf = LCAOUnfolder(HamiltonIOModel(sc_model), rm)
-result = unf.compute(kpts, method="ideal")   # -> LCAOWeights
-```
-
-## Reproduce this example
-
-Download the [complete input bundle](/downloads/siesta-si.tar.gz)
-(`siesta-si.tar.gz`): input files, pseudopotentials, the fixture data
-needed for the figure, a `reproduce.py` script, and a `README.txt`
-with prerequisites and exact run instructions.
+The committed fixtures live in `tests/data/si_example/`: SIESTA runs
+with a Si pseudopotential and single-zeta PAO basis (`PAO.BasisSize SZ`),
+GGA-PBE, `MeshCutoff 100 Ry`, a 2×2×2 Monkhorst-Pack grid, and lattice
+constant a = 5.430 Å — the 8-atom conventional-cubic supercell
+(`si_sc.fdf` + `si_sc.HSX`) and the 2-atom primitive cell
+(`si_prim.fdf`). The supercell matrix is the conventional cube in
+primitive-lattice units, `B = [[-1,1,1],[1,-1,1],[1,1,-1]]`; the path is
+Γ-X-W-Γ-L-X with 300 points. Regenerate the figure headless with
+`python docgen/fig_siesta_si.py`.

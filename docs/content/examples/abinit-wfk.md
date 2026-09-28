@@ -3,74 +3,42 @@ title: "ABINIT WFK Si and Si:P"
 weight: 6
 ---
 
-Unfold an ABINIT supercell calculation directly from its wavefunction file.
-The planewave basis is orthonormal, so the weight is a pure reciprocal-coset
-projection — no overlaps or atom maps are involved. Two examples: pristine
-Si in the 8-atom conventional cell (validated against the primitive cell),
-then P-doped Si in the same cell.
+Unfold ABINIT supercell calculations directly from their wavefunction
+files with the `unfold_abinit` adapter (norm-conserving plane waves: the
+weight is a pure reciprocal-coset projection — no overlaps or atom maps
+are involved). Two examples: pristine Si in the 8-atom conventional cell
+(`M = [[-1,1,1],[1,-1,1],[1,1,-1]]`, conventional = M @ primitive fcc
+cell) and Si:P with one substitutional P in the same cell, both unfolded
+onto the primitive fcc cell along Γ–X–W–Γ–L–W–X.
 
-## Preparing the WFK
+## Running the example
 
-The reader accepts ABINIT 9/10 ETSF netCDF WFKs and enforces a full-storage
-contract:
+The WFK reader (`HamiltonIO.abinit.read_wfk`, ABINIT 9/10 ETSF netCDF)
+enforces a full-storage contract:
 
-| ABINIT input setting | Why |
+| ABINIT input setting | Role |
 |---|---|
-| `iomode 3` | Write a netCDF WFK (a plain Fortran-binary WFK is rejected with this remedy). |
-| `istwfk 1` | Store the full G sphere; half-sphere storage cannot be reconstructed. |
-| `prtwf 1` | Keep the raw coefficients. |
-| `chkprim 0` | Needed whenever the supercell itself is non-primitive. |
+| `iomode 3` | write a netCDF WFK (a plain Fortran-binary WFK is rejected with this remedy) |
+| `istwfk 1` | store the full G sphere (half-sphere storage cannot be reconstructed) |
+| `prtwf 1` | keep the raw coefficients |
+| `chkprim 0` | needed whenever the supercell itself is non-primitive |
 
-A typical setup is a two-dataset input: an SCF dataset that writes the
-density, then a frozen-density (`iscf -2`, `getden2 1`) dataset that samples
-your k-path with `kptopt 0`, an explicit `kpt2` list, and `prtwf 1`. Two
-practical points learned the hard way:
+Use a two-dataset input: dataset 1 an SCF run that writes the density,
+dataset 2 a frozen-density non-SCF (`iscf -2`, `getden2 1`, `kptopt 0`)
+that samples the path with an explicit `kpt2` list and `prtwf 1`. For a
+converged fixture: give the path dataset a few bands of headroom beyond
+the plotted window, converge it (`nstep2` generous, `tolwfr2` tight), and
+converge `ecut` before producing figures (the fixtures use `ecut 25` Ha;
+with the norm-conserving pseudopotentials used here the upper valence is
+stable by `ecut ~ 15–18` Ha while the deeper s manifold keeps moving
+past that). Use pseudopotentials your ABINIT build parses cleanly: a
+locally generated ONCVPSP-4.0.1 file is misparsed by ABINIT and silently
+adds flat ghost bands below the valence; the fixtures use the
+Troullier-Martins fhi pseudos from the ABINIT test-suite Pspdir.
 
-- Give the path dataset a few bands of headroom beyond the states you want
-  to plot so edge-state mixing stays out of the window.
-- Converge the non-SCF step properly (`nstep2` generous, `tolwfr2` tight):
-  an iteration-starved run leaves scattered k-points slightly unconverged,
-  which jags individual eigenvalues by tenths of an eV and renders as
-  broken band lines.
-
-- Converge `ecut` before trusting the picture: with the norm-conserving
-  pseudopotentials used here the upper valence is stable by
-  `ecut ~ 15--18` Ha, but the deeper s manifold keeps moving well past
-  that (the fixtures use `ecut 25`). An under-converged `ecut` displaces
-  bands by whole eV's and the unfolded map inherits every displacement.
-- Use pseudopotentials your DFT code actually parses: the first version
-  of these fixtures used a locally generated ONCVPSP-4.0.1 file whose
-  header ABINIT misparses, which silently added flat ghost bands below
-  the valence and put the Fermi level inside the valence manifold —
-  pristine Si rendered as a metal. The fixtures now use the
-  Troullier-Martins fhi pseudos from the ABINIT test-suite Pspdir; a
-  Γ-point spectrum with extra singlets below the top valence triplet is
-  the tell-tale.
-
-## Pristine Si: a known answer
-
-{{< figure src="/images/si8_abinit_unfolded.png" title="Si 8-atom conventional cell unfolded onto the primitive path (blue intensity = spectral weight); crimson curves: independently computed primitive-cell bands" >}}
-
-Unfold the pristine 8-atom cell on the same Γ–X–W–Γ–L–W–X path as the
-[SIESTA Si example](/examples/siesta-si/). For a pristine crystal every
-state folds from a single primitive momentum, so the weights are binary
-and the unfolded bands *are* the primitive band structure. The crimson
-overlay is an independent primitive-cell calculation: after a single
-constant potential-reference shift (the supercell run uses a Γ-only SCF
-density, the primitive run a k-sampled one) the two agree to within
-~0.07 eV everywhere along the path.
-
-## Si:P: a defect in the same cell
-
-{{< figure src="/images/si7p_abinit_unfolded.png" title="Si:P unfolded: host bands keep the dark weight; defect-hybridized states carry fractional weight and appear dimmer" >}}
-
-Substituting one Si by P in the same 8-atom cell (12.5% concentration)
-mixes the fold sectors: host bands keep weight near 1 and render as the
-darkest traces, while states hybridized with impurity-scattered momenta
-carry fractional weight and appear dimmer. Weights of a normalized state
-over all fold sectors sum to 1.
-
-## Run the unfolding
+Unfold the Si:P WFK (fcc special points in primitive reciprocal
+coordinates, Setyawan–Curtarolo; pass the SAME primitive points to the
+non-SCF dataset as `kpt2 @ matrix.T`):
 
 ```python
 import numpy as np
@@ -79,8 +47,6 @@ from unfolding import unfold_abinit
 
 matrix = np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])   # = M @ primitive
 
-# fcc special points in primitive reciprocal coordinates (Setyawan-
-# Curtarolo), same path as the SIESTA example: Gamma-X-W-Gamma-L-W-X.
 special = {'G': (0, 0, 0), 'X': (.5, 0, .5), 'W': (.5, .25, .75),
            'L': (.5, .5, .5)}
 names = 'GXWGLWX'
@@ -96,19 +62,21 @@ ax = unfold_abinit(
 )
 ```
 
+{{< figure src="/images/si8_abinit_unfolded.png" title="Pristine Si (8-atom conventional cell) unfolded onto the Γ-X-W-Γ-L-W-X primitive path: Gaussian-smeared spectral-weight map (Blues scale, opacity = weight), energies relative to the WFK Fermi level; crimson curves are primitive-cell bands from an independent primitive-cell calculation" >}}
+
+{{< figure src="/images/si7p_abinit_unfolded.png" title="Si:P (one P substituting Si in the 8-atom cell) unfolded onto the same path: Gaussian-smeared spectral-weight map (Blues scale, opacity = weight), energies relative to the WFK Fermi level" >}}
+
 Each requested primitive k-point must be present in the WFK (the adapter
 maps it to the stored supercell momentum internally: primitive
 `(0, t/2, t/2)` is conventional-cell `(t, 0, 0)` here). Eigenvalues are
 converted from Hartree to eV at this boundary and shifted by the WFK's
-Fermi energy by default (`fermi_shift=False` for absolute energies).
-`average_degenerate` (eV) optionally averages weights over near-degenerate
-groups, and `resolve_degenerate` (eV) is recommended for plotting: exact
-degeneracies may be stored as arbitrary unitary mixtures of their fold
-sectors, which splits the per-band weights from k-point to k-point and
-renders as dotted lines; resolving eigen-assigns gauge-invariant branch
-weights. Collinear spin channels are selected with `spin=`.
+Fermi energy by default (`fermi_shift=False` for absolute energies);
+`average_degenerate` (eV) optionally averages weights over
+near-degenerate groups, and `resolve_degenerate` (eV) eigen-assigns
+gauge-invariant branch weights inside such groups. Collinear spin
+channels are selected with `spin=`.
 
-## Weights without plotting
+To get weights without plotting:
 
 ```python
 from HamiltonIO.abinit import read_wfk
@@ -119,10 +87,29 @@ eigen = PWEigenData(data.kpoints, data.gvecs, data.coefficients, data.eigenvalue
 result = PWUnfolder(eigen, matrix).compute(kpts)
 ```
 
-`read_wfk` rejects unreadable variants with actionable messages (the
-`iomode 3` and `istwfk 1` remedies above).
+`read_wfk` rejects unreadable WFK variants with actionable messages (the
+`iomode 3` and `istwfk 1` remedies above). The same Γ–X–W–Γ–L–W–X path is
+used by the [SIESTA Si example](/examples/siesta-si/).
 
-## Reproduce this example
+## Calculation background
+
+- Code: ABINIT (9/10 netCDF WFK), norm-conserving Troullier-Martins fhi
+  pseudopotentials from the ABINIT test-suite Pspdir
+  (`14-Si.nlcc.fhi`, `15-P.LDA.fhi`).
+- Cell: 8-atom conventional cubic cell, `acell 3*10.26` bohr;
+  supercell matrix `M = [[-1,1,1],[1,-1,1],[1,1,-1]]` (conventional = M
+  @ primitive fcc cell), so supercell momenta are `K = k_prim @ M.T`.
+- Decks (`tests/data/abinit_si/`): `si8_gxwglwx.abi` and
+  `si7p_gamma_x_path.abi` — `ndtset 2`: dataset 1 SCF at supercell Γ
+  (`nkpt1 1`, `istwfk1 1`), dataset 2 frozen-density non-SCF
+  (`iscf2 -2`, `tolwfr2 1e-16`) over 305 path points; `ecut 25` Ha,
+  `nband 24`, `iomode 3`. The 2-atom primitive reference run is
+  `si_prim_path.abi`. Dense path WFKs are staged by
+  `tests/data/abinit_si/regenerate_on_nic6.sh`.
+- Figures: `python docgen/fig_abinit_si8.py` (overlays the primitive
+  bands from `si_prim_patho_DS2_WFK.nc`) and
+  `python docgen/fig_abinit_si7p.py`; both write into
+  `docs/static/images/`.
 
 Download the [complete input bundle](/downloads/abinit-wfk-si.tar.gz)
 (`abinit-wfk-si.tar.gz`): input files, pseudopotentials, the fixture data

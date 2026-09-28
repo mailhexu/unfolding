@@ -3,40 +3,27 @@ title: "GPAW plane-wave Si and Si:P"
 weight: 11
 ---
 
-Unfold GPAW *pseudo* plane-wave coefficients by reciprocal cosets,
-using the backend-free plane-wave engine. This does not reconstruct
-PAW all-electron weights. The pristine path and the Si:P Gamma folds
-illustrate respectively nearly binary and fractional pseudo weights.
+Unfold GPAW *pseudo* plane-wave coefficients by reciprocal cosets with
+the backend-free plane-wave engine: an 8-atom conventional-cubic Si
+supercell run in plane-wave mode (plus a Si:P Gamma-point run) unfolded
+onto the primitive-cell path through ``HamiltonIO.gpaw.GpawPWParser`` and
+``PWUnfolder``. This does not reconstruct PAW all-electron weights.
 
-## Reading a GPAW planewave restart
+## Running the example
 
 ``HamiltonIO.gpaw.GpawPWParser`` reads a ``mode='all'`` ``.gpw``
 restart (planewave mode, ``symmetry='off'``) and aggregates it into a
-``GpawPWData`` object mirroring the SIESTA ``WFSXData`` surface:
-fractional supercell k-points (plus their Cartesian form, 2*pi
-included), eigenvalues in eV, and per-k expansion coefficients on the
-stored plane-wave grids together with their integer G vectors.
-GPAW normalizes wavefunctions in the PAW overlap metric. This parser
-renormalizes the pseudo coefficients to `sum_G |c_G|^2 = 1`: resulting
-coset fractions describe the *pseudo* wavefunctions and are not PAW
-all-electron spectral weights. For defects, augmentation can change
-the fractions; see the PAW method research for the missing overlap.
+``GpawPWData`` object: fractional supercell k-points (plus their
+Cartesian form, 2*pi included), eigenvalues in eV, and per-k expansion
+coefficients on the stored plane-wave grids together with their integer
+G vectors (recovered exactly from GPAW's
+``G_plus_k_Gv = (g + k) @ (2 pi icell)`` and validated to lie inside
+the cutoff sphere).
 
 | Run setting | Why |
 |---|---|
 | ``mode='all'`` restart | Without wavefunctions there is nothing to project. |
 | ``symmetry='off'`` | The reader consumes the stored k-points as written. |
-
-Integer G vectors are recovered exactly from GPAW's
-``G_plus_k_Gv = (g + k) @ (2 pi icell)`` and validated to lie inside the
-cutoff sphere.
-
-The locally generated pristine Si fixture uses an 8-atom conventional
-cell (PBE, 340 eV cutoff, 24 bands) on the 300-point
-Gamma-X-W-Gamma-L-W-X path in supercell coordinates;
-`examples/gpaw_si/generate_fixtures.py` reproduces it.
-
-## Run the unfolding
 
 ```python
 import numpy as np
@@ -60,27 +47,32 @@ primitive-cell fractional coordinates — the unfolder maps each to its
 stored supercell momentum ``K = k @ B.T`` internally. Every requested
 k must be present in the stored grid; ``resolve_degenerate`` (eV)
 reassigns gauge-invariant weights inside near-degenerate groups so
-exact degeneracies render as clean lines.
+exact degeneracies render as clean lines. GPAW normalizes wavefunctions
+in the PAW overlap metric; the parser renormalizes the pseudo
+coefficients to `sum_G |c_G|^2 = 1`, so resulting coset fractions
+describe the *pseudo* wavefunctions and are not PAW all-electron
+spectral weights.
 
-## Pristine Si: a known answer
+{{< figure src="/images/gpaw_si_pw_unfolded.png" title="GPAW plane-wave Si$_8$ (8-atom conventional cell) unfolded onto the primitive Γ-X-W-Γ-L-W-X path; blue color intensity encodes the pseudo-wavefunction coset weight, crimson curves are the independently computed primitive-cell plane-wave bands; energies in eV with zero at the run's Fermi level" >}}
 
-{{< figure src="/images/gpaw_si_pw_unfolded.png" title="GPAW planewave Si 8-atom conventional cell unfolded onto the primitive path; crimson curves: independently computed primitive-cell planewave bands" >}}
+For the doped fixture, `si7p_pw.gpw` is a Gamma-point-only run: its
+four primitive folds are plotted as separate columns (marker area and
+color intensity encode the weight), not as a continuous path.
 
-For the lowest 20 states of this pristine Si fixture, the largest
-`|w(1-w)|` after resolving near-degeneracies is 3.3e-6; do not
-describe raw computed weights as exact integers. The crimson overlay
-is an independent primitive-cell plane-wave calculation, aligned by
-the median potential-reference offset. Run
-`examples/gpaw_si_pw/unfold.py` to reproduce the figure.
+{{< figure src="/images/gpaw_si_p_pw_unfolded.png" title="GPAW plane-wave Si:P: pseudo-wavefunction weights at the four primitive momenta (Γ, (0,½,½), (½,0,½), (½,½,0)) folding to supercell Gamma; marker area and color intensity encode the weight; energies in eV relative to the run's Fermi level" >}}
 
-## Si:P at supercell Gamma
+Reproduce the figures with ``python examples/gpaw_si_pw/unfold.py`` and
+``python examples/gpaw_si_pw/unfold_doped.py``.
 
-{{< figure src="/images/gpaw_si_p_pw_unfolded.png" title="GPAW plane-wave Si:P: pseudo-wavefunction weights at the four primitive momenta folding to supercell Gamma" >}}
+## Calculation background
 
-`si7p_pw.gpw` is a real 340 eV PBE 8-atom Si7P Gamma-point
-calculation. Its four primitive folds have one shared supercell energy
-per band and weights summing to one within 2.5e-15; band 16 has fold
-weights approximately (0.082, 0.306, 0.306, 0.306). This Gamma-only
-fixture does **not** provide a continuous path. Run
-`examples/gpaw_si_pw/unfold_doped.py`; regenerate input with
-`examples/gpaw_si/generate_fixtures.py`.
+The committed fixtures live in `tests/data/gpaw_example/`:
+`si8_pw.gpw` is an 8-atom conventional-cell plane-wave run (PBE,
+340 eV cutoff, 24 bands, ``mode='all'``, ``symmetry='off'``) with the
+nscf path sampled on the 300-point Γ-X-W-Γ-L-W-X primitive path in
+supercell coordinates; `si7p_pw.gpw` is a real 340 eV PBE 8-atom Si7P
+Gamma-point run. Both come from
+``examples/gpaw_si/generate_fixtures.py`` (gpaw >= 26 in the mydev
+environment; the planewave runs are skipped when the committed fixtures
+are staged into the workdir). Energies are referenced to each run's own
+Fermi level.

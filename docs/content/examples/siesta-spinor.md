@@ -3,17 +3,17 @@ title: "SIESTA spinors"
 weight: 5
 ---
 
-Non-collinear (spinor, `nspin=4`) supercell runs unfold through the same
-machinery: the spinor pipeline is the parse → relabel → weight chain with
-doubled orbital counts (each PAO times two spin components).
+Non-collinear (`nspin=4`, spinor) SIESTA supercell runs unfold through
+the same machinery as the collinear example: the parse → relabel →
+weight chain with doubled orbital counts (each PAO times two spin
+components), here on the 8-atom conventional-cubic Si supercell onto the
+2-atom primitive fcc cell.
 
-## What you need
+## Running the example
 
 A non-collinear supercell run with the Hamiltonian saved, plus the
-primitive structure. Spin-polarized collinear runs are even simpler — see
-`spin="up"|"down"` in the [Si example](../siesta-si/).
-
-## Run the unfolding
+primitive structure. Spin-polarized collinear runs are even simpler —
+see `spin="up"|"down"` in the [Si example](../siesta-si/).
 
 ```python
 from unfolding.lcao_unfolder import HamiltonIOModelSpinor, LCAOUnfolderSpinor
@@ -25,20 +25,25 @@ result = unf.compute(kpts, method="ideal")
 ```
 
 Orbital counts are doubled: with 4 PAOs per Si atom, pass `orb_counts_sc`
-of `8` per supercell atom (or let them be inferred from the spinor model).
+of `8` per supercell atom (or let them be inferred from the spinor
+model).
 
-## Reading the figure
+{{< figure src="/images/si_spinor_unfolded.png" title="Unfolded SIESTA spinor (nspin=4) Si$_8$ bands along Γ-X-W-Γ-L-X; blue color intensity encodes the unfolding weight, red curves are the independently computed primitive-cell spinor bands; energies in eV with zero at the Fermi level" >}}
 
-With spin-orbit coupling off, spinor bands equal the scalar bands with
-Kramers degeneracy — a clean certification that the spinor bookkeeping
-(atom matching, doubled orbital indices, spin-traced weights) is correct.
-With SOC on, the same pipeline yields the spinor unfolded spectrum.
+A complete input bundle is available as
+[siesta-spinor.tar.gz](/downloads/siesta-spinor.tar.gz): input files,
+pseudopotentials, the fixture data needed for the figure, a
+`reproduce.py` script, and a `README.txt` with prerequisites and exact
+run instructions.
 
-{{< figure src="/images/si_spinor_unfolded.png" title="Spinor (nspin=4) run: the spinor pipeline reproduces the primitive bands with Kramers degeneracy" >}}
+## Calculation background
 
-## Reproduce this example
-
-Download the [complete input bundle](/downloads/siesta-spinor.tar.gz)
-(`siesta-spinor.tar.gz`): input files, pseudopotentials, the fixture data
-needed for the figure, a `reproduce.py` script, and a `README.txt`
-with prerequisites and exact run instructions.
+The committed fixtures are `tests/data/si_example/si_sc_pso.fdf` +
+`si_sc_pso.HSX` (supercell) and `si_prim_pso.fdf` + `si_prim_pso.HSX`
+(primitive cell): the same 8-atom Si setup as the
+[Si example](../siesta-si/) run non-collinear (`Spin.Orbit` /
+`nspin=4`), with a scalar Si pseudopotential without SOC channels, so
+spin-orbit coupling is off. Spinor orbital counts are 8 per atom (4 PAO
+× 2 spin components); the supercell matrix and Γ-X-W-Γ-L-X path are
+identical to the collinear example. Regenerate the figure headless with
+`python docgen/fig_siesta_spinor.py`.

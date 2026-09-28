@@ -10,6 +10,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 from HamiltonIO.gpaw import GpawPWParser
 from unfolding.pw_unfolder import PWEigenData, PWUnfolder
@@ -37,6 +38,11 @@ def main(output=OUTPUT):
     ax.set_xlim(-.5, 3.5)
     ax.set_ylabel("Energy relative to Fermi level (eV)")
     ax.set_title("GPAW plane-wave Si:P: four primitive folds of supercell Gamma")
+    ax.legend(handles=[Line2D([0], [0], marker="o", linestyle="none",
+                              markerfacecolor="navy", markeredgecolor="none",
+                              alpha=0.8, markersize=9,
+                              label="unfolded spectral weight")],
+              loc="upper right", fontsize=8, framealpha=0.85)
     fig.tight_layout()
     fig.savefig(output, dpi=160)
     plt.close(fig)

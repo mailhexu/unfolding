@@ -4,6 +4,7 @@ import numpy as np
 from minimulti.unfolding.unfolder import Unfolder
 #from pyDFTutils.phonon.plotphon import plot_band_weight
 from minimulti.electron.plot import plot_band_weight
+from pythtb import w90
 import matplotlib.pyplot as plt
 
 
@@ -78,6 +79,17 @@ class wannier_unfolder(object):
         ax.set_xticklabels(knames)
         for x in X:
             ax.axvline(x, linewidth=0.6, color='gray')
+        from matplotlib.lines import Line2D
+
+        ax.legend(
+            handles=[
+                Line2D([0], [0], color='blue', lw=2,
+                       label='unfolded spectral weight'),
+                Line2D([0], [0], color='gray', lw=1,
+                       label='supercell bands'),
+            ],
+            loc='upper right', fontsize=8, framealpha=0.85,
+        )
         return ax
 
 # Below are example. Should be moved to examples.

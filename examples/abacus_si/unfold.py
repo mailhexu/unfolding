@@ -51,6 +51,7 @@ def draw(unf, prim, efermi, out_path, title=None):
     import numpy as np
 
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
     from unfolding.plotphon import plot_band_weight
 
@@ -78,7 +79,12 @@ def draw(unf, prim, efermi, out_path, title=None):
     lines[0].set_label("primitive-cell bands")
     if title:
         ax.set_title(title)
-    ax.legend(loc="upper right", fontsize=8, framealpha=0.85)
+    # plot_band_weight draws the weight-coded bands as blue lines with
+    # alpha = w/(width + 0.011); the proxy matches the weight-1 appearance.
+    unfolded = Line2D([0], [0], color="blue", alpha=0.5, lw=2,
+                      label="unfolded spectral weight")
+    ax.legend(handles=[unfolded, lines[0]], loc="upper right", fontsize=8,
+              framealpha=0.85)
     ax.figure.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(ax.figure)
     return out_path

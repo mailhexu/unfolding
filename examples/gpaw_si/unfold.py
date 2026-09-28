@@ -104,6 +104,7 @@ def primitive_bands(prim, kpts):
 
 def spectral_figure(res, eprim, x, Xq, knames, title, out_path):
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
     from unfolding.plotphon import plot_band_weight
 
@@ -120,7 +121,12 @@ def spectral_figure(res, eprim, x, Xq, knames, title, out_path):
     ax.set_title(title, fontsize=10)
     lines = ax.plot(x, eprim, color="crimson", lw=1.0, alpha=0.9, zorder=5)
     lines[0].set_label("GPAW primitive-cell bands")
-    ax.legend(loc="upper right", fontsize=8, framealpha=0.85)
+    # plot_band_weight draws the weight-coded bands as blue lines with
+    # alpha = w/(width + 0.011); the proxy matches the weight-1 appearance.
+    unfolded = Line2D([0], [0], color="blue", alpha=0.5, lw=2,
+                      label="unfolded spectral weight")
+    ax.legend(handles=[unfolded, lines[0]], loc="upper right", fontsize=8,
+              framealpha=0.85)
     ax.figure.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(ax.figure)
     return out_path

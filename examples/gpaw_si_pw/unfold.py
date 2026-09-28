@@ -83,6 +83,7 @@ def load_pw_unfolder():
 
 def main(outdir):
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
     from unfolding.plotphon import plot_band_weight
 
@@ -127,11 +128,17 @@ def main(outdir):
     )
     ax.set_title("GPAW planewave Si unfolded (8-atom conventional cell)",
                  fontsize=10)
+    # plot_band_weight draws the weight-coded bands as blue lines with
+    # alpha = w/(width + 0.011); the proxy matches the weight-1 appearance.
+    handles = [Line2D([0], [0], color="blue", alpha=0.5, lw=2,
+                      label="unfolded spectral weight")]
     if overlay is not None:
         lines = ax.plot(x, overlay, color="crimson", lw=1.0, alpha=0.9,
                         zorder=5)
         lines[0].set_label("primitive-cell PW bands")
-        ax.legend(loc="upper right", fontsize=8, framealpha=0.85)
+        handles.append(lines[0])
+    ax.legend(handles=handles, loc="upper right", fontsize=8,
+              framealpha=0.85)
     out = os.path.join(outdir, "gpaw_si_pw_unfolded.png")
     ax.figure.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(ax.figure)

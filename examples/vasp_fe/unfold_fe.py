@@ -148,7 +148,19 @@ def main(figure=None):
         ax.pcolormesh(x, egrid, A.T, cmap="Blues", vmin=0.0, vmax=2.0,
                       shading="auto", rasterized=True)
         ax.plot(x, prim_curves[spin] - ef_prim, color="crimson",
-                lw=1.0, alpha=0.9, zorder=5, label="primitive-cell bands")
+                lw=1.0, alpha=0.9, zorder=5)
+        from matplotlib.lines import Line2D
+        from matplotlib.patches import Patch
+
+        ax.legend(
+            handles=[
+                Patch(facecolor=matplotlib.colormaps["Blues"](0.75),
+                      label="unfolded spectral weight"),
+                Line2D([0], [0], color="crimson", lw=1.0,
+                       label="primitive-cell bands"),
+            ],
+            loc="upper right", fontsize=8, framealpha=0.85,
+        )
         for xt in X[1:-1]:
             ax.axvline(xt, color="gray", lw=0.5)
         ax.axhline(0.0, ls="--", color="k", lw=0.7)
@@ -158,7 +170,6 @@ def main(figure=None):
         ax.set_ylim(*WINDOW_EV)
         ax.set_title(r"$2{\times}2{\times}2$ bcc Fe unfolded, "
                      rf"spin {'up' if spin == 0 else 'down'}")
-        ax.legend(loc="upper right", fontsize=8, framealpha=0.85)
     axes[0].set_ylabel(r"Energy relative to $E_F$ (eV)")
     fig.tight_layout()
     fig.savefig(figure, dpi=200)

@@ -212,6 +212,14 @@ def main(output=None):
             ("Energy relative to $E_F$ (eV)", "")):
         result, energies = unfold_system(DATA / name, primitive)
         _draw(ax, x, energies, result.weights, ticks, title, ylabel=ylabel)
+        if ax is axes[0]:
+            from matplotlib.lines import Line2D
+
+            ax.legend(
+                handles=[Line2D([0], [0], color="blue", lw=2,
+                                label="unfolded spectral weight")],
+                loc="upper right", fontsize=8, framealpha=0.85,
+            )
         window = (YRANGE[0], CONVERGED_EV)
         print(f"{name}: max |<psi|S|psi>-1| = "
               f"{np.max(np.abs(result.norm_residuals)):.2e}")

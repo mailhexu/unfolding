@@ -4,16 +4,15 @@ weight: 1
 ---
 
 Unfold the phonon band structure of a 3×3×3 fcc Cu supercell, computed with
-phonopy, onto the primitive fcc Brillouin zone.
+phonopy, onto the primitive fcc Brillouin zone with the `phonopy_unfold`
+adapter.
 
-## What you need
+## Running the example
 
-A finished phonopy run on the supercell, producing:
+A finished phonopy run on the supercell provides two inputs:
 
 - `FORCE_CONSTANTS` — the second-order force constants,
 - `SPOSCAR` — the supercell structure.
-
-## Run the unfolding
 
 ```python
 import numpy as np
@@ -40,28 +39,25 @@ plt.savefig('unfolded_band_structure.png', dpi=300)
 ```
 
 `sc_mat` describes the cell stored in `SPOSCAR` (here the identity: the
-SPOSCAR itself is the unfolded cell); `unfold_sc_mat` describes the
+SPOSCAR itself is the 3×3×3 cell); `unfold_sc_mat` describes the
 supercell the force constants belong to. Frequencies are converted from
 phonopy's THz to cm$^{-1}$.
 
-{{< figure src="/images/phonopy_unfolded_band_structure.png" title="Unfolded Cu phonons: at each path point only the three modes folding onto that primitive momentum carry weight 1" >}}
+{{< figure src="/images/phonopy_unfolded_band_structure.png" title="Unfolded Cu phonon branches along Γ-X-W-Γ-L; blue color intensity encodes the unfolding weight of each mode; frequencies in cm⁻¹" >}}
 
-## Reading the figure
+A complete input bundle is available as
+[phonopy-cu.tar.gz](/downloads/phonopy-cu.tar.gz): input files, the
+fixture data needed for the figure, a `reproduce.py` script, and a
+`README.txt` with prerequisites and exact run instructions.
 
-For a pristine crystal every supercell mode folds from exactly one primitive
-momentum, so weights are binary: three bold branches trace the primitive
-dispersion while the other 78 folded copies stay invisible. In a defective
-or distorted supercell the same plot would show fractional weights.
+## Calculation background
 
-## Lower-level staging
-
-`read_phonopy(sposcar, sc_mat, force_constants=...)` returns the phonopy
-object and accepts `disp_yaml`/`force_sets` instead of `FORCE_CONSTANTS`;
-`unf(phonon, sc_mat, qpoints, ...)` runs the unfolding step alone.
-
-## Reproduce this example
-
-Download the [complete input bundle](/downloads/phonopy-cu.tar.gz)
-(`phonopy-cu.tar.gz`): input files, pseudopotentials, the fixture data
-needed for the figure, a `reproduce.py` script, and a `README.txt`
-with prerequisites and exact run instructions.
+The fixture is the committed phonopy calculation in `examples/phonopy/`
+(`FORCE_CONSTANTS` + `SPOSCAR` for a 3×3×3 fcc Cu supercell, a = 3.61 Å,
+phonopy default settings). The unfolding path is Γ-X-W-Γ-L with 300
+points, in primitive reciprocal fractional coordinates (Setyawan–Curtarolo
+special points via ase). Regenerate the figure headless with
+`python docgen/fig_phonopy_cu.py [out.png]`, which runs the same workflow
+as the user-facing copy in `examples/phonopy/run_unfold.py`;
+`read_phonopy(sposcar, sc_mat, force_constants=...)` stages the phonopy
+object and accepts `disp_yaml`/`force_sets` instead of `FORCE_CONSTANTS`.

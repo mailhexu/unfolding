@@ -62,6 +62,13 @@ def main(out_path):
         ypad=2.0,
     )
     ax.set_title("G-AFM SrMnO$_3$ downfolded magnons (TB2J)")
+    from matplotlib.lines import Line2D
+
+    ax.legend(
+        handles=[Line2D([0], [0], color="blue", lw=2,
+                        label="unfolded weight")],
+        loc="upper right", fontsize=8, framealpha=0.85,
+    )
     ax.figure.savefig(out_path, dpi=200, bbox_inches="tight")
     plt.close(ax.figure)
 

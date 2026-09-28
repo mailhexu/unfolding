@@ -3,20 +3,16 @@ title: "ABINIT WFK AFM NiO"
 weight: 8
 ---
 
-Antiferromagnets need a magnetic cell larger than the chemical one, and
-the WFK stores two separate spin channels. This example unfolds
-**type-II AFM NiO** (Ni moments alternating along [111]) from the
-4-atom magnetic primitive cell onto the **2-atom rocksalt primitive
-cell**. Because the AFM keeps inversion symmetry, the spin-up and
-spin-down unfolded band structures coincide — so one channel is plotted,
-selected with `spin=0` (the `spin=1` partner is identical).
+Unfold type-II antiferromagnetic NiO from the 4-atom magnetic primitive
+cell onto the 2-atom rocksalt primitive cell with the `unfold_abinit`
+adapter. The magnetic cell (`A_afm = M @ A_prim`, `M = [[1,0,1],[0,1,1],
+[1,1,0]]`) doubles the rocksalt primitive cell along [111] and carries
+two Ni moments (+m and −m along z) and two O; the collinear WFK
+(`nsppol 2`) stores two spin channels, selected with `spin=`.
 
-## The magnetic cell
+## Running the example
 
-Type-II AFM ordering doubles the 2-atom rocksalt primitive cell along
-[111]. With `M = [[1, 0, 1], [0, 1, 1], [1, 1, 0]]` (rows = the magnetic
-axes in primitive units, $A_{afm} = M \cdot A_{prim}$) the magnetic cell
-holds two Ni (moments +m and −m along z) and two O:
+Magnetic-cell deck (atomic positions in the magnetic cell):
 
 ```text
 acell 3*7.8817                        # a = 4.171 Angstrom
@@ -35,15 +31,9 @@ nspden 2
 spinat 0 0 2.0  0 0 -2.0  0 0 0  0 0 0
 ```
 
-The collinear WFK (`nsppol 2`) stores two independent spin channels; the
-unfolding weight of a state is computed within its own channel, so no
-spin mixing is involved.
-
-## Unfolding one spin channel
-
-The same reciprocal-coset machinery applies per channel: pass `spin=0`
-(up) or `spin=1` (down) and the adapter unfolds that channel onto the
-2-atom primitive cell along Γ–X–W–Γ–L–W–X, exactly as in the Si example:
+Unfold one channel onto the 2-atom primitive cell along Γ–X–W–Γ–L–W–X,
+as in the [Si example](/examples/abinit-wfk/) (`spin=0` up, `spin=1`
+down):
 
 ```python
 import numpy as np
@@ -55,37 +45,30 @@ ax = unfold_abinit(
     'nio_afm_patho_DS2_WFK.nc', m_afm, kpts,
     knames=[r'$\Gamma$', 'X', 'W', r'$\Gamma$', 'L', 'W', 'X'],
     xqpts=x, Xqpts=X,
-    spin=0,                        # spin-up channel; spin=1 is identical here
+    spin=0,
     resolve_degenerate=1e-3,
 )
 ```
 
-{{< figure src="/images/nio_afm_unfolded.png" title="AFM NiO unfolded onto the 2-atom primitive cell (spin-up channel; spin-down is identical by symmetry)" >}}
+{{< figure src="/images/nio_afm_unfolded.png" title="AFM NiO unfolded onto the 2-atom rocksalt primitive cell along Γ-X-W-Γ-L-W-X, spin-up channel: Gaussian-smeared spectral-weight map (Blues scale, opacity = weight), energies relative to the WFK Fermi level" >}}
 
-## Reading the figure
+The unfolding weight of a state is computed within its own spin channel;
+no spin mixing is involved. Systems whose channels differ are handled by
+the same call with `spin=1` for the partner panel.
 
-Only the spin-up channel is plotted because the spin-down one is its
-exact partner: type-II AFM NiO keeps inversion symmetry, and time
-reversal followed by the sublattice-translation maps the spin-down
-Hamiltonian onto the spin-up one at the same momentum. Both channels
-have identical band energies *and* identical unfolding weights (verified
-numerically: the channel eigenvalues agree to < 0.05 eV everywhere) —
-for a collinear AFM with inversion, plotting the second channel adds no
-information. Systems without that symmetry (ferrimagnets, AFMs without
-inversion) do show distinct channels; the recipe is the same, with
-`spin=1` for the partner panel.
+## Calculation background
 
-The AFM character shows up differently: the bands are the *exchange-split*
-branches of the two Ni sublattices (local moments ±1.36 μB on the two
-Ni, totalling zero), folded from the magnetic cell onto the 2-atom
-primitive cell. States of both fold sectors carry weight ≈ 1 where they
-project on the primitive momentum; plain PBE makes the moment small and
-the gap close (a Hubbard U restores the insulator without changing the
-unfolding recipe). The Ni-3s semicore multiplet near −60 eV (the
-pseudopotential carries 18 valence electrons) is out of the plotted
-window.
-
-## Reproduce this example
+- Code: ABINIT, `Ni.psp8` / `O.psp8` pseudopotentials (18-valence-electron
+  Ni, so the Ni-3s semicore multiplet near −60 eV is present in the WFK
+  but outside the plotted −16…8 eV window), `ixc 11`, `ecut 40` Ha,
+  `nband 40`, `nsppol 2`, `nspden 2`, `spinat` as above, `tolwfr2 1e-16`.
+- Cell: `acell 3*7.8817` bohr with the `rprim` above; magnetic =
+  `M @` primitive with `M = [[1,0,1],[0,1,1],[1,1,0]]`.
+- Decks (`tests/data/abinit_si/`): `nio_afm.abi` (dense Γ–X–W–Γ–L–W–X
+  path) and `nio_afm_corners.abi` (sparse fallback); path WFKs are staged
+  by `regenerate_on_nic6.sh` in the same directory.
+- Figure: `python docgen/fig_abinit_nio.py` writes
+  `docs/static/images/nio_afm_unfolded.png`.
 
 Download the [complete input bundle](/downloads/abinit-nio.tar.gz)
 (`abinit-nio.tar.gz`): input files, pseudopotentials, the fixture data

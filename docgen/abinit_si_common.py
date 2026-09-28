@@ -105,17 +105,25 @@ def draw_map(x, egrid, A, Xqpts, title, out_path, overlay=None):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
 
     fig, ax = plt.subplots(figsize=(7.2, 5.2))
     ax.pcolormesh(
         x, egrid, A.T, cmap="Blues", vmin=0.0, vmax=2.0,
         shading="auto", rasterized=True,
     )
+    handles = [
+        Patch(facecolor=matplotlib.colormaps["Blues"](0.75),
+              label="unfolded spectral weight")
+    ]
     if overlay is not None:
         ox, oe = overlay
-        ax.plot(ox, oe, color="crimson", lw=1.0, alpha=0.9, zorder=5,
-                label="primitive-cell bands")
-        ax.legend(loc="upper right", fontsize=8, framealpha=0.85)
+        ax.plot(ox, oe, color="crimson", lw=1.0, alpha=0.9, zorder=5)
+        handles.append(
+            Line2D([0], [0], color="crimson", lw=1.0,
+                   label="primitive-cell bands"))
+    ax.legend(handles=handles, loc="upper right", fontsize=8, framealpha=0.85)
     for xt in Xqpts[1:-1]:
         ax.axvline(xt, color="gray", lw=0.5)
     ax.axhline(0.0, ls="--", color="k", lw=0.7)

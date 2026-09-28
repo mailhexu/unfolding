@@ -4,12 +4,13 @@ weight: 13
 ---
 
 Unfold an [OpenMX](https://www.openmx-square.org/) supercell calculation
-onto the primitive-cell band path. OpenMX stores the real-space
-Hamiltonian and overlap in the binary `.scfout` file; the HamiltonIO
-OpenMX adapter parses it directly (pure python, no OpenMX runtime
-needed) and the weight computation runs on top.
+onto the primitive-cell band path: an 8-atom conventional-cubic Si
+supercell (plus a Si:P variant) unfolded onto the 2-atom fcc primitive
+cell from the binary `.scfout` file (real-space Hamiltonian and overlap,
+written with `HS.fileout on`), parsed by the HamiltonIO OpenMX adapter
+(pure python, no OpenMX runtime needed).
 
-## What you need
+## Running the example
 
 From your OpenMX run:
 
@@ -20,8 +21,6 @@ From your OpenMX run:
 Use a k-sampled SCF (`scf.EigenvalueSolver band` plus `scf.Kgrid`): the
 stored real-space tables then cover a symmetric cube of periodic images
 (`atv_ijk` in OpenMX notation), which is what the unfolding sums over.
-
-## One-call unfolding
 
 ```python
 import numpy as np
@@ -45,41 +44,36 @@ ax = unfold_openmx(
 )
 ```
 
-`unfold_sc_mat` uses the row convention `supercell = M @ primitive`, and
-the weights use the ideal (Popescu-Zunger / Lee) definition by default;
-pass `method="ring"` for the exact torus projection at commensurate
-momenta. The adapter parses the scfout through
-[HamiltonIO](https://github.com/aimatores/HamiltonIO)'s OpenmxParser,
-matches every supercell atom onto the primitive cell, computes the
-weights, and plots weight-coded bands in eV.
+`unfold_sc_mat` uses the row convention `supercell = M @ primitive`;
+`method="ring"` selects the exact torus projection at commensurate
+momenta instead of the default ideal weight. The adapter parses the
+scfout through [HamiltonIO](https://github.com/aimatores/HamiltonIO)'s
+OpenmxParser, matches every supercell atom onto the primitive cell,
+computes the weights, and plots weight-coded bands in eV. For the doped
+supercell, substitute one Si by P (same 13-orbital `P7.0-s2p2d1` basis)
+and map the dopant onto the host site it replaces
+(`match_species=False`), as in the
+[SIESTA Si:P example](/examples/siesta-p-doped/).
 
-{{< figure src="/images/openmx_si_unfolded.png" title="Unfolded Si8 bands with the independently diagonalized OpenMX primitive-cell bands overlaid in red" >}}
+{{< figure src="/images/openmx_si_unfolded.png" title="Unfolded OpenMX Si$_8$ bands along Γ-X-W-Γ-L-X; blue color intensity encodes the unfolding weight, red curves are the independently diagonalized OpenMX primitive-cell bands; energies in eV with zero at the run's Fermi level (ChemP)" >}}
 
-## Conventions
+{{< figure src="/images/openmx_si_p_doped.png" title="Unfolded OpenMX Si$_7$P bands along the same path, dopant mapped onto the host site (match_species=False); same encoding, energies referenced to the Si:P run's Fermi level" >}}
 
+A runnable user-facing version of the workflow lives in
+`examples/openmx_si/unfold.py`.
+
+## Calculation background
+
+The committed fixtures under `tests/data/si_example/` are the exact runs
+used for the figures: `openmx_si_prim.scfout` (2-atom primitive cell,
+4×4×4 k-grid) and `openmx_si_sc.scfout` / `openmx_si_sc_p.scfout`
+(8-atom conventional cells, 2×2×2 k-grid), all GGA-PBE and spin
+unpolarized with the Si7.0-s2p2d1 / P7.0-s2p2d1 basis and Si_PBE19
+pseudopotentials (OpenMX 2019 data set, a = 5.43 Å). Conventions:
 OpenMX builds `H(k) = sum_R exp(+2 pi i k.R) H(R)` with fractional
 k-points and the integer image translations `R` from `atv_ijk`
-(`EigenValue_Problem.c`); HamiltonIO convention 2 is identical. The
-scfout energies are Hartree and the geometry Bohr - both are converted
-on parse, and the eigenvalues are shifted so the parsed Fermi level
-(`ChemP`) sits at zero: the dashed line marks E_F and 0 on the energy
-axis is the Fermi level.
-
-## Si:P doped supercell
-
-Substituting one Si by P (same 13-orbital `P7.0-s2p2d1` basis) and
-mapping the dopant onto the host site it replaces
-(`match_species=False`) gives the donor picture: host bands stay near
-unit weight while donor-derived states appear with reduced weight.
-
-{{< figure src="/images/openmx_si_p_doped.png" title="Unfolded Si7P bands: donor-derived states drop below unit weight" >}}
-
-## Reproduce this example
-
-The committed fixtures under `tests/data/si_example/openmx_*` are the
-exact runs used for the figures (Si7.0-s2p2d1 / P7.0-s2p2d1, GGA-PBE,
-spin unpolarized): `openmx_si_prim` (2-atom cell, 4x4x4 grid) and
-`openmx_si_sc` / `openmx_si_sc_p` (8-atom cells, 2x2x2 grid). Regenerate
-the figures with `python docgen/fig_openmx_si.py`; a runnable
-user-facing version of the workflow lives in
-`examples/openmx_si/unfold.py`.
+(`EigenValue_Problem.c`), identical to HamiltonIO convention 2; scfout
+energies are Hartree and the geometry Bohr, both converted on parse;
+each panel is shifted so the parsed Fermi level (`ChemP`) of the run
+being unfolded sits at zero. Regenerate the figures headless with
+`python docgen/fig_openmx_si.py`.

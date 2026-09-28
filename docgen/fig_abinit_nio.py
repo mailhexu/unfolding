@@ -61,6 +61,13 @@ def main(out_path):
         x, egrid, A.T, cmap="Blues", vmin=0.0, vmax=2.0,
         shading="auto", rasterized=True,
     )
+    from matplotlib.patches import Patch
+
+    ax.legend(
+        handles=[Patch(facecolor=matplotlib.colormaps["Blues"](0.75),
+                       label="unfolded spectral weight")],
+        loc="upper right", fontsize=8, framealpha=0.85,
+    )
     for xt in Xqpts[1:-1]:
         ax.axvline(xt, color="gray", lw=0.5)
     ax.axhline(0.0, ls="--", color="k", lw=0.7)
