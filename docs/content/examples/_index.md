@@ -21,7 +21,8 @@ bundled (large GPAW restarts and VASP's licensed POTCAR/WAVECAR).
 {{< card title="GPAW plane-wave Si and Si:P" link="/examples/gpaw-si-pw/" src="/images/gpaw_si_pw_unfolded.png" text="Unfold GPAW pseudo plane-wave coefficients, without PAW augmentation." >}}
 {{< card title="ABACUS LCAO Si and Si:P" link="/examples/abacus-si/" src="/images/abacus_si_unfolded.png" text="Unfold ABACUS numerical-orbital Hamiltonians with overlap-aware weights." >}}
 {{< card title="ABACUS plane-wave Si and Si:P" link="/examples/abacus-si-pw/" src="/images/abacus_si_pw_unfolded.png" text="Unfold ABACUS plane-wave coefficients on the primitive-cell path." >}}
-{{< card title="ABINIT and VASP PAW plane waves" link="/examples/paw-plane-wave/" src="/images/abinit_paw_si7p.png" text="Use PAW overlap augmentation for ABINIT Si:P and licensed VASP WAVECAR/POTCAR." >}}
+{{< card title="ABINIT PAW Si and Si:P" link="/examples/abinit-paw/" src="/images/abinit_paw_si_path.png" text="JTH PAW overlap augmentation on the dense GXWGLWX path; pristine binary, dopant fractional." >}}
+{{< card title="VASP PAW bcc Fe" link="/examples/vasp-paw/" src="/images/vasp_fe_path.png" text="Licensed WAVECAR/POTCAR, 16-fold supercell along the dense primitive path." >}}
 
 {{< card title="SIESTA spinors" link="/examples/siesta-spinor/" src="/images/si_spinor_unfolded.png" text="Non-collinear (nspin=4) supercells unfold through the same pipeline." >}}
 

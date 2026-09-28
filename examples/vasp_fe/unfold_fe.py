@@ -147,7 +147,7 @@ def main(figure=None):
         A = spectral_map(energies, weights, egrid)
         ax.pcolormesh(x, egrid, A.T, cmap="Blues", vmin=0.0, vmax=2.0,
                       shading="auto", rasterized=True)
-        ax.plot(x, prim_curves[spin] + ef_sc - ef_prim, color="crimson",
+        ax.plot(x, prim_curves[spin] - ef_prim, color="crimson",
                 lw=1.0, alpha=0.9, zorder=5, label="primitive-cell bands")
         for xt in X[1:-1]:
             ax.axvline(xt, color="gray", lw=0.5)
