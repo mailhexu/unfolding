@@ -48,6 +48,47 @@ def _save(ax, output):
         ax.figure.savefig(output)
     return ax
 
+def _route_name(cfg):
+    from .config import ROUTES
+
+    for name, spec in ROUTES.items():
+        if isinstance(cfg, spec.config):
+            return name
+    return type(cfg).__name__
+
+
+def _provenance(cfg):
+    """Small config subset recorded in the dataset (never path arrays)."""
+    keys = ("supercell_matrix", "unfold_sc_mat", "sc_mat", "spin",
+            "method", "mode", "resolve_degenerate", "spin_conf",
+            "special_points", "match_species")
+    out = {}
+    for key in keys:
+        value = getattr(cfg, key, None)
+        if value is None:
+            continue
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
+        elif isinstance(value, (list, tuple)):
+            value = [v.tolist() if isinstance(v, np.ndarray) else v
+                     for v in value]
+        out[key] = value
+    return out
+
+
+def _save_data(cfg, result, *, energy_unit="eV", fermi_energy=None,
+               energy_reference=None):
+    """Write the JSON dataset when ``[output] data`` is configured."""
+    if getattr(cfg, "data", None) is None:
+        return
+    from .dataset import save_dataset
+
+    save_dataset(
+        result, cfg.data, route=_route_name(cfg),
+        provenance=_provenance(cfg), fermi_energy=fermi_energy,
+        energy_reference=energy_reference, energy_unit=energy_unit)
+
+
 
 def _path_cell_array(cfg, default=None):
     """(3, 3) array of the special-points frame cell."""
@@ -104,7 +145,7 @@ def run_siesta(cfg):
     from .siesta_unfold import unfold_siesta
 
     kpts, knames, xqpts, Xqpts = _resolve_path(cfg, default_cell=cfg.primitive)
-    ax = unfold_siesta(
+    ax, res = unfold_siesta(
         fdf=cfg.fdf,
         prim_atoms=cfg.primitive,
         unfold_sc_mat=np.asarray(cfg.supercell_matrix, dtype=int),
@@ -117,7 +158,11 @@ def run_siesta(cfg):
         match_species=cfg.match_species,
         efermi=cfg.efermi,
         method=cfg.method,
+        return_result=True,
     )
+    _save_data(cfg, res, fermi_energy=cfg.efermi,
+               energy_reference=(
+                   "absolute eigenvalues; the figure marks E_F at zero"))
     return _save(ax, cfg.output)
 
 
@@ -164,9 +209,12 @@ def run_siesta_wfsx(cfg):
         cfg.wfsx, cell=np.asarray(sc.atoms.cell, dtype=float)).read()
     unf = WFSXUnfolder(wfsx, adapted, rm, M)
     res = unf.compute(kpts, method=cfg.method)
+    efermi = _wfsx_efermi(cfg.wfsx, cfg.efermi)
+    _save_data(cfg, res, fermi_energy=efermi,
+               energy_reference=(
+                   "absolute eigenvalues; the figure shifts by -E_F"))
     return _band_figure(cfg, res.eigenvalues, res.weights,
-                        xqpts, knames, Xqpts,
-                        _wfsx_efermi(cfg.wfsx, cfg.efermi))
+                        xqpts, knames, Xqpts, efermi)
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +233,7 @@ def run_phonopy(cfg):
         sposcar_cell = np.asarray(ase_read(cfg.sposcar).cell.array, dtype=float)
         default_cell = np.linalg.inv(M.astype(float)) @ sposcar_cell
     kpts, knames, xqpts, Xqpts = _resolve_path(cfg, default_cell=default_cell)
-    ax = phonopy_unfold(
+    ax, res = phonopy_unfold(
         sc_mat=sc_mat,
         unfold_sc_mat=M,
         force_constants=cfg.force_constants,
@@ -194,19 +242,21 @@ def run_phonopy(cfg):
         qnames=knames,
         xqpts=xqpts,
         Xqpts=Xqpts,
+        return_result=True,
     )
+    _save_data(cfg, res, energy_unit="cm^-1",
+               energy_reference="frequencies THz x 33.356 (as plotted)")
     return _save(ax, cfg.output)
 
 
 # ---------------------------------------------------------------------------
 # abinit-wfk
 # ---------------------------------------------------------------------------
-
 def run_abinit_wfk(cfg):
     from .abinit_unfold import unfold_abinit
 
     kpts, knames, xqpts, Xqpts = _resolve_path(cfg, default_cell=cfg.primitive)
-    ax = unfold_abinit(
+    ax, res = unfold_abinit(
         wfk=cfg.wfk,
         unfold_sc_mat=np.asarray(cfg.supercell_matrix, dtype=int),
         kpts=kpts,
@@ -217,7 +267,10 @@ def run_abinit_wfk(cfg):
         resolve_degenerate=cfg.resolve_degenerate,
         average_degenerate=cfg.average_degenerate,
         fermi_shift=cfg.fermi_shift,
+        return_result=True,
     )
+    _save_data(cfg, res, energy_reference=(
+        "eigenvalues shifted by -E_F when the route applied fermi_shift"))
     return _save(ax, cfg.output)
 
 
@@ -238,13 +291,18 @@ def run_abinit_ddb(cfg):
                 ddb.structure.to_ase_atoms().cell.array, dtype=float)
     kpts, knames, _x, _X = _resolve_path(
         cfg, default_cell=default_cell, dense=False)
-    ax = DDB_unfolder(
+    ax, res = DDB_unfolder(
         cfg.ddb,
         kpath_bounds=kpts,
         sc_mat=np.asarray(cfg.sc_mat, dtype=float),
         knames=knames,
         dipdip=cfg.dipdip,
+        return_result=True,
     )
+    _save_data(cfg, res, energy_unit="cm^-1",
+               energy_reference=(
+                   "kpoints are DDB-cell fractional (see adapter docs); "
+                   "frequencies eV x 8065.6 (as plotted)"))
     return _save(ax, cfg.output)
 
 
@@ -287,7 +345,7 @@ def run_magnon(cfg):
     kpts, knames, xqpts, Xqpts = _resolve_path(cfg, default_cell=default_cell)
     # pass the configured Magnon object so the reference settings (which may
     # carry spin_conf) are used as-is
-    ax = unfold_tb2j(
+    ax, res = unfold_tb2j(
         magnon,
         M,
         kpts,
@@ -295,7 +353,10 @@ def run_magnon(cfg):
         xqpts=xqpts,
         Xqpts=Xqpts,
         degen_tolerance=cfg.degen_tolerance,
+        return_result=True,
     )
+    _save_data(cfg, res, energy_unit="meV",
+               energy_reference="magnon energies eV x 1000 (as plotted)")
     return _save(ax, cfg.output)
 
 
@@ -353,8 +414,18 @@ def run_abinit_paw(cfg):
         resolve_degenerate=None if cfg.resolve_degenerate is None
         else cfg.resolve_degenerate / HARTREE_TO_EV,
     )
-    energies = (result.eigenvalues
-                - supercell.wavefunctions.fermi_energy) * HARTREE_TO_EV
+    from types import SimpleNamespace
+
+    efermi = supercell.wavefunctions.fermi_energy * HARTREE_TO_EV
+    _save_data(
+        cfg,
+        SimpleNamespace(kpoints=result.kpoints,
+                        eigenvalues=result.eigenvalues * HARTREE_TO_EV,
+                        weights=result.weights),
+        fermi_energy=efermi,
+        energy_reference=(
+            "absolute eigenvalues; the figure shifts by -E_F"))
+    energies = result.eigenvalues * HARTREE_TO_EV - efermi
     return _paw_figure(cfg, result.weights, energies,
                        result.kpoints, primitive.wavefunctions.rprimd)
 
@@ -371,7 +442,7 @@ def run_openmx(cfg):
     prim = ase_read(cfg.primitive)
     kpts, knames, xqpts, Xqpts = _resolve_path(
         cfg, default_cell=np.asarray(prim.cell.array, dtype=float))
-    ax = unfold_openmx(
+    ax, res = unfold_openmx(
         scfout=cfg.scfout,
         prim_atoms=prim,
         unfold_sc_mat=np.asarray(cfg.supercell_matrix, dtype=int),
@@ -384,7 +455,10 @@ def run_openmx(cfg):
         match_species=cfg.match_species,
         method=cfg.method,
         efermi=cfg.efermi,
+        return_result=True,
     )
+    _save_data(cfg, res,
+               energy_reference="eigenvalues shifted by -E_F (E_F at zero)")
     return _save(ax, cfg.output)
 
 
@@ -554,9 +628,11 @@ def run_gpaw(cfg):
             cfg, default_cell=np.asarray(prim.atoms.cell, dtype=float))
         unf = _lcao_unfolder(sc, prim.atoms, M, cfg.tol_r, cfg.match_species)
         res = unf.compute(kpts, method=cfg.method)
+        _save_data(cfg, res, fermi_energy=_model_efermi(sc),
+                   energy_reference=(
+                       "absolute eigenvalues; the figure shifts by -E_F"))
         return _band_figure(cfg, res.eigenvalues, res.weights,
                             xqpts, knames, Xqpts, _model_efermi(sc))
-
     from HamiltonIO.gpaw import GpawPWParser
 
     from .pw_unfolder import PWUnfolder
@@ -566,6 +642,9 @@ def run_gpaw(cfg):
     default_cell = np.linalg.inv(M.astype(float)) @ np.asarray(data.cell, float)
     kpts, knames, xqpts, Xqpts = _resolve_path(cfg, default_cell=default_cell)
     res = unf.compute(kpts, resolve_degenerate=cfg.resolve_degenerate)
+    _save_data(cfg, res, fermi_energy=data.efermi,
+               energy_reference=(
+                   "absolute eigenvalues; the figure shifts by -E_F"))
     return _band_figure(cfg, res.eigenvalues, res.weights,
                         xqpts, knames, Xqpts, data.efermi)
 
@@ -611,6 +690,9 @@ def run_abacus(cfg):
             @ np.asarray(sc.atoms.cell, dtype=float))
         unf = _lcao_unfolder(sc, prim.atoms, M, cfg.tol_r, cfg.match_species)
         res = unf.compute(kpts, method=cfg.method)
+        _save_data(cfg, res, fermi_energy=_model_efermi(sc),
+                   energy_reference=(
+                       "absolute eigenvalues; the figure shifts by -E_F"))
         return _band_figure(cfg, res.eigenvalues, res.weights,
                             xqpts, knames, Xqpts, _model_efermi(sc))
 
@@ -623,6 +705,9 @@ def run_abacus(cfg):
     kpts, knames, xqpts, Xqpts = _resolve_path(
         cfg, default_cell=_abacus_pw_default_cell(cfg.supercell, M))
     res = unf.compute(kpts, resolve_degenerate=cfg.resolve_degenerate)
+    _save_data(cfg, res, fermi_energy=data.efermi,
+               energy_reference=(
+                   "absolute eigenvalues; the figure shifts by -E_F"))
     return _band_figure(cfg, res.eigenvalues, res.weights,
                         xqpts, knames, Xqpts, data.efermi)
 
@@ -642,6 +727,9 @@ def run_vasp_paw(cfg):
         spin=cfg.spin,
         resolve_degenerate=cfg.resolve_degenerate,
     )
+    _save_data(cfg, result, fermi_energy=supercell.fermi_energy,
+               energy_reference=(
+                   "absolute eigenvalues; the figure shifts by -E_F"))
     return _paw_figure(cfg, result.weights,
                        result.eigenvalues - supercell.fermi_energy,
                        result.kpoints, primitive.lattice)
@@ -655,7 +743,7 @@ def run_wannier(cfg):
     from .wannier_unfold import run as wannier_run
 
     kpts, knames, _x, _X = _resolve_path(cfg)
-    return wannier_run(
+    ax, res = wannier_run(
         path=cfg.path,
         prefix=cfg.prefix,
         labels=list(cfg.labels),
@@ -665,4 +753,8 @@ def run_wannier(cfg):
         knames=list(knames),
         npoints=cfg.npoints,
         cell=cfg.cell,
+        return_result=True,
     )
+    _save_data(cfg, res,
+               energy_reference="absolute eigenvalues at the sampled path")
+    return ax

@@ -13,7 +13,7 @@ TOML schema (mirrors the Python parameters)::
     [structure]               # primitive cell, supercell matrix
     [path]                    # special points/path string or explicit points
     [options]                 # spin, tolerances, windows, shifts
-    [output]                  # figure path
+    [output]                  # figure / dataset paths
 
 Validation errors raise :class:`ConfigError` with the offending key path
 (e.g. ``structure.supercell_matrix``).
@@ -135,6 +135,9 @@ class SiestaConfig:
     # [output]
     output: str | None = dataclasses.field(
         default=None, metadata=F("output", "out", "output figure path"))
+    data: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "output", "out", "output unfolded-band dataset path (JSON)"))
 
 
 @dataclass
@@ -186,6 +189,9 @@ class WfsxConfig:
     # [output]
     output: str | None = dataclasses.field(
         default=None, metadata=F("output", "out", "output figure path"))
+    data: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "output", "out", "output unfolded-band dataset path (JSON)"))
 
 
 @dataclass
@@ -226,6 +232,9 @@ class PhonopyConfig:
     # [output]
     output: str | None = dataclasses.field(
         default=None, metadata=F("output", "out", "output figure path"))
+    data: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "output", "out", "output unfolded-band dataset path (JSON)"))
 
 
 @dataclass
@@ -278,6 +287,9 @@ class AbinitWfkConfig:
     # [output]
     output: str | None = dataclasses.field(
         default=None, metadata=F("output", "out", "output figure path"))
+    data: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "output", "out", "output unfolded-band dataset path (JSON)"))
 
 
 @dataclass
@@ -310,6 +322,9 @@ class AbinitDdbConfig:
     # [output]
     output: str | None = dataclasses.field(
         default=None, metadata=F("output", "out", "output figure path"))
+    data: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "output", "out", "output unfolded-band dataset path (JSON)"))
 
 
 @dataclass
@@ -354,6 +369,9 @@ class MagnonConfig:
     # [output]
     output: str | None = dataclasses.field(
         default=None, metadata=F("output", "out", "output figure path"))
+    data: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "output", "out", "output unfolded-band dataset path (JSON)"))
 
 
 @dataclass
@@ -387,6 +405,9 @@ class AbinitPawConfig:
     # [output]
     output: str | None = dataclasses.field(
         default=None, metadata=F("output", "out", "output figure path"))
+    data: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "output", "out", "output unfolded-band dataset path (JSON)"))
 
 
 @dataclass
@@ -441,6 +462,9 @@ class OpenmxConfig:
     # [output]
     output: str | None = dataclasses.field(
         default=None, metadata=F("output", "out", "output figure path"))
+    data: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "output", "out", "output unfolded-band dataset path (JSON)"))
 
 
 @dataclass
@@ -501,6 +525,9 @@ class GpawConfig:
     # [output]
     output: str | None = dataclasses.field(
         default=None, metadata=F("output", "out", "output figure path"))
+    data: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "output", "out", "output unfolded-band dataset path (JSON)"))
 
 
 @dataclass
@@ -563,6 +590,9 @@ class AbacusConfig:
     # [output]
     output: str | None = dataclasses.field(
         default=None, metadata=F("output", "out", "output figure path"))
+    data: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "output", "out", "output unfolded-band dataset path (JSON)"))
 
 
 @dataclass
@@ -601,6 +631,9 @@ class VaspPawConfig:
     # [output]
     output: str | None = dataclasses.field(
         default=None, metadata=F("output", "out", "output figure path"))
+    data: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "output", "out", "output unfolded-band dataset path (JSON)"))
 
 
 @dataclass
@@ -623,6 +656,9 @@ class WannierConfig:
     # [output]
     output: str = dataclasses.field(metadata=F(
         "output", "out", "output figure path"))
+    data: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "output", "out", "output unfolded-band dataset path (JSON)"))
     # [options]
     prefix: str = dataclasses.field(
         default="wannier90", metadata=F("input", "str", "Wannier90 seed name"))

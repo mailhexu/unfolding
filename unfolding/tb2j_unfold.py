@@ -90,6 +90,7 @@ def unfold_tb2j(
     width=2,
     title=None,
     ylabel="Energy (meV)",
+    return_result=False,
 ):
     """Downfold a TB2J magnon band structure onto a primitive q-path.
 
@@ -184,4 +185,6 @@ def unfold_tb2j(
     )
     if output is not None:
         ax.figure.savefig(output, dpi=200, bbox_inches="tight")
+    if return_result:
+        return ax, res_mev
     return ax

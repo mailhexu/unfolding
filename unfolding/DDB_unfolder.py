@@ -45,7 +45,7 @@ def displacement_cart_to_evec(displ_cart, masses, scaled_positions, qpoint=None,
 
 
 
-def DDB_unfolder(DDB_fname, kpath_bounds, sc_mat, knames=None, kx=None, dipdip=1):
+def DDB_unfolder(DDB_fname, kpath_bounds, sc_mat, knames=None, kx=None, dipdip=1, return_result=False):
     """
     Unfold phonon bands from an Abinit DDB file along a k-path.
 
@@ -128,6 +128,14 @@ def DDB_unfolder(DDB_fname, kpath_bounds, sc_mat, knames=None, kx=None, dipdip=1
     #ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*33.356,weights[:,:].T*0.98+0.01,xticks=[names,X],axis=ax)
     ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*EV_TO_CM,weights[:,:].T*0.99+0.001,xticks=[knames,xpts],style='alpha')
     #ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*EV_TO_CM,weights[:,:].T*0.98+0.000001,xticks=[knames, kx],style='alpha' )
+
+    if return_result:
+        from types import SimpleNamespace
+        return ax, SimpleNamespace(
+            kpoints=qpoints,
+            eigenvalues=evals * EV_TO_CM,
+            weights=weights,
+        )
 
     #plt.show()
     return ax

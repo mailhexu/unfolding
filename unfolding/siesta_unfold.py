@@ -132,6 +132,7 @@ def unfold_siesta(
     ypad=1.5,
     width=2,
     title=None,
+    return_result=False,
 ):
     """Unfold a SIESTA supercell calculation onto a primitive k-path.
 
@@ -179,7 +180,11 @@ def unfold_siesta(
     Returns
     -------
     matplotlib.axes.Axes
-        Axes with the weight-coded unfolded bands.
+        Axes with the weight-coded unfolded bands. With
+        ``return_result=True`` returns ``(ax, res)`` where ``res`` is the
+        engine's :class:`~unfolding.lcao_unfolder.LCAOWeights`
+        (absolute eigenvalues in eV; ``efermi`` is never subtracted from
+        them, it only marks the zero line).
     """
     if fdf is None and model is None:
         raise ValueError("provide either fdf or a parsed model")
@@ -243,6 +248,6 @@ def unfold_siesta(
         ylabel=ylabel,
         ypad=ypad,
     )
-    if output is not None:
-        ax.figure.savefig(output)
+    if return_result:
+        return ax, res
     return ax

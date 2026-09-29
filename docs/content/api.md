@@ -169,6 +169,31 @@ axis traced. `PWWeights.average_degenerate(tol_e)` groups in its current
 energy unit, and `.plot(...)` produces the shared weight-coded plot.
 
 
+## Unfolded-band datasets
+
+### `save_dataset(result, path, *, route, provenance=None, fermi_energy=None, energy_reference=None, energy_unit="eV")`
+
+Serialize any engine result (an object with `kpoints`, `eigenvalues`
+or `energies`, and `weights`) to a versioned JSON document
+(`unfolding.dataset/1`): plain nested lists, NaN weights written as
+`null`, optional fold/supercell k-points, Fermi level, energy unit and
+a small provenance record. Stable byte-for-byte on re-save.
+
+### `load_dataset(path) -> Dataset`
+
+Parse the document back into a `Dataset` (frozen arrays plus metadata:
+`route`, `spin_channels`, `energy_unit`, `fermi_energy`,
+`energy_reference`, `provenance`). Unknown schema strings raise
+`ValueError`.
+
+### `plot_dataset(dataset, *, ax=None, style="alpha", ylabel=None, x=None, spin="both", fermi_at_zero=False, overlay=None, overlay_shift=None, ...)`
+
+Render a parsed dataset through the shared weight-coding. Pass your own
+`ax` for subplot composition; `overlay` draws primitive reference bands
+(a second dataset or `(x, energies)` arrays) shifted by the explicit
+`overlay_shift` — alignment between runs is a physical decision, never
+inferred.
+
 ## Plotting
 
 ### `plotphon.plot_band_weight(kslist, ekslist, wkslist, xticks, ylabel=..., ypad=..., ...)`

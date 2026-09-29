@@ -49,6 +49,7 @@ def unfold_openmx(
     ypad=1.5,
     width=2,
     title=None,
+    return_result=False,
 ):
     """Unfold an OpenMX supercell calculation onto a primitive k-path.
 
@@ -88,7 +89,10 @@ def unfold_openmx(
     Returns
     -------
     matplotlib.axes.Axes
-        Axes with the weight-coded unfolded bands.
+        Axes with the weight-coded unfolded bands. With
+        ``return_result=True`` returns ``(ax, res)`` where ``res`` is the
+        engine's :class:`~unfolding.lcao_unfolder.LCAOWeights` with
+        eigenvalues already shifted by ``-efermi`` (E_F at zero).
     """
     if scfout is None and model is None:
         raise ValueError("provide either scfout or a parsed model")
@@ -165,8 +169,8 @@ def unfold_openmx(
         ylabel=ylabel,
         ypad=ypad,
     )
-    if output is not None:
-        ax.figure.savefig(output)
+    if return_result:
+        return ax, res
     return ax
 
 

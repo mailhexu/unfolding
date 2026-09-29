@@ -51,30 +51,42 @@ def read_phonopy( sposcar='SPOSCAR', sc_mat=np.eye(3),force_constants=None,  dis
 
     return phonon
 
-def unf(phonon, sc_mat, qpoints, knames=None, x=None, xpts=None):
+def unf(phonon, sc_mat, qpoints, knames=None, x=None, xpts=None,
+        return_result=False):
     prim=phonon._primitive
     prim=Atoms(symbols=prim.symbols, cell=prim.cell, positions=prim.positions)
-    #vesta_view(prim)
     sc_qpoints=np.array([np.dot(q, sc_mat) for q in qpoints])
     phonon.run_qpoints(sc_qpoints, with_eigenvectors=True)
     qpoint_phonons=phonon.get_qpoints_dict()
     #freqs, eigvecs = phonon.get_qpoints_phonon()
     freqs=qpoint_phonons['frequencies']
     eigvecs=qpoint_phonons['eigenvectors']
-    uf=phonon_unfolder(atoms=prim, supercell_matrix=sc_mat, eigenvectors=eigvecs, qpoints=sc_qpoints, phase=False)
+    # Conventions for non-diagonal sc_mat (e.g. R-centred hexagonal cells):
+    # phonopy builds the supercell as A_sc = sc_mat^T @ A_prim, so the q-map
+    # q_sc = q_prim @ sc_mat is exact; ASE's make_supercell used inside
+    # phonon_unfolder generates translation lattice points with the
+    # transposed convention, so the maps need sc_mat^T.  Verified against a
+    # pristine R-3m supercell (MDR Rb3B12H12I): identical matrices scramble
+    # the translation orbits; this pairing gives exact binary weights.
+    uf=phonon_unfolder(atoms=prim, supercell_matrix=sc_mat.T, eigenvectors=eigvecs, qpoints=sc_qpoints, phase=False)
     # phonopy eigenvectors carry only the fold label (q folded out of the
     # gauge); the robust weights reproduce the shipped character-sum values
     # bit-for-bit on pure gauges while also surviving mixed/real gauges.
     weights = uf.get_weights_robust(freqs, gauge="fold")
 
-    #ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*8065.6,weights[:,:].T*0.98+0.01,xticks=[knames,xpts],style='alpha')
     ax=plot_band_weight([list(x)]*freqs.shape[1],freqs.T*THZ_TO_CM,weights[:,:].T*0.99+0.001,xticks=[knames,xpts],style='alpha')
+    if return_result:
+        from types import SimpleNamespace
+        return ax, SimpleNamespace(
+            kpoints=np.asarray(qpoints, dtype=float),
+            eigenvalues=np.asarray(freqs) * THZ_TO_CM,
+            weights=np.asarray(weights),
+        )
     return ax
 
-def phonopy_unfold(sc_mat=np.diag([1,1,1]), unfold_sc_mat=np.diag([3,3,3]),force_constants='FORCE_CONSTANTS', sposcar='SPOSCAR', qpts=None, qnames=None, xqpts=None, Xqpts=None):
+def phonopy_unfold(sc_mat=np.diag([1,1,1]), unfold_sc_mat=np.diag([3,3,3]),force_constants='FORCE_CONSTANTS', sposcar='SPOSCAR', qpts=None, qnames=None, xqpts=None, Xqpts=None, return_result=False):
     phonon=read_phonopy(sc_mat=sc_mat, force_constants=force_constants, sposcar=sposcar)
-    ax=unf(phonon, sc_mat=unfold_sc_mat, qpoints=qpts, knames=qnames,x=xqpts, xpts=Xqpts )
-    return ax
+    return unf(phonon, sc_mat=unfold_sc_mat, qpoints=qpts, knames=qnames,x=xqpts, xpts=Xqpts, return_result=return_result )
 
 
 

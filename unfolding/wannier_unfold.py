@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import warnings
 
 import numpy as np
@@ -73,8 +75,11 @@ class WannierUnfolder(object):
         if len(tick_labels) != len(list(X)):
             tick_labels = None  # never crash on an unmappable path
         kslist = [x] * len(self.positions)
-        wkslist = self.unfold(kpts).T * 0.98 + 0.01
+        weights = self.unfold(kpts)
+        wkslist = weights.T * 0.98 + 0.01
         ekslist = self.evals  # [nband, nk]: one row per band, as plot_band_weight expects
+        self.last_result = SimpleNamespace(
+            kpoints=kpts, eigenvalues=self.evals.T, weights=weights)
         ax = plot_band_weight(
             kslist,
             ekslist,
@@ -291,7 +296,7 @@ class Wannier90Model:
 
 
 def run(path, prefix, labels, scmat, output_figure, kvectors, knames,
-        npoints=200, cell=None):
+        npoints=200, cell=None, return_result=False):
     """Convenience driver reading a Wannier90 directory.
 
     Uses minimulti's MyTB reader when that (older) API is available,
@@ -299,6 +304,10 @@ def run(path, prefix, labels, scmat, output_figure, kvectors, knames,
     ``<prefix>_hr.dat`` plus a ``<prefix>.win`` (or an explicit ``cell``)
     and drives the same :class:`WannierUnfolder`. Hopping pruning, if
     needed, is configured on the model before unfolding.
+
+    With ``return_result=True`` returns ``(ax, result)`` where ``result``
+    carries ``kpoints`` (supercell path points), ``eigenvalues`` (eV) and
+    ``weights`` arrays of the drawn figure.
     """
     tb = None
     try:
@@ -317,7 +326,9 @@ def run(path, prefix, labels, scmat, output_figure, kvectors, knames,
     u = WannierUnfolder(tb, labels=labels, sc_matrix=scmat)
     ax = u.plot_unfolded_band(kvectors=kvectors, knames=knames, npoints=npoints)
     plt.savefig(output_figure)
-    plt.show()
+    plt.close(ax.figure)
+    if return_result:
+        return ax, u.last_result
     return ax
 
 

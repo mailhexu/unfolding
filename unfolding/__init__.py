@@ -7,6 +7,8 @@ from .magnon_unfolder import MagnonEigenData, MagnonUnfolder, MagnonWeights
 from .pw_unfolder import PWEigenData, PWUnfolder, PWWeights
 from .config import ROUTES, ConfigError, load_config
 from .routes import run
+from .dataset import Dataset, load_dataset, save_dataset
+from .plotting import plot_dataset
 
 __all__ = [
     "HamiltonIOModel",
@@ -33,8 +35,11 @@ __all__ = [
     "ConfigError",
     "load_config",
     "run",
+    "Dataset",
+    "load_dataset",
+    "save_dataset",
+    "plot_dataset",
 ]
-
 # Symbols whose adapter modules need optional backends: name -> (module, extra).
 # Note: DDB_unfolder/nc_unfolder are intentionally NOT re-exported here -- the
 # function names would collide with the submodule names and make package

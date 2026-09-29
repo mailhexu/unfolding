@@ -28,6 +28,7 @@ def unfold_abinit(
     ypad=1.5,
     width=2,
     title=None,
+    return_result=False,
 ):
     """Unfold an ABINIT WFK on a primitive-cell k-path and return Axes.
 
@@ -128,4 +129,6 @@ def unfold_abinit(
     )
     if output is not None:
         ax.figure.savefig(output)
+    if return_result:
+        return ax, result_ev
     return ax
