@@ -654,8 +654,8 @@ class WannierConfig:
     names: list = dataclasses.field(metadata=F(
         "path", "str-list", "labels for path vertices"))
     # [output]
-    output: str = dataclasses.field(metadata=F(
-        "output", "out", "output figure path"))
+    output: str | None = dataclasses.field(
+        default=None, metadata=F("output", "out", "output figure path"))
     data: str | None = dataclasses.field(
         default=None, metadata=F(
             "output", "out", "output unfolded-band dataset path (JSON)"))

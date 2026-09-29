@@ -46,15 +46,20 @@ def _owned(value, dtype=float):
     return array
 
 
-def _nullify(array: np.ndarray) -> list:
-    """Plain nested lists with non-finite floats mapped to None."""
-    return _nullify_list(np.asarray(array, dtype=float).tolist())
+def _nullify(array: np.ndarray, name: str) -> list:
+    """Plain nested lists with NaN mapped to None; infinities rejected."""
+    arr = np.asarray(array, dtype=float)
+    if np.isinf(arr).any():
+        raise ValueError(f"{name}: infinite values cannot be serialized")
+    if name != "weights" and np.isnan(arr).any():
+        raise ValueError(f"{name}: NaN values are only supported in weights")
+    return _nullify_list(arr.tolist())
 
 
 def _nullify_list(value):
     if isinstance(value, list):
         return [_nullify_list(v) for v in value]
-    if isinstance(value, float) and not np.isfinite(value):
+    if isinstance(value, float) and np.isnan(value):
         return None
     return value
 
@@ -103,7 +108,25 @@ class Dataset:
             raise ValueError(
                 f"weights shape {self.weights.shape} != eigenvalues shape "
                 f"{self.eigenvalues.shape}")
+        for name in ("kpoints", "eigenvalues", "weights",
+                     "fold_kpoints", "sc_kpoints"):
+            value = getattr(self, name)
+            if value is None:
+                continue
+            if np.isinf(value).any():
+                raise ValueError(f"{name}: infinite values are not valid")
+            if name != "weights" and np.isnan(value).any():
+                raise ValueError(f"{name}: NaN values are not valid")
+        if self.kpoints.ndim != 2 or self.kpoints.shape[1] != 3:
+            raise ValueError(
+                f"kpoints must have shape (nk, 3), got {self.kpoints.shape}")
         nk = len(self.kpoints)
+        for name in ("fold_kpoints", "sc_kpoints"):
+            coord = getattr(self, name)
+            if coord is not None and coord.shape != self.kpoints.shape:
+                raise ValueError(
+                    f"{name} shape {coord.shape} != kpoints shape "
+                    f"{self.kpoints.shape}")
         eig = self.eigenvalues
         if eig.ndim == 3:
             if self.spin_channels == 1 or eig.shape[0] != self.spin_channels \
@@ -159,25 +182,54 @@ class Dataset:
             else float(self.fermi_energy),
             "energy_reference": self.energy_reference,
             "spin_channels": self.spin_channels,
-            "kpoints": _nullify(self.kpoints),
-            "eigenvalues": _nullify(self.eigenvalues),
-            "weights": _nullify(self.weights),
+            "kpoints": _nullify(self.kpoints, "kpoints"),
+            "eigenvalues": _nullify(self.eigenvalues, "eigenvalues"),
+            "weights": _nullify(self.weights, "weights"),
         }
         if self.fold_kpoints is not None:
-            doc["fold_kpoints"] = _nullify(self.fold_kpoints)
+            doc["fold_kpoints"] = _nullify(self.fold_kpoints, "fold_kpoints")
         if self.sc_kpoints is not None:
-            doc["sc_kpoints"] = _nullify(self.sc_kpoints)
+            doc["sc_kpoints"] = _nullify(self.sc_kpoints, "sc_kpoints")
         return doc
 
 
-def save_dataset(result, path, *, route, spin_channels=None, provenance=None,
-                 fermi_energy=None, energy_reference=None, energy_unit="eV"):
-    """Serialize ``result`` to ``path`` as a schema-v1 JSON document."""
-    ds = Dataset.from_result(
-        result, route=route, spin_channels=spin_channels,
-        fermi_energy=fermi_energy, energy_reference=energy_reference,
-        provenance=provenance)
-    object.__setattr__(ds, "energy_unit", str(energy_unit))
+def save_dataset(result, path, *, route=None, spin_channels=None,
+                 provenance=None, fermi_energy=None, energy_reference=None,
+                 energy_unit=None):
+    """Serialize ``result`` to ``path`` as a schema-v1 JSON document.
+
+    ``result`` may be a duck-typed engine result or an already parsed
+    :class:`Dataset`; parsed datasets keep their stored metadata
+    (Fermi level, energy reference/unit, provenance, spin channels)
+    unless the corresponding keyword overrides it.
+    """
+    if route is None and not isinstance(result, Dataset):
+        raise ValueError("route: required when saving an engine result")
+    if isinstance(result, Dataset):
+        ds = Dataset(
+            route=route if route is not None else result.route,
+            kpoints=result.kpoints,
+            eigenvalues=result.eigenvalues,
+            weights=result.weights,
+            spin_channels=(spin_channels if spin_channels is not None
+                           else result.spin_channels),
+            energy_unit=(energy_unit if energy_unit is not None
+                         else result.energy_unit),
+            fold_kpoints=result.fold_kpoints,
+            sc_kpoints=result.sc_kpoints,
+            fermi_energy=(fermi_energy if fermi_energy is not None
+                          else result.fermi_energy),
+            energy_reference=(energy_reference if energy_reference is not None
+                              else result.energy_reference),
+            provenance=provenance if provenance is not None else result.provenance,
+        )
+    else:
+        ds = Dataset.from_result(
+            result, route=route, spin_channels=spin_channels,
+            fermi_energy=fermi_energy, energy_reference=energy_reference,
+            provenance=provenance)
+        object.__setattr__(ds, "energy_unit",
+                           energy_unit if energy_unit is not None else "eV")
     with open(os.fspath(path), "w", encoding="utf-8") as fh:
         json.dump(ds.to_document(), fh, sort_keys=True, indent=1,
                   allow_nan=False)

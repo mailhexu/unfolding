@@ -169,6 +169,8 @@ def unfold_openmx(
         ylabel=ylabel,
         ypad=ypad,
     )
+    if output is not None:
+        ax.figure.savefig(output)
     if return_result:
         return ax, res
     return ax

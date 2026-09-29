@@ -78,8 +78,15 @@ class WannierUnfolder(object):
         weights = self.unfold(kpts)
         wkslist = weights.T * 0.98 + 0.01
         ekslist = self.evals  # [nband, nk]: one row per band, as plot_band_weight expects
+        # kpts live in the supercell reciprocal frame (the vertices were
+        # mapped through sc_matrix above); the dataset contract stores
+        # primitive fractional momenta, so invert that mapping here
+        k_prim = np.mod(
+            np.asarray(kpts, dtype=float)
+            @ np.linalg.inv(np.asarray(self.sc_matrix, dtype=float).T),
+            1.0)
         self.last_result = SimpleNamespace(
-            kpoints=kpts, eigenvalues=self.evals.T, weights=weights)
+            kpoints=k_prim, eigenvalues=self.evals.T, weights=weights)
         ax = plot_band_weight(
             kslist,
             ekslist,
@@ -360,8 +367,9 @@ def run(path, prefix, labels, scmat, output_figure, kvectors, knames,
     needed, is configured on the model before unfolding.
 
     With ``return_result=True`` returns ``(ax, result)`` where ``result``
-    carries ``kpoints`` (supercell path points), ``eigenvalues`` (eV) and
-    ``weights`` arrays of the drawn figure.
+    carries ``kpoints`` (primitive fractional path points),
+    ``eigenvalues`` (eV) and ``weights`` arrays of the drawn figure.
+    ``output_figure`` may be ``None`` for dataset-only runs.
     """
     tb = None
     try:
@@ -379,8 +387,9 @@ def run(path, prefix, labels, scmat, output_figure, kvectors, knames,
         tb = Wannier90Model(path, prefix, cell=cell, scmat=scmat)
     u = WannierUnfolder(tb, labels=labels, sc_matrix=scmat)
     ax = u.plot_unfolded_band(kvectors=kvectors, knames=knames, npoints=npoints)
-    plt.savefig(output_figure)
-    plt.show()
+    if output_figure is not None:
+        plt.savefig(output_figure)
+        plt.show()
     if return_result:
         return ax, u.last_result
     return ax

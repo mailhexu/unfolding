@@ -50,14 +50,11 @@ matrix relates to the DDB cell instead (see the
 [ABINIT DDB example](/examples/abinit-ddb/)).
 
 ## Requesting a k-path
-
-- All k-points are given in **primitive reciprocal fractional
-  coordinates** (each component in $[0,1)$ or $[-0.5, 0.5)$; exact
-  rational values like 0.5 are exact).
 - `[path] special_points = "GXWGLX"` builds a dense path through the
   special points of the **path frame cell** — by default the primitive
   cell of the route (or a derived cell for phonopy/magnon/DDB; override
-  with `path_cell`). $npts$ points are interpolated per path.
+  with `path_cell`). `npts` is the **total number of points on the
+  path**, distributed over all path segments.
 - `[path] kpoints = [x1,y1,z1, ...]` lists explicit momenta instead
   (with optional `names`, `xcoords`, `xticks`).
 - Internally each requested primitive $k$ is mapped to the supercell
@@ -75,7 +72,7 @@ matrix relates to the DDB cell instead (see the
 | `mode` | `[options]` (gpaw, abacus) | `pw` (plane-wave coefficients) or `lcao` (localized basis) |
 | `method` | `[options]` (LCAO routes) | `ring` (exact torus projection, supercell-torus k-grids only) or `ideal` (arbitrary k-paths) |
 | `resolve_degenerate` | `[options]` (pw/PAW routes) | eV tolerance; reassigns gauge-invariant weights inside near-degenerate groups so exact degeneracies render as clean lines |
-| `npts` | `[path]` | points per path segment (`special_points` mode) |
+| `npts` | `[path]` | total number of interpolated points across the full special-point path |
 | `path_cell` | `[path]` | path-frame cell when the special points are meant in a frame other than the primitive cell |
 | `output` | `[output]` | figure path (PNG) |
 | `data` | `[output]` | unfolded-band dataset path (JSON, schema below) |
@@ -83,12 +80,12 @@ matrix relates to the DDB cell instead (see the
 ## Energy references
 
 Figures show energies in the route's natural unit (eV for electronic
-routes, meV for magnons, cm⁻¹ for phonons). Electronic figures put the
-supercell run's Fermi level at zero when the run provides one
-(`efermi`, `fermi_shift`, or the run's own header). The JSON dataset
-always stores **absolute** band energies together with `fermi_energy`
-and an `energy_reference` note saying what the figure subtracted —
-shift at plot time, never guess.
+routes, meV for magnons, cm⁻¹ for phonons), with the reference recorded
+explicitly in each JSON dataset. `energy_reference = "absolute"` means
+energies are absolute (and may include `fermi_energy`);
+`energy_reference = "fermi"` means the route already shifted energies to
+E_F = 0. The default `plot_dataset` follows this marker and only shifts
+absolute energies when a Fermi level is available.
 
 ## Persisting and re-plotting: the JSON dataset
 

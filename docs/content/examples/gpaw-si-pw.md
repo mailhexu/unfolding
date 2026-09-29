@@ -12,7 +12,8 @@ onto the primitive-cell path through `HamiltonIO.gpaw.GpawPWParser` and
 Run parameters and shared options (`mode`, `spin`, `resolve_degenerate`,
 `method`, supercell-matrix row convention, k-path coordinates,
 energy-reference conventions) are explained together in the
-[method, parameters, and k-path guide](/guide/method-parameters-kpaths/);
+[method, parameters, and k-path guide](/guide/method-parameters-kpaths/). Primitive-cell input: **not used** in pw mode (the path frame is derived from the run's own cell); `primitive` is only required for the LCAO mode.
+
 this page only covers what is specific to this example.
 
 ## Configuration

@@ -129,9 +129,10 @@ def test_doped_generic_k_ideal_finite(doped):
     assert w.max() <= 1.0 + 1e-6
 
 
-def test_unfold_openmx_references_energies_to_fermi():
-    """unfold_openmx shifts eigenvalues by -E_F so 0 in the figure is E_F.
+def test_unfold_openmx_references_energies_to_fermi(tmp_path):
+    """Adapter save and Fermi-reference contracts on a committed fixture.
 
+    ``unfold_openmx`` shifts eigenvalues by -E_F so 0 in the figure is E_F.
     The OpenMX scfout stores absolute Hartree energies (ChemP ~ -2.69 eV
     for the pristine run); without the shift, the dashed E_F line drawn
     at y=0 sits ~2.7 eV below the true Fermi level.
@@ -162,7 +163,9 @@ def test_unfold_openmx_references_energies_to_fermi():
     from HamiltonIO.openmx import OpenmxParser
 
     ef = OpenmxParser(os.path.join(DATA, "openmx_si_sc.scfout")).efermi
-    ax_raw = unfold_openmx(model=sc_model, efermi=0.0, **kw)
+    out = tmp_path / "openmx-direct.png"
+    ax_raw = unfold_openmx(model=sc_model, efermi=0.0, output=str(out), **kw)
+    assert out.is_file() and out.stat().st_size > 0
     # default path: scfout is parsed here and ChemP is picked up
     ax_ef = unfold_openmx(
         scfout=os.path.join(DATA, "openmx_si_sc.scfout"), **kw

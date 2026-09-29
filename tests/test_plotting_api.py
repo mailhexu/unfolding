@@ -120,4 +120,92 @@ def test_documented_multipanel_recipe(tmp_path):
                  overlay=prim, overlay_shift=-0.13)
     fig.savefig(tmp_path / "multipanel.png", dpi=80)
     assert ax1.collections and ax2.collections and ax2.get_lines()
-    plt.close(fig)
+
+
+def _ds(**kw):
+    return _dataset(**kw)
+
+
+def test_nan_weights_render_at_zero_weight():
+    from unfolding import plot_dataset
+
+    ds = _dataset()
+    w = ds.weights.copy()
+    w[0, 0] = np.nan
+    object.__setattr__(ds, "weights", w)
+    ax = plot_dataset(ds)  # must not raise on alpha=nan
+    alphas = np.concatenate([
+        np.asarray(c.get_colors())[:, 3] for c in ax.collections])
+    assert not np.isnan(alphas).any()
+    plt.close("all")
+
+
+def test_electronic_ypad_default():
+    from unfolding import plot_dataset
+
+    ax = plot_dataset(_dataset())  # eV
+    span = np.ptp(np.asarray(ax.get_ylim()))
+    assert span < 30  # a phonon-scale 2*66 margin would dwarf these bands
+    plt.close("all")
+
+
+def test_square_dataset_overlay_transposed():
+    """nk == nband overlay datasets must follow bands, not k-columns."""
+    from unfolding import plot_dataset
+
+    ds = _dataset()  # 6 k, 4 bands
+    square = Dataset(
+        route="ref", kpoints=np.zeros((4, 3)),
+        eigenvalues=np.arange(16, dtype=float).reshape(4, 4),
+        weights=np.ones((4, 4)))
+    ax = plot_dataset(ds, overlay=square, overlay_shift=0.0)
+    lines = np.asarray([ln.get_ydata() for ln in ax.get_lines()[-4:]])
+    # eigenvalues[k, b] = 4k + b: band b over k is the column [b, b+4, ...]
+    np.testing.assert_allclose(lines[0], [0.0, 4.0, 8.0, 12.0])
+    np.testing.assert_allclose(lines[3], [3.0, 7.0, 11.0, 15.0])
+    plt.close("all")
+
+
+def test_spin_both_shares_vertical_range():
+    from unfolding import plot_dataset
+
+    rng = np.random.default_rng(5)
+    nk, nb = 5, 3
+    eig = np.stack([rng.normal(size=(nk, nb)),
+                    rng.normal(size=(nk, nb)) + 10.0])  # disjoint channels
+    ds = Dataset(route="t", kpoints=rng.normal(size=(nk, 3)),
+                 eigenvalues=eig, weights=rng.random(eig.shape),
+                 spin_channels=2)
+    ax = plot_dataset(ds, ypad=0.5)
+    lo, hi = ax.get_ylim()
+    assert lo < eig.min() and hi > eig[1].max()  # both channels visible
+    plt.close("all")
+
+
+
+def test_fermi_auto_follows_energy_reference():
+    from unfolding import plot_dataset
+
+    rng = np.random.default_rng(11)
+    nk, nb = 5, 3
+    stored = rng.normal(size=(nk, nb))  # absolute energies
+    fermi = -0.5
+    kw = dict(route="t", kpoints=rng.normal(size=(nk, 3)),
+              weights=rng.random((nk, nb)), fermi_energy=fermi)
+
+    ax = plot_dataset(Dataset(eigenvalues=stored,
+                              energy_reference="absolute", **kw))
+    ys = np.unique(np.concatenate(
+        [np.asarray(c.get_segments())[:, :, 1].ravel()
+         for c in ax.collections]))
+    np.testing.assert_allclose(ys, np.unique((stored - fermi).ravel()),
+                               atol=1e-9)
+
+    # "fermi" reference: no double shift even with fermi_energy present
+    ax2 = plot_dataset(Dataset(eigenvalues=stored,
+                               energy_reference="fermi", **kw))
+    ys2 = np.unique(np.concatenate(
+        [np.asarray(c.get_segments())[:, :, 1].ravel()
+         for c in ax2.collections]))
+    np.testing.assert_allclose(ys2, np.unique(stored.ravel()), atol=1e-9)
+    plt.close("all")

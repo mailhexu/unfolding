@@ -161,8 +161,7 @@ def run_siesta(cfg):
         return_result=True,
     )
     _save_data(cfg, res, fermi_energy=cfg.efermi,
-               energy_reference=(
-                   "absolute eigenvalues; the figure marks E_F at zero"))
+               energy_reference="absolute")
     return _save(ax, cfg.output)
 
 
@@ -210,9 +209,13 @@ def run_siesta_wfsx(cfg):
     unf = WFSXUnfolder(wfsx, adapted, rm, M)
     res = unf.compute(kpts, method=cfg.method)
     efermi = _wfsx_efermi(cfg.wfsx, cfg.efermi)
-    _save_data(cfg, res, fermi_energy=efermi,
-               energy_reference=(
-                   "absolute eigenvalues; the figure shifts by -E_F"))
+    from types import SimpleNamespace
+
+    _save_data(cfg,
+               SimpleNamespace(kpoints=res.kpoints,
+                               eigenvalues=res.eigenvalues - efermi,
+                               weights=res.weights),
+               fermi_energy=efermi, energy_reference="absolute")
     return _band_figure(cfg, res.eigenvalues, res.weights,
                         xqpts, knames, Xqpts, efermi)
 
@@ -245,7 +248,7 @@ def run_phonopy(cfg):
         return_result=True,
     )
     _save_data(cfg, res, energy_unit="cm^-1",
-               energy_reference="frequencies THz x 33.356 (as plotted)")
+               energy_reference="absolute")
     return _save(ax, cfg.output)
 
 
@@ -270,13 +273,23 @@ def run_abinit_wfk(cfg):
         return_result=True,
     )
     _save_data(cfg, res, energy_reference=(
-        "eigenvalues shifted by -E_F when the route applied fermi_shift"))
+        "fermi" if cfg.fermi_shift else "absolute"))
     return _save(ax, cfg.output)
 
 
 # ---------------------------------------------------------------------------
 # abinit-ddb
 # ---------------------------------------------------------------------------
+
+def _ddb_primitive_kpoints(kpoints, sc_mat):
+    """Convert DDB-cell reciprocal fractions to primitive fractions.
+
+    If ``A_ddb = M @ A_prim``, then ``q_prim = q_ddb @ M^-T`` so both
+    coordinates describe the same Cartesian reciprocal vector.
+    """
+    return np.asarray(kpoints, dtype=float) @ np.linalg.inv(
+        np.asarray(sc_mat, dtype=float)).T
+
 
 def run_abinit_ddb(cfg):
     from .DDB_unfolder import DDB_unfolder
@@ -299,10 +312,13 @@ def run_abinit_ddb(cfg):
         dipdip=cfg.dipdip,
         return_result=True,
     )
-    _save_data(cfg, res, energy_unit="cm^-1",
-               energy_reference=(
-                   "kpoints are DDB-cell fractional (see adapter docs); "
-                   "frequencies eV x 8065.6 (as plotted)"))
+    from types import SimpleNamespace
+
+    primitive_kpoints = _ddb_primitive_kpoints(res.kpoints, cfg.sc_mat)
+    _save_data(cfg, SimpleNamespace(kpoints=primitive_kpoints,
+                                    eigenvalues=res.eigenvalues,
+                                    weights=res.weights),
+               energy_unit="cm^-1", energy_reference="absolute")
     return _save(ax, cfg.output)
 
 
@@ -356,7 +372,7 @@ def run_magnon(cfg):
         return_result=True,
     )
     _save_data(cfg, res, energy_unit="meV",
-               energy_reference="magnon energies eV x 1000 (as plotted)")
+               energy_reference="absolute")
     return _save(ax, cfg.output)
 
 
@@ -422,9 +438,7 @@ def run_abinit_paw(cfg):
         SimpleNamespace(kpoints=result.kpoints,
                         eigenvalues=result.eigenvalues * HARTREE_TO_EV,
                         weights=result.weights),
-        fermi_energy=efermi,
-        energy_reference=(
-            "absolute eigenvalues; the figure shifts by -E_F"))
+        fermi_energy=efermi, energy_reference="absolute")
     energies = result.eigenvalues * HARTREE_TO_EV - efermi
     return _paw_figure(cfg, result.weights, energies,
                        result.kpoints, primitive.wavefunctions.rprimd)
@@ -457,8 +471,7 @@ def run_openmx(cfg):
         efermi=cfg.efermi,
         return_result=True,
     )
-    _save_data(cfg, res,
-               energy_reference="eigenvalues shifted by -E_F (E_F at zero)")
+    _save_data(cfg, res, energy_reference="fermi")
     return _save(ax, cfg.output)
 
 
@@ -629,8 +642,7 @@ def run_gpaw(cfg):
         unf = _lcao_unfolder(sc, prim.atoms, M, cfg.tol_r, cfg.match_species)
         res = unf.compute(kpts, method=cfg.method)
         _save_data(cfg, res, fermi_energy=_model_efermi(sc),
-                   energy_reference=(
-                       "absolute eigenvalues; the figure shifts by -E_F"))
+                   energy_reference="absolute")
         return _band_figure(cfg, res.eigenvalues, res.weights,
                             xqpts, knames, Xqpts, _model_efermi(sc))
     from HamiltonIO.gpaw import GpawPWParser
@@ -643,8 +655,7 @@ def run_gpaw(cfg):
     kpts, knames, xqpts, Xqpts = _resolve_path(cfg, default_cell=default_cell)
     res = unf.compute(kpts, resolve_degenerate=cfg.resolve_degenerate)
     _save_data(cfg, res, fermi_energy=data.efermi,
-               energy_reference=(
-                   "absolute eigenvalues; the figure shifts by -E_F"))
+               energy_reference="absolute")
     return _band_figure(cfg, res.eigenvalues, res.weights,
                         xqpts, knames, Xqpts, data.efermi)
 
@@ -691,8 +702,7 @@ def run_abacus(cfg):
         unf = _lcao_unfolder(sc, prim.atoms, M, cfg.tol_r, cfg.match_species)
         res = unf.compute(kpts, method=cfg.method)
         _save_data(cfg, res, fermi_energy=_model_efermi(sc),
-                   energy_reference=(
-                       "absolute eigenvalues; the figure shifts by -E_F"))
+                   energy_reference="absolute")
         return _band_figure(cfg, res.eigenvalues, res.weights,
                             xqpts, knames, Xqpts, _model_efermi(sc))
 
@@ -706,8 +716,7 @@ def run_abacus(cfg):
         cfg, default_cell=_abacus_pw_default_cell(cfg.supercell, M))
     res = unf.compute(kpts, resolve_degenerate=cfg.resolve_degenerate)
     _save_data(cfg, res, fermi_energy=data.efermi,
-               energy_reference=(
-                   "absolute eigenvalues; the figure shifts by -E_F"))
+               energy_reference="absolute")
     return _band_figure(cfg, res.eigenvalues, res.weights,
                         xqpts, knames, Xqpts, data.efermi)
 
@@ -728,8 +737,7 @@ def run_vasp_paw(cfg):
         resolve_degenerate=cfg.resolve_degenerate,
     )
     _save_data(cfg, result, fermi_energy=supercell.fermi_energy,
-               energy_reference=(
-                   "absolute eigenvalues; the figure shifts by -E_F"))
+               energy_reference="absolute")
     return _paw_figure(cfg, result.weights,
                        result.eigenvalues - supercell.fermi_energy,
                        result.kpoints, primitive.lattice)
@@ -755,6 +763,5 @@ def run_wannier(cfg):
         cell=cfg.cell,
         return_result=True,
     )
-    _save_data(cfg, res,
-               energy_reference="absolute eigenvalues at the sampled path")
+    _save_data(cfg, res, energy_reference="absolute")
     return ax

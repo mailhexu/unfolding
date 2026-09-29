@@ -4,6 +4,15 @@
 ## Unreleased
 
 ### Fixed
+- Unfolded-band JSON/plotting review fixes: `Dataset` now validates the
+  (nk,3) coordinate arrays, rejects non-finite values except NaN weights,
+  and preserves route/unit/Fermi/provenance metadata when re-saved.
+  `plot_dataset` follows machine-readable `energy_reference` (`absolute`
+  vs `fermi`), shares spin-channel limits, masks NaN weights for rendering,
+  uses unit-aware y padding, and handles square Dataset overlays correctly.
+  Wannier JSON k-points are converted back to primitive fractional frame;
+  direct SIESTA/OpenMX adapter `output=` saving is restored; Wannier now
+  permits data-only runs (`[output] data` without a figure path).
 
 - Wannier90 readers (`unfolding.wannier_unfold`): parse real Wannier90
   output. `read_wannier90_hr` now skips the "written on ..." comment
