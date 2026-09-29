@@ -11,7 +11,7 @@ wavefunction is normalized in the overlap metric, so overlaps are
 evaluated with `S = I + Σ_aij |p_ai⟩ ΔS_aij ⟨p_aj|` (only the overlap
 augmentation `ΔS` enters the projection).
 
-Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/).
 Primitive cell input: required for the `abinit-paw` route — it provides the primitive-cell wavefunctions the supercell is projected onto.
 
 ## Configuration

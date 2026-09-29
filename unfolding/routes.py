@@ -213,7 +213,7 @@ def run_siesta_wfsx(cfg):
 
     _save_data(cfg,
                SimpleNamespace(kpoints=res.kpoints,
-                               eigenvalues=res.eigenvalues - efermi,
+                               eigenvalues=res.eigenvalues,
                                weights=res.weights),
                fermi_energy=efermi, energy_reference="absolute")
     return _band_figure(cfg, res.eigenvalues, res.weights,

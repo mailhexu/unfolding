@@ -643,7 +643,8 @@ def test_siesta_wfsx_parity(tmp_path):
                           "supercell_matrix": M_SI},
             "path": {"kpoints": kprim.tolist()},
             "options": {"method": "ideal"},
-            "output": {"output": str(out_toml)},
+            "output": {"output": str(out_toml),
+                       "data": str(tmp_path / "wfsx.json")},
         },
     )
     ax_toml = _run_cli(["--config", str(toml)])
@@ -672,6 +673,13 @@ def test_siesta_wfsx_parity(tmp_path):
     res = unf.compute(kprim, method="ideal")
     with open(SI_EXAMPLE / "si_sc_path.EIG") as fh:
         efermi = float(fh.readline().split()[0])
+    from unfolding.dataset import load_dataset
+    ds = load_dataset(tmp_path / "wfsx.json")
+    assert ds.energy_reference == "absolute"
+    assert ds.fermi_energy == pytest.approx(efermi)
+    np.testing.assert_allclose(ds.eigenvalues, res.eigenvalues)
+    np.testing.assert_allclose(ds.eigenvalues - ds.fermi_energy,
+                               res.eigenvalues - efermi)
     x = np.arange(len(kprim), dtype=float)
     energies = res.eigenvalues - efermi
     w = np.clip(res.weights, 0.0, 1.0)

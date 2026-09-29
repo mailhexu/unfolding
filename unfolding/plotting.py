@@ -38,8 +38,8 @@ def _channel_arrays(dataset, spin):
 
 def plot_dataset(dataset, *, ax=None, style="alpha", color="blue",
                  ylabel=None, x=None, spin="both", fermi_at_zero=None,
-                 overlay=None, overlay_shift=None, overlay_color="crimson",
-                 overlay_lw=1.0, ypad=None, **kwargs):
+                 overlay=None, overlay_shift=None, overlay_orientation=None,
+                 overlay_color="crimson", overlay_lw=1.0, ypad=None, **kwargs):
     """Plot weight-coded unfolded bands from a parsed dataset.
 
     Parameters
@@ -65,9 +65,10 @@ def plot_dataset(dataset, *, ax=None, style="alpha", color="blue",
         not shifted again. ``True`` forces the shift (requires a stored
         ``fermi_energy``); ``False`` never shifts.
     overlay : (x, energies) tuple or Dataset, optional
-        Primitive reference bands drawn as thin lines. Tuple
-        ``energies`` is (nband, nk) or (nk, nband); a Dataset is always
-        (nk, nband) by schema and handled accordingly.
+        Primitive reference bands drawn as thin lines. Tuple arrays are
+        inferred when rectangular; square arrays require
+        ``overlay_orientation="kpoints_first"`` or ``"bands_first"``.
+        A Dataset is always (nk, nband) by schema.
     overlay_shift : float, optional
         Rigid shift (in the dataset's energy unit) applied to the
         overlay energies. **Required** with ``overlay``: alignment
@@ -127,16 +128,34 @@ def plot_dataset(dataset, *, ax=None, style="alpha", color="blue",
             [w[:, ib] for ib in range(nb)],
             axis=ax, style=style, color=color, ylabel=ylabel,
             yrange=yrange, ypad=ypad, **kwargs)
-
     if overlay is not None:
         if isinstance(overlay, tuple):
             ox, oe = overlay
             ox = np.asarray(ox, dtype=float)
             oe = np.asarray(oe, dtype=float)
-            if oe.ndim == 2 and oe.shape[0] == len(ox) \
-                    and oe.shape[1] != len(ox):
-                oe = oe.T  # (nk, nband) -> (nband, nk) rows
+            if oe.ndim != 2:
+                raise ValueError("tuple overlay energies must be a 2D array")
+            if overlay_orientation not in (None, "kpoints_first", "bands_first"):
+                raise ValueError(
+                    "overlay_orientation must be 'kpoints_first' or 'bands_first'")
+            if overlay_orientation is None:
+                if oe.shape == (len(ox), len(ox)):
+                    raise ValueError(
+                        "square tuple overlay energies are ambiguous; set "
+                        "overlay_orientation='kpoints_first' or 'bands_first'")
+                orientation = ("kpoints_first" if oe.shape[0] == len(ox)
+                               else "bands_first")
+            else:
+                orientation = overlay_orientation
+            if orientation == "kpoints_first":
+                if oe.shape[0] != len(ox):
+                    raise ValueError("kpoints_first overlay needs shape (nk, nband)")
+                oe = oe.T
+            elif oe.shape[1] != len(ox):
+                raise ValueError("bands_first overlay needs shape (nband, nk)")
         else:  # Dataset: always (nk, nband) by schema
+            if overlay_orientation is not None:
+                raise ValueError("overlay_orientation applies only to tuple overlays")
             if overlay.energy_unit != dataset.energy_unit:
                 raise ValueError(
                     f"overlay energy unit {overlay.energy_unit!r} differs "

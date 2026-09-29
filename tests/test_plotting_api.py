@@ -209,3 +209,17 @@ def test_fermi_auto_follows_energy_reference():
          for c in ax2.collections]))
     np.testing.assert_allclose(ys2, np.unique(stored.ravel()), atol=1e-9)
     plt.close("all")
+
+
+def test_square_tuple_overlay_requires_orientation():
+    from unfolding import plot_dataset
+
+    ds = _dataset()
+    x = np.arange(4, dtype=float)
+    bands = np.arange(16, dtype=float).reshape(4, 4)
+    with pytest.raises(ValueError, match="ambiguous"):
+        plot_dataset(ds, overlay=(x, bands), overlay_shift=0.0)
+    ax = plot_dataset(ds, overlay=(x, bands), overlay_shift=0.0,
+                      overlay_orientation="kpoints_first")
+    np.testing.assert_allclose(ax.get_lines()[-4].get_ydata(), bands[:, 0])
+    plt.close("all")

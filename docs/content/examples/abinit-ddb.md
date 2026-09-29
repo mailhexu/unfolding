@@ -47,7 +47,7 @@ A_pc). The vertices are the pseudo-cubic Γ–X–M–Γ–R points in the DDB
 frame; `dipdip` toggles the dipole-dipole (LO-TO) treatment passed to
 anaddb (0 for CaTiO₃, as published; 1 for Cu).
 
-Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/).
 Primitive cell input: not used by the `abinit-ddb` route — the path frame defaults to the cell stored in the DDB.
 
 ## Configuration

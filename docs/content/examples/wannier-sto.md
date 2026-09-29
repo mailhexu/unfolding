@@ -39,7 +39,7 @@ files. Prerequisites: `pip install unfolding` (numpy, matplotlib, ase).
 | orbital positions | final Wannier-function centres, read from the `.wout` |
 | k-path | Γ-X-M-Γ-R, 200 points, vertices in primitive fractional coordinates: (0,0,0), (.5,0,0), (.5,.5,0), (0,0,0), (.5,.5,.5) |
 
-Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example. Primitive-cell input: **not used** — the Wannier90 Hamiltonian already carries its own cell (`structure.cell` or the `.win` file).
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/). Primitive-cell input: **not used** — the Wannier90 Hamiltonian already carries its own cell (`structure.cell` or the `.win` file).
 
 
 ## Configuration

@@ -87,7 +87,7 @@ cropped at the final L. Regenerating the dense deck
 Run parameters and shared options (`mode`, `spin`, `method`,
 `resolve_degenerate`, supercell-matrix row convention, k-path
 coordinates and frames, energy-reference conventions) are explained
-together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example. Primitive-cell input (`structure.primitive`): **optional** — it only supplies the default path frame for `special_points`; the weights never need it.
+together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/). Primitive-cell input (`structure.primitive`): **optional** — it only supplies the default path frame for `special_points`; the weights never need it.
 
 
 ## Configuration

@@ -34,7 +34,7 @@ spglib). No DFT is involved.
 | q-path | Γ-X-W-Γ-L, 300 points |
 | units | frequencies read from phonopy in THz, plotted in cm⁻¹ |
 
-Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/).
 Primitive cell input: not used by the `phonopy` route — the path cell is derived from `SPOSCAR` and the unfolding matrix.
 
 ## Configuration

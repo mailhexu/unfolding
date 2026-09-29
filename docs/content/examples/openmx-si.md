@@ -10,7 +10,7 @@ cell from the binary `.scfout` file (real-space Hamiltonian and overlap,
 written with `HS.fileout on`), parsed by the HamiltonIO OpenMX adapter
 (pure python, no OpenMX runtime needed).
 
-Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/).
 Primitive cell input: required for the `openmx` route — it supplies the relabel map and the default path cell.
 
 ## Configuration

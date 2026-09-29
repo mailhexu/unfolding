@@ -30,7 +30,7 @@ Identical to the [pristine example](../siesta-si/): primitive 2-atom
 fcc cell (a = 5.430 Å), supercell matrix
 `M = [[-1,1,1],[1,-1,1],[1,1,-1]]`, path Γ-X-W-Γ-L-W-X with 300 points.
 
-Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/).
 Primitive cell input: required for the `siesta` route — it supplies the relabel map and the default path cell.
 
 ## Configuration

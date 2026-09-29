@@ -206,8 +206,9 @@ def test_wannier_dataset_kpoints_primitive(tmp_path: Path):
     run(cfg)
     ds = load_dataset(tmp_path / "w.json")
     assert ds.kpoints.shape[1] == 3
-    assert np.allclose(ds.kpoints[0], [0, 0, 0], atol=1e-12)
-    assert np.max(ds.kpoints) <= 1.0 + 1e-12
+    for vertex in cfg.kpoints:
+        delta = (ds.kpoints - np.asarray(vertex) + 0.5) % 1.0 - 0.5
+        assert np.min(np.linalg.norm(delta, axis=1)) < 1e-8, vertex
 
 
 def test_ddb_dataset_kpoint_frame_transform():

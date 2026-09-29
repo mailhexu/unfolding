@@ -37,7 +37,7 @@ and `reproduce.py`. Prerequisites: `pip install unfolding` plus
 | supercell | 8-atom conventional cubic cell, `M = [[-1,1,1],[1,-1,1],[1,1,-1]]` |
 | k-path | Γ-X-W-Γ-L-W-X, **157 stored k-points** (nominal segment-density parameter 150); the WFSX matches only its written `%block WaveFuncKPoints` list, so `unfold.toml` carries those coordinates explicitly |
 
-Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/).
 Primitive cell input: required for the `siesta-wfsx` route — it supplies the relabel map and the path frame (`data/si_prim.fdf`).
 
 ## Configuration

@@ -12,7 +12,7 @@ projector tables; primitive reference wavefunctions are embedded into
 the supercell G basis (`A = B† S C`, `G = B† S B`, weight = diagonal of
 `A† G⁻¹ A`).
 
-Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/).
 Primitive cell input: required for the `vasp-paw` route — it provides the primitive-cell wavefunctions the supercell is projected onto.
 
 ## Configuration

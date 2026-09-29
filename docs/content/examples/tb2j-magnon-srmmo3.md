@@ -40,7 +40,7 @@ Q=(½,½,½)), `unfold.toml`, and `reproduce.py`. Prerequisites:
 | q-path | Γ-X-M-Γ-R, 200 points |
 | reference | collinear two-sublattice frame: Q = 0, quantization axis ẑ, moments from the pickle (spiral references are not supported in v1) |
 
-Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/).
 Primitive cell input: not used by the `magnon` route — the path cell is derived from the TB2J cell and the unfolding matrix.
 
 ## Configuration

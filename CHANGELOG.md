@@ -13,6 +13,13 @@
   Wannier JSON k-points are converted back to primitive fractional frame;
   direct SIESTA/OpenMX adapter `output=` saving is restored; Wannier now
   permits data-only runs (`[output] data` without a figure path).
+- Dataset visualization/reference fixes after review: the Wannier path
+  coordinates are mapped back with the exact inverse of the reader’s
+  `kvectors @ sc_matrix` convention, with a regression that checks the
+  non-Gamma path vertices; square tuple overlays now require an explicit
+  orientation (`kpoints_first` / `bands_first`); WFSX JSON stores absolute
+  eigenvalues plus its Fermi energy, so dataset rendering applies the same
+  single Fermi shift as the route figure.
 
 - Wannier90 readers (`unfolding.wannier_unfold`): parse real Wannier90
   output. `read_wannier90_hr` now skips the "written on ..." comment

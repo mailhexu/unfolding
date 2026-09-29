@@ -179,13 +179,14 @@ or `energies`, and `weights`) to a versioned JSON document
 `null`, optional fold/supercell k-points, Fermi level, energy unit and
 a small provenance record. Stable byte-for-byte on re-save.
 
-### `plot_dataset(dataset, *, ax=None, style="alpha", ylabel=None, x=None, spin="both", fermi_at_zero=None, overlay=None, overlay_shift=None, ...)`
+### `plot_dataset(dataset, *, ax=None, style="alpha", ylabel=None, x=None, spin="both", fermi_at_zero=None, overlay=None, overlay_shift=None, overlay_orientation=None, ...)`
 
 Render a parsed dataset through the shared weight-coding. Pass your own
 `ax` for subplot composition; `overlay` draws primitive reference bands
 (a second dataset or `(x, energies)` arrays) shifted by the explicit
 `overlay_shift` — alignment between runs is a physical decision, never
-inferred. The default Fermi alignment follows the JSON `energy_reference`
+inferred. Square `(x, energies)` arrays require an explicit
+`overlay_orientation="kpoints_first"` or `"bands_first"`. The default Fermi alignment follows the JSON `energy_reference`
 marker and avoids double-shifting routes whose energies are already E_F-relative.
 
 ## Plotting

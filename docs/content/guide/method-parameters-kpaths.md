@@ -12,22 +12,22 @@ specific to their code and fixture.
 
 ## The unfolding method in one paragraph
 
-A supercell Bloch state at reduced momentum $K$ contains primitive
-momenta $k$ with $k \equiv K \pmod{M^{-T}}$: each integer supercell
-reciprocal vector $G_s$ maps to a primitive fractional wavevector
-$w = M^{-T}(K + G_s)$, and the spectral weight of the supercell state
-$n$ on primitive momentum $k$ is the total character carried by the
-coset of $k$:
+A supercell Bloch state at reduced momentum `K` contains primitive
+momenta `k` that fold onto it modulo the reciprocal supercell lattice.
+Each integer supercell reciprocal vector `G_s` maps to a primitive
+fractional wavevector `w = M^-T @ (K + G_s)`. The spectral weight on
+primitive momentum `k` is the total character carried by that reciprocal
+coset:
 
-$$
-W_n(k) \;=\; \sum_{G_s:\; \mathrm{frac}(M^{-T}(K+G_s))\,=\,k} |c_{nK}(G_s)|^2 .
-$$
+```text
+W_n(k) = sum_{G_s: frac(M^-T @ (K + G_s)) = k} |c_{nK}(G_s)|^2
+```
 
 The engines differ only in how that projector is evaluated:
 
 | Engine | Route family | Weight definition |
 |---|---|---|
-| Plane wave | `abinit-wfk`, `gpaw` (pw), `abacus` (pw) | direct coset sum over $\|c_{nK}(G_s)\|^2$ (orthonormal basis) |
+| Plane wave | `abinit-wfk`, `gpaw` (pw), `abacus` (pw) | direct coset sum of squared plane-wave coefficients (orthonormal basis) |
 | LCAO | `siesta`, `siesta-wfsx`, `openmx`, `gpaw`/`abacus` (lcao) | Lee et al. Eq. (25): dual-basis projector of the non-orthogonal tight-binding Hamiltonian |
 | PAW projection | `abinit-paw`, `vasp-paw` | projection onto primitive-cell PAW bands |
 | Magnon | `magnon` | Euclidean BdG projector sector sum on the spin-wave Hamiltonian |
@@ -36,16 +36,16 @@ The engines differ only in how that projector is evaluated:
 ## The supercell matrix
 
 `unfold_sc_mat` (TOML `structure.supercell_matrix`, flag `--unfold-mat`)
-is the integer matrix $M$ with **row convention**
+is the integer matrix `M` with **row convention**:
 
-$$
-A_\text{sc} = M \, A_\text{prim},
-$$
+```text
+A_sc = M @ A_prim
+```
 
-i.e. row $i$ of $M$ expresses supercell lattice vector $i$ in
+i.e. row `i` of `M` expresses supercell lattice vector `i` in
 primitive-lattice units. Example: the 8-atom conventional cubic cell of
 fcc Si as a supercell of the 2-atom fcc primitive cell is
-$M = [[-1,1,1],[1,-1,1],[1,1,-1]]$. For fcc conventional-cell DDBs the
+`M = [[-1,1,1],[1,-1,1],[1,1,-1]]`. For fcc conventional-cell DDBs the
 matrix relates to the DDB cell instead (see the
 [ABINIT DDB example](/examples/abinit-ddb/)).
 
@@ -57,8 +57,8 @@ matrix relates to the DDB cell instead (see the
   path**, distributed over all path segments.
 - `[path] kpoints = [x1,y1,z1, ...]` lists explicit momenta instead
   (with optional `names`, `xcoords`, `xticks`).
-- Internally each requested primitive $k$ is mapped to the supercell
-  momentum it folds onto, $K = k\,M^{T}$; every requested $k$ must be
+- Internally each requested primitive `k` is mapped to the supercell
+  momentum it folds onto, `K = k @ M.T`; every requested `k` must be
   present (within tolerance) in the stored supercell grid — a Γ-only
   supercell run, for instance, only serves the momenta that fold to
   supercell Γ.
@@ -67,7 +67,7 @@ matrix relates to the DDB cell instead (see the
 
 | Parameter | Where | Meaning |
 |---|---|---|
-| `supercell_matrix` / `--unfold-mat` | `[structure]` | $M$ as above |
+| `supercell_matrix` / `--unfold-mat` | `[structure]` | `M` as above |
 | `spin` | `[options]` | collinear channel (`up`/`down`); one channel per run on spin-polarised data |
 | `mode` | `[options]` (gpaw, abacus) | `pw` (plane-wave coefficients) or `lcao` (localized basis) |
 | `method` | `[options]` (LCAO routes) | `ring` (exact torus projection, supercell-torus k-grids only) or `ideal` (arbitrary k-paths) |
@@ -125,7 +125,7 @@ inferred.
 | `gpaw`, `abacus` (`pw`) | not used | path cell derived from the run's cell |
 | `abinit-wfk` | optional | default path cell for `special_points` only; weights never need it |
 | `abinit-paw`, `vasp-paw` | **required** | primitive-cell wavefunctions the supercell is projected onto |
-| `phonopy` | not used | path cell derived from `SPOSCAR` and $M$ |
+| `phonopy` | not used | path cell derived from `SPOSCAR` and `M` |
 | `abinit-ddb` | not used | path frame defaults to the DDB cell |
-| `magnon` | not used | path cell derived from the TB2J cell and $M$ |
+| `magnon` | not used | path cell derived from the TB2J cell and `M` |
 | `wannier` | not used | the Wannier Hamiltonian already knows its cell |

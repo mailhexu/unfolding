@@ -45,7 +45,7 @@ frozen-density non-SCF path run (`iscf -2`, `getden 2`, `kptopt 0`,
 `chkprim 0`. The 18-valence-electron Ni puts the Ni-3s semicore
 multiplet near −60 eV in the WFK, outside the plotted −16…8 eV window.
 
-Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/).
 Primitive cell input: optional for the `abinit-wfk` route — used only as the default path frame, never for the weights (this example ships `data/nio_prim.vasp` for the path frame).
 
 ## Configuration

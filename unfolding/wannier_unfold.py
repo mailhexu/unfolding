@@ -83,7 +83,7 @@ class WannierUnfolder(object):
         # primitive fractional momenta, so invert that mapping here
         k_prim = np.mod(
             np.asarray(kpts, dtype=float)
-            @ np.linalg.inv(np.asarray(self.sc_matrix, dtype=float).T),
+            @ np.linalg.inv(np.asarray(self.sc_matrix, dtype=float)),
             1.0)
         self.last_result = SimpleNamespace(
             kpoints=k_prim, eigenvalues=self.evals.T, weights=weights)
