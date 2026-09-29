@@ -114,7 +114,16 @@ def read_wannier90_hr(path):
         lines = fh.readlines()
     if not lines:
         raise ValueError(f"empty hr file: {path}")
-    norb = int(lines[0].split()[0])
+    # Wannier90 >= 2.0 prepends a "written on ..." comment line before
+    # num_wann (and num_r); older files start with num_wann directly.
+    norb = None
+    for line in lines:
+        tok = line.split()
+        if tok and is_int(tok[0]):
+            norb = int(tok[0])
+            break
+    if norb is None:
+        raise ValueError(f"{path}: no num_wann line")
     blocks = {}
     ndata = 0
     for line in lines[1:]:
@@ -138,30 +147,39 @@ def read_wannier90_hr(path):
     return Rs, np.stack([blocks[tuple(R)] for R in Rs])
 
 
-def _win_unit_block(lines, begin, unit_line_index):
+def _win_unit_block(lines, begin, unit_line_index, col=(0, 3), alat=None):
     """Matrix rows of a win block with an Ang/Bohr/Alat unit line.
 
-    A unit-less block (first line already a coordinate row) is read as
-    Angstrom, matching wannier90's default.
+    The unit line, when present, is wannier90's keyword (``ang``/``bohr``
+    /``alat``); any other first row means the rows start right away and
+    are read as Angstrom (wannier90's default). ``col`` selects the three
+    coordinate tokens per row (the species token of ``atoms_cart`` rows
+    is skipped with ``col=(1, 4)``). ``alat`` is the |a1| reference for
+    ``alat`` blocks; without it the block's own first row is used (the
+    ``unit_cell_cart`` case, where that row is a1).
     """
-    unit = lines[unit_line_index].strip().lower()
-    if unit.split() and unit.split()[0].lstrip("+-").replace(".", "", 1) \
-            .replace("e", "", 1).replace("-", "", 1).isdigit():
-        unit_line_index -= 1  # no unit keyword: rows start right away
-        unit = "ang"
-    factor = {"ang": 1.0, "bohr": _BOHR_TO_ANG, "alat": None}.get(unit)
+    unit = lines[unit_line_index].strip().lower().split()
+    if unit[:1] in (["ang"], ["bohr"], ["alat"]):
+        keyword, row_start = unit[0], unit_line_index + 1
+    else:
+        keyword, row_start = "ang", unit_line_index
+    factor = {"ang": 1.0, "bohr": _BOHR_TO_ANG}.get(keyword)
     if factor is None:
-        # alat: multiples of the first lattice vector's length
-        first = lines[unit_line_index + 1].split()
-        factor = float(np.linalg.norm([float(v) for v in first[:3]]))
+        # alat: multiples of the reference lattice vector's length
+        if alat is not None:
+            factor = float(alat)
+        else:
+            first = lines[row_start].split()
+            factor = float(np.linalg.norm([float(v) for v in first[:3]]))
+    c0, c1 = col
     rows = []
-    for line in lines[unit_line_index + 1:]:
+    for line in lines[row_start:]:
         tok = line.split()
         if tok and tok[0].lower() in ("end", "begin"):
             break
-        if len(tok) >= 3:
+        if len(tok) >= c1:
             try:
-                rows.append([factor * float(v) for v in tok[:3]])
+                rows.append([factor * float(v) for v in tok[c0:c1]])
             except ValueError:
                 break
         if len(rows) == 3:
@@ -202,7 +220,10 @@ def read_wannier90_win(path):
     else:
         idx = next((i for i, t in enumerate(lowered) if "atoms_cart" in t), None)
         if idx is not None:
-            cart = _win_unit_block(lines, "atoms_cart", idx + 1)
+            cart = _win_unit_block(
+                lines, "atoms_cart", idx + 1, col=(1, 4),
+                alat=None if cell is None
+                else float(np.linalg.norm(cell[0])))
             if cell is not None:
                 sites = cart @ np.linalg.inv(cell)
     if cell is None:
@@ -326,7 +347,7 @@ def run(path, prefix, labels, scmat, output_figure, kvectors, knames,
     u = WannierUnfolder(tb, labels=labels, sc_matrix=scmat)
     ax = u.plot_unfolded_band(kvectors=kvectors, knames=knames, npoints=npoints)
     plt.savefig(output_figure)
-    plt.close(ax.figure)
+    plt.show()
     if return_result:
         return ax, u.last_result
     return ax
