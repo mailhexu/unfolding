@@ -11,6 +11,37 @@ unfolded onto the 2-atom fcc primitive cell through
 `HamiltonIO.abacus.abacus_wrapper.AbacusParser`, exactly like the
 SIESTA example.
 
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Primitive cell input: required for the LCAO `abacus` route — it supplies the relabel map and the default path cell.
+
+## Configuration
+
+```toml
+# ABACUS LCAO Si: 8-atom conventional-cubic supercell (committed fixture)
+# unfolded onto the 2-atom fcc primitive cell along Gamma-X-W-Gamma-L-W-X.
+# Companion of reproduce.py; see README.txt.
+route = "abacus"
+
+[input]
+supercell = "data/si_conv/OUT.si_conv"
+
+[structure]
+# 2-atom fcc primitive OUT directory; supercell = M @ primitive
+primitive = "data/si_prim/OUT.si_prim"
+supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
+
+[path]
+special_points = "GXWGLWX"
+npts = 300
+
+[options]
+mode = "lcao"
+method = "ideal"
+
+[output]
+output = "abacus_si_unfolded.png"
+```
+
 ## Running the example
 
 Download the [abacus-si bundle](/downloads/abacus-si.tar.gz), unpack
@@ -77,8 +108,8 @@ replaces (the shipped `si7p` run already has this substitution).
 - **Primitive cell**: 2-atom fcc, a = 5.43 Å (`LATTICE_CONSTANT
   10.2632` bohr for the ABACUS runs) —
   `cell = [[0, a/2, a/2], [a/2, 0, a/2], [a/2, a/2, 0]]`.
-- **Supercell**: 8-atom conventional cubic cell, supercell = **M @
-  primitive** with `M = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]`; the
+- **Supercell**: 8-atom conventional cubic cell with
+  `M = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]`; the
   Si7P fixture substitutes P on the (¼,¼,¼) site.
 - **Basis**: DZP numerical orbitals `Si_gga_10au_100Ry_2s2p1d`
   (13 orbitals per Si atom); the Si:P run adds
@@ -91,22 +122,13 @@ replaces (the shipped `si7p` run already has this substitution).
 
 ## K-path
 
-Γ–X–W–Γ–L–W–X, 300 points; fcc special points in **primitive reciprocal
-fractional coordinates** (Setyawan–Curtarolo): Γ (0,0,0), X (½,0,½),
-W (½,¼,¾), L (½,½,½). Segment point counts are proportional to
-Cartesian length. Energies are in eV with **zero at the Fermi level
-parsed from the run's `running_scf.log`** (`model.efermi`); the same
-shift applies to the overlaid primitive bands; plot window −13…8 eV.
+Γ–X–W–Γ–L–W–X, 300 points; the plot window is −13…8 eV.
 
 ## Parameters
 
 | Parameter | Meaning |
 |---|---|
 | `supercell` / `primitive` | the `OUT.*` directories of the supercell and primitive-cell runs (sparse tables + logs) |
-| `supercell_matrix` | `M`, row convention supercell = M @ primitive |
-| `mode` | `lcao` (this example) or `pw` for plane-wave ABACUS runs |
-| `spin` | collinear channel (`up`/`down`, default `up`) |
-| `method` | `ideal` generic-k spectral weight; `ring` is the exact torus projection at commensurate momenta |
 | `match_species` | `false` maps the P dopant onto the host Si site it replaces |
 | `orb_counts` | orbitals per atom (13 for DZP 2s2p1d) used by the atom map |
 

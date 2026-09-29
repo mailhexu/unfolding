@@ -47,6 +47,44 @@ A_pc). The vertices are the pseudo-cubic Γ–X–M–Γ–R points in the DDB
 frame; `dipdip` toggles the dipole-dipole (LO-TO) treatment passed to
 anaddb (0 for CaTiO₃, as published; 1 for Cu).
 
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Primitive cell input: not used by the `abinit-ddb` route — the path frame defaults to the cell stored in the DDB.
+
+## Configuration
+
+```toml
+# ABINIT DDB phonons: fcc Cu from a conventional-cubic-cell DDB.
+# Run from the unpacked bundle root (requires anaddb on PATH, pip install unfolding[abipy]):
+#   unfolding --config unfold.toml
+# or with explicit flags:
+#   unfolding abinit-ddb --ddb data/out_DDB \
+#     --sc-mat -1 1 1 1 -1 1 1 1 -1 \
+#     --kpoints 0 0 0  0 1 0  0.5 1 0  0 0 0  0.5 0.5 0.5 \
+#     --names G X W G L --output cu_fcc_unfolded_cli.png
+#
+# The k-path vertices are the fcc special points expressed in the
+# fractional frame of the cell stored in the DDB (the conventional cubic
+# cell): X=(0,1,0), W=(1/2,1,0), L=(1/2,1/2,1/2). abipy interpolates
+# between consecutive vertices; no point density is needed.
+route = "abinit-ddb"
+
+[input]
+ddb = "data/out_DDB"                   # Cu conventional-cubic-cell DDB (natom 4)
+
+[structure]
+sc_mat = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]   # DDB cell = sc_mat @ primitive cell
+
+[path]
+kpoints = [[0, 0, 0], [0, 1, 0], [0.5, 1, 0], [0, 0, 0], [0.5, 0.5, 0.5]]
+names = ["G", "X", "W", "G", "L"]
+
+[options]
+dipdip = 1                             # dipole-dipole (LO-TO) treatment
+
+[output]
+output = "cu_fcc_unfolded_cli.png"
+```
+
 ## Run it
 
 From the unpacked bundle directory, one command per system with the

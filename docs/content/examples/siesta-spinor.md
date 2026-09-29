@@ -33,10 +33,45 @@ sisl`. No SIESTA run is needed.
 | | |
 |---|---|
 | primitive cell | 2-atom fcc Si, a = 5.430 Å |
-| supercell | 8-atom conventional cubic cell, `M = [[-1,1,1],[1,-1,1],[1,1,-1]]` (row convention) |
+| supercell | 8-atom conventional cubic cell, `M = [[-1,1,1],[1,-1,1],[1,1,-1]]` |
 | orbitals | 8 spinor orbitals per atom (4 PAO × 2 spin components); derived automatically from the parsed model |
-| k-path | Γ-X-W-Γ-L-W-X, 300 points, primitive reciprocal coordinates |
-| weight | `method = "ideal"` |
+| k-path | Γ-X-W-Γ-L-W-X, 300 points |
+
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Primitive cell input: required for the `siesta` route — it supplies the relabel map and the default path cell.
+
+## Configuration
+
+```toml
+# SIESTA spinors: non-collinear (nspin=4) Si8 supercell -> primitive fcc cell.
+# Run from the unpacked bundle root:  unfolding --config unfold.toml
+# or with explicit flags:
+#   unfolding siesta --fdf data/si_sc_pso.fdf --primitive data/si_prim_pso.vasp \
+#     --unfold-mat -1 1 1 1 -1 1 1 1 -1 --special-points GXWGLX \
+#     --npts 300 --method ideal --output si_spinor_unfolded_cli.png
+#
+# The spinor orbital counts (8 per atom = 4 PAO x 2 spin components) are
+# derived automatically from the parsed model; the same weight pipeline
+# as the collinear route applies to the doubled basis.
+route = "siesta"
+
+[input]
+fdf = "data/si_sc_pso.fdf"        # non-collinear supercell run (si_sc_pso.HSX)
+
+[structure]
+primitive = "data/si_prim_pso.vasp"
+supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]   # conventional = M @ primitive
+
+[path]
+special_points = "GXWGLX"
+npts = 300
+
+[options]
+method = "ideal"
+
+[output]
+output = "si_spinor_unfolded_cli.png"
+```
 
 ## Run it
 

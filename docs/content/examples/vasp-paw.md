@@ -12,6 +12,44 @@ projector tables; primitive reference wavefunctions are embedded into
 the supercell G basis (`A = B† S C`, `G = B† S B`, weight = diagonal of
 `A† G⁻¹ A`).
 
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Primitive cell input: required for the `vasp-paw` route — it provides the primitive-cell wavefunctions the supercell is projected onto.
+
+## Configuration
+
+```toml
+# VASP PAW bcc Fe: the 2x2x2 conventional supercell (16 atoms) unfolded
+# onto the 1-atom bcc primitive cell, spin-up channel. WAVECARs and the
+# POTCAR are user-supplied (never redistributed): produce them with
+# make_inputs.py + VASP as described in README.txt.
+route = "vasp-paw"
+
+[input]
+supercell = "runs/sc16_nscf/WAVECAR"
+supercell_poscar = "runs/sc16_nscf/POSCAR"
+primitive = "runs/prim_nscf/WAVECAR"
+primitive_poscar = "runs/prim_nscf/POSCAR"
+# YOUR licensed PAW_PBE Fe POTCAR; never shipped
+potcar = "POTCAR"
+
+[structure]
+# 2x2x2 conventional bcc cell = M @ primitive, det 16
+supercell_matrix = [[0, 2, 2], [2, 0, 2], [2, 2, 0]]
+
+[path]
+# tick labels along the stored Gamma-H-N-Gamma-P-H path
+# (xticks required with names)
+names = ["Γ", "H", "N", "Γ", "P", "H"]
+xticks = [0.0, 2.1923186696, 3.7425220675, 5.2927254653, 7.1913291264, 9.0899327875]
+
+[options]
+spin = 0
+resolve_degenerate = 0.001
+
+[output]
+output = "vasp_fe_spin_up.png"
+```
+
 ## Running the example
 
 Download the [vasp-fe bundle](/downloads/vasp-fe.tar.gz), unpack it,
@@ -88,8 +126,8 @@ noncollinear WAVECAR layouts are unsupported by design.
 
 - **Primitive cell**: 1-atom bcc, a = 2.866 Å —
   `PRIM = [[-1,1,1],[1,-1,1],[1,1,-1]] * a/2`.
-- **Supercell**: 2×2×2 conventional bcc cell (16 atoms), supercell =
-  **M @ primitive** with `M = 2·[[0,1,1],[1,0,1],[1,1,0]]` (det 16).
+- **Supercell**: 2×2×2 conventional bcc cell (16 atoms), with
+  `M = 2·[[0,1,1],[1,0,1],[1,1,0]]` (det 16).
 - **Run settings**: `ISPIN=2`, `ENCUT 300` eV, Gaussian smearing 0.05 eV
   (`ISMEAR 0`), `MAGMOM = 16*2.2`, `NBANDS = 96` in **both** banks
   (≥ 82 occupied majority bands plus margin; supercell and primitive
@@ -100,12 +138,9 @@ noncollinear WAVECAR layouts are unsupported by design.
 ## K-path
 
 Γ–H–N–Γ–P–H, 250 points from `ase.dft.kpoints.bandpath` on the
-primitive bcc cell; the supercell deck lists the same 250 points mapped
-as `K_sc = k_prim @ M.T` in an explicit `KPOINTS` list (this VASP build
-requires the weight column). Weights live at the stored supercell
-k-points; each maps to its primitive fold internally. Energies in eV
-relative to each run's own SCF Fermi level (`OUTCAR` E-fermi), window
-E_F ± 8 eV.
+primitive bcc cell; the supercell deck lists the same 250 points in an
+explicit `KPOINTS` list (this VASP build requires the weight column).
+Weights live at the stored supercell k-points. Window E_F ± 8 eV.
 
 ## Parameters
 
@@ -113,9 +148,6 @@ E_F ± 8 eV.
 |---|---|
 | `supercell` / `primitive` | `(WAVECAR, POSCAR)` pairs; the primitive reference may be pristine bcc Fe while the supercell is anything commensurate |
 | `potcar` | the licensed matching POTCAR; `read_potcar_paw` pulls its reciprocal projector tables. Read, never persisted or redistributed |
-| `supercell_matrix` | `M`, row convention supercell = M @ primitive; verified against the two POSCAR lattices |
-| `spin` | 0 = up, 1 = down (both drawn side by side) |
-| `resolve_degenerate` | eigen-assigns gauge-invariant branch weights inside near-degenerate groups (1e-3 eV, as in the Si examples) |
 
 ## Calculation background
 

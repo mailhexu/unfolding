@@ -12,6 +12,37 @@ Hamiltonian includes the `dH` projector terms — so the unfolding
 backend consumes them exactly like any other atomic-orbital table: no
 PAW correction is applied on top.
 
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Primitive cell input: required for the LCAO `gpaw` route — it supplies the relabel map and the default path cell.
+
+## Configuration
+
+```toml
+# GPAW LCAO Si: 8-atom conventional-cubic supercell unfolded onto the
+# 2-atom fcc primitive cell along Gamma-X-W-Gamma-L-W-X. The .gpw restarts
+# are user-generated (python generate_fixtures.py); see README.txt.
+route = "gpaw"
+
+[input]
+supercell = "data/si_sc_lcao.gpw"
+
+[structure]
+# 2-atom fcc primitive LCAO restart; supercell = M @ primitive
+primitive = "data/si_prim_lcao.gpw"
+supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
+
+[path]
+special_points = "GXWGLWX"
+npts = 300
+
+[options]
+mode = "lcao"
+method = "ideal"
+
+[output]
+output = "gpaw_si_unfolded.png"
+```
+
 ## Running the example
 
 Download the [gpaw-si bundle](/downloads/gpaw-si.tar.gz), unpack it,
@@ -82,8 +113,8 @@ uses.
 - **Primitive cell**: 2-atom fcc, a = 5.43 Å —
   `cell = [[0, a/2, a/2], [a/2, 0, a/2], [a/2, a/2, 0]]`, Si at
   (0,0,0) and (1/4,1/4,1/4).
-- **Supercell**: 8-atom conventional cubic cell, supercell = **M @
-  primitive** with `M = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]`; the
+- **Supercell**: 8-atom conventional cubic cell with
+  `M = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]`; the
   Si7P fixture substitutes P on the (¼,¼,¼) site.
 - **Basis**: GPAW's default szp LCAO set — 4 atomic orbitals per atom
   for Si *and* P. Run settings: PBE, h = 0.17, `symmetry='off'`,
@@ -92,10 +123,7 @@ uses.
 
 ## K-path and k-grids
 
-Figure path: Γ–X–W–Γ–L–W–X, 300 points; fcc special points in
-**primitive reciprocal fractional coordinates** (Setyawan–Curtarolo):
-Γ (0,0,0), X (½,0,½), W (½,¼,¾), L (½,½,½). Energies in eV with zero at
-the unfolded run's own Fermi level.
+Figure path: Γ–X–W–Γ–L–W–X, 300 points on the primitive cell.
 
 SCF k-grids (gamma-centered, required): primitive cell 16×16×16,
 supercells 8×8×8. The real-space tables are the inverse lattice Fourier
@@ -112,12 +140,7 @@ reference — match between the two.
 | Parameter | Meaning |
 |---|---|
 | `supercell` / `primitive` | `mode='all'` LCAO `.gpw` restarts of the supercell and primitive cell |
-| `supercell_matrix` | `M`, row convention supercell = M @ primitive |
-| `mode` | `lcao` (this example) or `pw` (see the [GPAW plane-wave example](/examples/gpaw-si-pw/)) |
-| `method` | `ideal` generic-k spectral weight; `ring` is the exact torus projection at commensurate momenta |
 | `match_species` | `false` maps the P dopant onto the host Si site it replaces |
-| `spin` | collinear channel of the LCAO reader (default 0) |
-| `special_points` / `npts` | path letters on the primitive cell and points per path |
 | `orb_counts` | orbitals per atom for the atom map (4 for szp; fixed by the adapter's parser) |
 
 ## Calculation background

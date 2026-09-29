@@ -147,7 +147,8 @@ def read_wannier90_hr(path):
     return Rs, np.stack([blocks[tuple(R)] for R in Rs])
 
 
-def _win_unit_block(lines, begin, unit_line_index, col=(0, 3), alat=None):
+def _win_unit_block(lines, begin, unit_line_index, col=(0, 3), alat=None,
+                    max_rows=3):
     """Matrix rows of a win block with an Ang/Bohr/Alat unit line.
 
     The unit line, when present, is wannier90's keyword (``ang``/``bohr``
@@ -156,7 +157,8 @@ def _win_unit_block(lines, begin, unit_line_index, col=(0, 3), alat=None):
     coordinate tokens per row (the species token of ``atoms_cart`` rows
     is skipped with ``col=(1, 4)``). ``alat`` is the |a1| reference for
     ``alat`` blocks; without it the block's own first row is used (the
-    ``unit_cell_cart`` case, where that row is a1).
+    ``unit_cell_cart`` case, where that row is a1). ``max_rows`` caps the
+    read rows (3 for the cell matrix; ``None`` reads the whole atom list).
     """
     unit = lines[unit_line_index].strip().lower().split()
     if unit[:1] in (["ang"], ["bohr"], ["alat"]):
@@ -182,9 +184,9 @@ def _win_unit_block(lines, begin, unit_line_index, col=(0, 3), alat=None):
                 rows.append([factor * float(v) for v in tok[c0:c1]])
             except ValueError:
                 break
-        if len(rows) == 3:
+        if max_rows is not None and len(rows) >= max_rows:
             break
-    if len(rows) != 3:
+    if len(rows) < (max_rows or 1):
         raise ValueError(f"incomplete {begin} block")
     return np.asarray(rows, dtype=float)
 
@@ -221,7 +223,7 @@ def read_wannier90_win(path):
         idx = next((i for i, t in enumerate(lowered) if "atoms_cart" in t), None)
         if idx is not None:
             cart = _win_unit_block(
-                lines, "atoms_cart", idx + 1, col=(1, 4),
+                lines, "atoms_cart", idx + 1, col=(1, 4), max_rows=None,
                 alat=None if cell is None
                 else float(np.linalg.norm(cell[0])))
             if cell is not None:
@@ -229,6 +231,27 @@ def read_wannier90_win(path):
     if cell is None:
         raise ValueError(f"{path}: no unit_cell_cart block")
     return cell, sites
+
+
+def read_wannier90_wout_centres(path):
+    """Final WF centres from a wout, or ``None`` if it lists none.
+
+    Reads the ``WF centre and spread`` block after the last ``Final
+    State`` marker (the minimisation log prints the same line every
+    cycle); without the marker the whole file is scanned and only an
+    exact match of ``num_wann`` centres is returned by the caller's
+    count check.
+    """
+    import re
+
+    with open(path, errors="replace") as fh:
+        text = fh.read()
+    tail = text.rpartition("Final State")[2] or text
+    cart = np.array(
+        [[float(v) for v in m] for m in re.findall(
+            r"WF centre and spread\s+\d+\s+\(\s*([-\d.E+]+),\s*"
+            r"([-\d.E+]+),\s*([-\d.E+]+)\s*\)", tail)])
+    return cart if len(cart) else None
 
 
 def _sc_site_positions(prim_frac, scmat):
@@ -257,9 +280,10 @@ class Wannier90Model:
 
     Reads ``<prefix>_hr.dat``; the unit cell and atomic positions come
     from ``<prefix>.win`` (``cell`` overrides the win cell). Orbital
-    positions (``_orb``, supercell-fractional) are the WF centres from
-    ``<prefix>_centres.xyz`` when present, else each orbital sits on its
-    atom's supercell position (uniform per-site orbital counts).
+    positions (``_orb``, supercell-fractional) come from WF centres --
+    ``<prefix>_centres.xyz``, else the wout's final ``WF centre and
+    spread`` block -- falling back to each orbital on its atom's
+    supercell position (uniform per-site orbital counts).
     Exposes minimulti's MyTB surface: ``.atoms`` (unit cell), ``._orb``,
     ``.solve_all(k_list=, eig_vectors=)``.
     """
@@ -286,14 +310,21 @@ class Wannier90Model:
         self.atoms = Atoms(cell=cell, pbc=True)
 
         centres = os.path.join(model_dir, f"{prefix}_centres.xyz")
+        sources = []
         if os.path.isfile(centres):
             cart = ase_read(centres).positions
-            self._orb = np.mod(cart @ np.linalg.inv(cell), 1.0)
-            if len(self._orb) != self.norb:
-                raise ValueError(
-                    f"{centres}: {len(self._orb)} centres for "
-                    f"{self.norb} orbitals")
-            return
+            sources.append((f"{centres}: {len(cart)} centres for "
+                            f"{self.norb} orbitals", cart))
+        wout = os.path.join(model_dir, f"{prefix}.wout")
+        if os.path.isfile(wout):
+            cart = read_wannier90_wout_centres(wout)
+            if cart is not None:
+                sources.append((f"{wout}: {len(cart)} centres for "
+                                f"{self.norb} orbitals", cart))
+        for message, cart in sources:
+            if len(cart) == self.norb:
+                self._orb = np.mod(cart @ np.linalg.inv(cell), 1.0)
+                return
         if sites is None:
             sites = np.zeros((1, 3))  # one-site primitive cell at the origin
         scmat = np.eye(3) if scmat is None else np.asarray(scmat, dtype=float)
@@ -301,8 +332,10 @@ class Wannier90Model:
         if self.norb % len(site_pos):
             raise ValueError(
                 f"{self.norb} orbitals cannot be split uniformly over "
-                f"{len(site_pos)} supercell sites; provide "
-                f"{prefix}_centres.xyz")
+                f"{len(site_pos)} supercell sites "
+                + ("; provide consistent WF centres"
+                   if sources else f"({sites} sites)") + "; got: "
+                + " | ".join(m for m, _ in sources))
         self._orb = np.repeat(site_pos, self.norb // len(site_pos), axis=0)
 
     def solve_all(self, k_list, eig_vectors=False):

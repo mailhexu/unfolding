@@ -30,9 +30,38 @@ spglib). No DFT is involved.
 | | |
 |---|---|
 | supercell | `SPOSCAR`, the 3×3×3 cell itself; reading matrix `sc_mat = diag(1,1,1)` |
-| unfolding matrix | `M = diag(3,3,3)`, row convention `A_sc = M @ A_prim`; the path cell is derived as `inv(M) @` SPOSCAR cell (the primitive fcc cell) |
-| q-path | Γ-X-W-Γ-L, 300 points in primitive reciprocal fractional coordinates (Setyawan–Curtarolo points via ase) |
+| unfolding matrix | `M = diag(3,3,3)`; the path cell is derived as `inv(M) @` SPOSCAR cell (the primitive fcc cell) |
+| q-path | Γ-X-W-Γ-L, 300 points |
 | units | frequencies read from phonopy in THz, plotted in cm⁻¹ |
+
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Primitive cell input: not used by the `phonopy` route — the path cell is derived from `SPOSCAR` and the unfolding matrix.
+
+## Configuration
+
+```toml
+# Phonopy Cu: 3x3x3 fcc supercell force constants -> primitive fcc phonons.
+# Run from the unpacked bundle root:  unfolding --config unfold.toml
+# or with explicit flags:
+#   unfolding phonopy --force-constants FORCE_CONSTANTS --sposcar SPOSCAR \
+#     --unfold-mat 3 0 0 0 3 0 0 0 3 --special-points GXWGL \
+#     --npts 300 --output unfolded_band_structure.png
+route = "phonopy"
+
+[input]
+force_constants = "FORCE_CONSTANTS"
+sposcar = "SPOSCAR"               # the 27-atom 3x3x3 supercell itself
+
+[structure]
+supercell_matrix = [[3, 0, 0], [0, 3, 0], [0, 0, 3]]     # the unfolding: A_sc = M @ A_prim
+
+[path]
+special_points = "GXWGL"          # resolved on inv(M) @ SPOSCAR cell (the primitive cell)
+npts = 300
+
+[output]
+output = "unfolded_band_structure.png"
+```
 
 ## Run it
 

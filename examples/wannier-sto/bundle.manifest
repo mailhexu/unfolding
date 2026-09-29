@@ -1,0 +1,8 @@
+# Real Wannier90 datasets (36 MB hr files) live in the legacy example
+# directory; the packer pulls them into the bundle at build time.
+examples/wannier_STO/data_nodefect/wannier90_hr.dat -> data/pristine/wannier90_hr.dat
+examples/wannier_STO/data_nodefect/wannier90.win -> data/pristine/wannier90.win
+examples/wannier_STO/data_nodefect/wannier90.wout -> data/pristine/wannier90.wout
+examples/wannier_STO/data/wannier90_hr.dat -> data/ti_vacancy/wannier90_hr.dat
+examples/wannier_STO/data/wannier90.win -> data/ti_vacancy/wannier90.win
+examples/wannier_STO/data/wannier90.wout -> data/ti_vacancy/wannier90.wout

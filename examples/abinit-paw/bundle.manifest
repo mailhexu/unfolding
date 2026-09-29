@@ -1,0 +1,7 @@
+# Committed Gamma-point PAW fixtures (dense-path WFKs are ~250 MB each
+# and stay user-regenerated).
+tests/data/abinit_paw/si8_gammao_WFK.nc -> data/si8_gammao_WFK.nc
+tests/data/abinit_paw/si7p_gammao_WFK.nc -> data/si7p_gammao_WFK.nc
+tests/data/abinit_paw/si_primitive_foldso_WFK.nc -> data/si_primitive_foldso_WFK.nc
+tests/data/abinit_paw/Si.xml -> data/Si.xml
+tests/data/abinit_paw/P.xml -> data/P.xml

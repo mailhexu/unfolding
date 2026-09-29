@@ -1,0 +1,2 @@
+# Committed unfolding output snapshot (derived arrays, not licensed data).
+examples/vasp_fe/vasp_fe_path_result.npz -> data/vasp_fe_path_result.npz

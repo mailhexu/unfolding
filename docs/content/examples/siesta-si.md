@@ -32,9 +32,40 @@ needed.
 | | |
 |---|---|
 | primitive cell | 2-atom fcc Si, a = 5.430 Å (`data/si_prim.vasp`) |
-| supercell | 8-atom conventional cubic cell, `A_sc = M @ A_prim` with `M = [[-1,1,1],[1,-1,1],[1,1,-1]]` |
-| k-path | Γ-X-W-Γ-L-W-X, 300 points, fcc special points in primitive reciprocal fractional coordinates (Setyawan–Curtarolo) |
-| weight | `method = "ideal"` — the standard Popescu–Zunger/Lee weight for generic (off-grid) momenta; `"ring"` is the exact torus projection, defined only on the supercell torus grid |
+| supercell | 8-atom conventional cubic cell, `M = [[-1,1,1],[1,-1,1],[1,1,-1]]` |
+| k-path | Γ-X-W-Γ-L-W-X, 300 points |
+
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Primitive cell input: required for the `siesta` route — it supplies the relabel map and the default path cell.
+
+## Configuration
+
+```toml
+# SIESTA Si: 8-atom conventional-cubic supercell -> 2-atom primitive fcc cell.
+# Run from the unpacked bundle root:  unfolding --config unfold.toml
+# or with explicit flags:
+#   unfolding siesta --fdf data/si_sc.fdf --primitive data/si_prim.vasp \
+#     --unfold-mat -1 1 1 1 -1 1 1 1 -1 --special-points GXWGLX \
+#     --npts 300 --method ideal --output si_unfolded_cli.png
+route = "siesta"
+
+[input]
+fdf = "data/si_sc.fdf"            # supercell run; the parser reads si_sc.HSX next to it
+
+[structure]
+primitive = "data/si_prim.vasp"   # 2-atom primitive fcc cell (a = 5.430 Ang)
+supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]   # conventional = M @ primitive
+
+[path]
+special_points = "GXWGLX"         # letters resolved on the primitive cell (Setyawan-Curtarolo)
+npts = 300
+
+[options]
+method = "ideal"                  # generic-k-path weight; "ring" is torus-grid only
+
+[output]
+output = "si_unfolded_cli.png"
+```
 
 ## Run it
 
@@ -83,12 +114,9 @@ builds it:
 python reproduce.py                     # -> si_unfolded.png
 ```
 
-`unfold_sc_mat` uses the row convention `supercell = M @ primitive`.
-The adapter matches every supercell atom onto the primitive cell,
-computes the weights, and plots weight-coded bands in eV with zero at
-the Fermi level. For a pre-parsed Hamiltonian pass `model=` instead of
-`fdf=`; collinear spin-polarized runs select the channel with
-`spin="up"` or `spin="down"`.
+The adapter matches every supercell atom onto the primitive cell and
+computes the weights. For a pre-parsed Hamiltonian pass `model=`
+instead of `fdf=`.
 
 {{< figure src="/images/si_unfolded.png" title="Unfolded SIESTA Si$_8$ bands along Γ-X-W-Γ-L-X; blue color intensity encodes the unfolding weight, red curves are the independently computed primitive-cell bands; energies in eV with zero at the Fermi level" >}}
 

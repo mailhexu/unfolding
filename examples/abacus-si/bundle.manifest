@@ -1,0 +1,5 @@
+# Committed ABACUS run trees and basis files (packed with BANDS_1.dat pruned).
+tests/data/abacus_example/si_prim -> data/si_prim
+tests/data/abacus_example/si_conv -> data/si_conv
+tests/data/abacus_example/si7p -> data/si7p
+tests/data/abacus_example/refs -> data/refs

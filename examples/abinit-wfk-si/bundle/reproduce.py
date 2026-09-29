@@ -125,6 +125,13 @@ def match_path_subset(wfk_path, matrix=MATRIX):
     return data, kpts[sel], xqpts[sel]
 
 
+def pw_data(data):
+    """Transfer HamiltonIO WFK arrays to the backend-free unfolding core."""
+    from unfolding.pw_unfolder import PWEigenData
+
+    return PWEigenData(data.kpoints, data.gvecs, data.coefficients, data.eigenvalues)
+
+
 def spectral_weight_map(res, data):
     """(x, egrid, A, E) Gaussian-smeared effective-band-structure map."""
     from unfolding.abinit_unfold import HARTREE_TO_EV
@@ -187,7 +194,7 @@ def si8_figure(out_path):
         )
 
     data, kpts, x = match_path_subset(wfk)
-    res = PWUnfolder(data, MATRIX).compute(
+    res = PWUnfolder(pw_data(data), MATRIX).compute(
         kpts, resolve_degenerate=DEGEN_TOL_EV / HARTREE_TO_EV
     )
     E, W, egrid, A = spectral_weight_map(res, data)
@@ -196,7 +203,7 @@ def si8_figure(out_path):
     prim_wfk = DATA / "si_prim_patho_DS2_WFK.nc"
     if prim_wfk.is_file():
         pdata, pkpts, px = match_path_subset(prim_wfk, np.eye(3, dtype=int))
-        pres = PWUnfolder(pdata, np.eye(3, dtype=int)).compute(pkpts)
+        pres = PWUnfolder(pw_data(pdata), np.eye(3, dtype=int)).compute(pkpts)
         pe = pres.eigenvalues * HARTREE_TO_EV - pdata.fermi_energy * HARTREE_TO_EV
         # Align the potential reference by the median high-weight offset.
         hi = W > 0.9
@@ -219,7 +226,15 @@ def si8_figure(out_path):
 
 
 def si7p_figure(out_path):
-    """Si:P: spectral-weight map; defect-hybridized states are dimmer."""
+    """Si:P: spectral-weight map; defect-hybridized states are dimmer.
+
+    Coverage note: the corner deck (si7p_gxwglx_corners.abi) stores only
+    four supercell momenta -- (0,0,0), (0,1,0), (0.5,1,0), (0.5,0.5,0.5),
+    i.e. the path corners Gamma/X/W/L via K = k_prim @ M.T -- so with the
+    corner fallback only 7 of the 305 requested path folds (the corner
+    ticks themselves) have a stored match and the map shows weight only
+    there. The dense deck (si7p_gamma_x_path.abi) restores the full map.
+    """
     from unfolding.abinit_unfold import HARTREE_TO_EV
     from unfolding.pw_unfolder import PWUnfolder
 
@@ -232,7 +247,7 @@ def si7p_figure(out_path):
         )
 
     data, kpts, x = match_path_subset(wfk)
-    res = PWUnfolder(data, MATRIX).compute(
+    res = PWUnfolder(pw_data(data), MATRIX).compute(
         kpts, resolve_degenerate=DEGEN_TOL_EV / HARTREE_TO_EV
     )
     _, _, egrid, A = spectral_weight_map(res, data)
@@ -247,7 +262,7 @@ def main():
 
     matplotlib.use("Agg")
 
-    missing = [
+    dense = [
         name
         for name in (
             "si8_gxwglwxo_DS2_WFK.nc",
@@ -256,18 +271,20 @@ def main():
         )
         if not (DATA / name).is_file()
     ]
-    required = missing + [
+    corners = [
         name
         for name in ("si8_gxwglx_cornerso_DS2_WFK.nc", "si7p_gxwglx_cornerso_DS2_WFK.nc")
         if not (DATA / name).is_file()
     ]
-    if required:
-        print("Missing WFK fixtures: " + ", ".join(required))
+    if corners:
+        # nothing renderable at all: no corner WFKs either
+        print("Missing WFK fixtures: " + ", ".join(dense + corners))
         print("No WFK files ship with this bundle (they are large binary data).")
         print(REGENERATE)
         raise SystemExit(1)
-    if missing:
-        print("Missing dense WFKs: " + ", ".join(missing))
+    if dense:
+        # the corner WFKs still render coarse figures on the same axis
+        print("Missing dense WFKs: " + ", ".join(dense))
         print(REGENERATE)
 
     print(si8_figure(BUNDLE / "si8_abinit_unfolded.png"))

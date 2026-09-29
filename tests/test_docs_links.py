@@ -31,6 +31,24 @@ def test_content_pages_have_frontmatter():
             assert first == "---", f"{fn} missing Hugo frontmatter"
 
 
+def test_example_pages_embed_config_and_guide_link():
+    """Story-041 FR-001..003: every example page embeds its bundle
+    configuration in a fenced ```toml block and links the shared
+    [method, parameters, and k-path] guide."""
+    examples = os.path.join(CONTENT, "examples")
+    pages = sorted(
+        fn for fn in os.listdir(examples)
+        if fn.endswith(".md") and fn != "_index.md"
+    )
+    assert len(pages) == 16, pages
+    for fn in pages:
+        text = open(os.path.join(examples, fn)).read()
+        assert "```toml" in text, f"{fn}: no ```toml configuration block"
+        assert "/guide/method-parameters-kpaths/" in text, (
+            f"{fn}: missing method-parameters-kpaths guide link"
+        )
+
+
 def test_hugo_build():
     if shutil.which("hugo") is None:
         import pytest

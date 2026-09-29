@@ -66,6 +66,10 @@ def test_fig_siesta_spinor():
     _run("fig_siesta_spinor.py", "si_spinor.png")
 
 
+def test_fig_wannier_sto():
+    _run("fig_wannier_sto.py", "wannier_sto.png")
+
+
 def pytest_importorskip_hamiltonio():
     try:
         import HamiltonIO  # noqa: F401

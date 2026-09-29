@@ -6,6 +6,13 @@ fcc path (identical to the SIESTA example and the pristine-Si ABINIT
 figure). Rendered as a Gaussian-smeared spectral-weight map; the
 substitutional defect mixes fold sectors, so host bands carry the dark
 weight while defect-scattered states appear dimmer.
+
+Coverage note: the committed Si7P WFK fixtures store only the four path
+corners -- supercell momenta (0,0,0), (0,1,0), (0.5,1,0), (0.5,0.5,0.5)
+-- so only 7 of the 305 requested path folds have a stored match and
+this figure renders the corner subset (weight at Gamma/X/W/Gamma/L on
+the cropped path axis) until si7p_gamma_x_patho_DS2_WFK.nc is
+regenerated at full 305-point density.
 """
 import sys
 

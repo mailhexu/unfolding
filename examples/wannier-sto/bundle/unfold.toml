@@ -1,23 +1,27 @@
-# Wannier90 tight-binding SrTiO3-like supercell -> primitive cell
-# (the bundled synthetic t2g model; see README.txt).
+# Wannier90 SrTiO3: pristine 20-atom sqrt(2)xsqrt(2)x2 supercell
+# (56 Wannier functions: O-2p + Ti-3d) unfolded onto the 5-atom cubic
+# primitive cell.
 # Run from the unpacked bundle root (requires pip install unfolding):
 #   unfolding --config unfold.toml
-# or with explicit flags:
-#   unfolding wannier --path data --prefix example \
-#     --unfold-mat 2 0 0 0 2 0 0 0 2 \
-#     --labels d_xy d_yz d_zx ... (one label per supercell orbital, 24 total) \
-#     --kpoints 0 0 0  0.5 0 0  0.5 0.5 0  0 0 0  0.5 0.5 0.5 \
-#     --names G X M G R --npoints 200 --output sto_unfolded.png
+# Ti-vacancy dataset: same file with path = "data/ti_vacancy".
 route = "wannier"
 
 [input]
-path = "data"                          # wannier90 directory (example.win + example_hr.dat)
-prefix = "example"
+path = "data/pristine"                 # wannier90 directory (win + hr + wout)
+prefix = "wannier90"
 
 [structure]
-cell = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]   # win unit cell (the synthetic model's primitive a0 = 1)
-supercell_matrix = [[2, 0, 0], [0, 2, 0], [0, 0, 2]]   # A_sc = M @ A_prim
-labels = ["d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx", "d_xy", "d_yz", "d_zx"]
+supercell_matrix = [[1, -1, 0], [1, 1, 0], [0, 0, 2]]   # A_sc = M @ A_prim, cubic a = 3.9 A
+labels = [
+    "pz", "px", "py", "pz", "px", "py", "pz", "px", "py",
+    "pz", "px", "py", "pz", "px", "py", "pz", "px", "py",
+    "pz", "px", "py", "pz", "px", "py", "pz", "px", "py",
+    "pz", "px", "py", "pz", "px", "py", "pz", "px", "py",
+    "dz2", "dxy", "dyz", "dx2", "dxz",
+    "dz2", "dxy", "dyz", "dx2", "dxz",
+    "dz2", "dxy", "dyz", "dx2", "dxz",
+    "dz2", "dxy", "dyz", "dx2", "dxz",
+]
 
 [path]
 kpoints = [[0, 0, 0], [0.5, 0, 0], [0.5, 0.5, 0], [0, 0, 0], [0.5, 0.5, 0.5]]

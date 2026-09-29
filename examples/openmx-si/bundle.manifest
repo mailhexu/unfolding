@@ -1,0 +1,3 @@
+# Binary OpenMX fixtures pulled in at pack time (committed in tests/data).
+tests/data/si_example/openmx_si_prim.scfout -> data/openmx_si_prim.scfout
+tests/data/si_example/openmx_si_sc.scfout -> data/openmx_si_sc.scfout

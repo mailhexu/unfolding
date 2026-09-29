@@ -10,6 +10,38 @@ cell from the binary `.scfout` file (real-space Hamiltonian and overlap,
 written with `HS.fileout on`), parsed by the HamiltonIO OpenMX adapter
 (pure python, no OpenMX runtime needed).
 
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Primitive cell input: required for the `openmx` route — it supplies the relabel map and the default path cell.
+
+## Configuration
+
+```toml
+# OpenMX Si: 8-atom conventional-cubic supercell (committed fixture)
+# unfolded onto the 2-atom fcc primitive cell along Gamma-X-W-Gamma-L-W-X.
+# Companion of reproduce.py; see README.txt.
+route = "openmx"
+
+[input]
+scfout = "data/openmx_si_sc.scfout"
+
+[structure]
+# 2-atom fcc primitive cell (ASE-readable); supercell = M @ primitive
+primitive = "data/si_prim.vasp"
+supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
+
+[path]
+# fcc special points on the primitive cell, 300 points
+special_points = "GXWGLWX"
+npts = 300
+
+[options]
+method = "ideal"
+# efermi omitted: 0.0 means use the ChemP stored in the scfout
+
+[output]
+output = "openmx_si_unfolded.png"
+```
+
 ## Running the example
 
 Download the [openmx-si bundle](/downloads/openmx-si.tar.gz), unpack it,
@@ -89,9 +121,7 @@ with OpenMX from the bundled `inputs/openmx_si_sc_p.dat` — copy your
   (0,0,0) and (1/4,1/4,1/4) fractional. Shipped as
   `data/si_prim.vasp` (any ASE-readable format works).
 - **Supercell**: 8-atom conventional cubic cell, related by the
-  supercell matrix `M = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]` with the
-  row convention **supercell = M @ primitive**; supercell momenta are
-  `K = k_prim @ M.T`.
+  supercell matrix `M = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]`.
 - **Basis**: Si7.0-s2p2d1 (13 orbitals per Si atom), Si_PBE19
   pseudopotentials (OpenMX 2019 data set), GGA-PBE, spin unpolarized.
 - For Si:P, substitute one Si by P (same 13-orbital `P7.0-s2p2d1`
@@ -101,12 +131,7 @@ with OpenMX from the bundled `inputs/openmx_si_sc_p.dat` — copy your
 
 ## K-path
 
-Γ–X–W–Γ–L–W–X, 300 points; fcc special points in **primitive reciprocal
-fractional coordinates** (Setyawan–Curtarolo): Γ (0,0,0),
-X (½,0,½), W (½,¼,¾), L (½,½,½). Segment point counts are proportional
-to Cartesian length. Energies are in eV with **zero at the Fermi level
-of the run being unfolded** (OpenMX `ChemP` parsed from the scfout);
-the plot window is −13…8 eV.
+Γ–X–W–Γ–L–W–X, 300 points; the plot window is −13…8 eV.
 
 ## Parameters
 
@@ -114,14 +139,9 @@ the plot window is −13…8 eV.
 |---|---|
 | `scfout` | binary OpenMX output (needs `HS.fileout on`); parsed by HamiltonIO |
 | `primitive` | primitive-cell structure (ASE-readable) the branches are labeled with |
-| `unfold_sc_mat` | supercell matrix `M`, row convention supercell = M @ primitive |
-| `method` | `ideal` (default) generic-k spectral weight; `ring` is the exact torus projection at commensurate momenta |
-| `spin` | omit for unpolarized runs; collinear channel otherwise |
 | `match_species` | map supercell atoms onto same-species primitive sites (`false` for substitutional dopants) |
 | `tol_r` | atom-matching tolerance in Å (default 0.04) |
 | `efermi` | Fermi level in eV; the default 0.0 means "use ChemP from the scfout" |
-| `special_points` / `kpoints` | path as special-point letters on the primitive cell, or an explicit fractional list |
-| `npts` | points per path in special-points mode (default 200; the example uses 300) |
 
 ## Calculation background
 

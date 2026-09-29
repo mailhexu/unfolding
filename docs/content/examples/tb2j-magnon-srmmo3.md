@@ -35,10 +35,38 @@ Q=(½,½,½)), `unfold.toml`, and `reproduce.py`. Prerequisites:
 
 | | |
 |---|---|
-| unfold matrix | `M = [[0,1,1],[1,0,1],[1,1,0]]` — rows are the AFM-cell axes in pseudo-cubic units, `A_afm = M @ A_pc` |
+| unfold matrix | `M = [[0,1,1],[1,0,1],[1,1,0]]`, the 10-atom AFM cell in 5-atom pseudo-cubic units |
 | primitive cell | derived as `inv(M) @` TB2J cell; the q-path special points are resolved on it |
-| q-path | Γ-X-M-Γ-R, 200 points, pseudo-cubic fractional coordinates |
+| q-path | Γ-X-M-Γ-R, 200 points |
 | reference | collinear two-sublattice frame: Q = 0, quantization axis ẑ, moments from the pickle (spiral references are not supported in v1) |
+
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Primitive cell input: not used by the `magnon` route — the path cell is derived from the TB2J cell and the unfolding matrix.
+
+## Configuration
+
+```toml
+# TB2J magnons: G-AFM SrMnO3, 10-atom AFM cell -> 5-atom pseudo-cubic cell.
+# Run from the unpacked bundle root:  unfolding --config unfold.toml
+# or with explicit flags:
+#   unfolding magnon --results data/TB2J_results \
+#     --unfold-mat 0 1 1 1 0 1 1 1 0 --special-points GXMGR \
+#     --npts 200 --output magnon_unfolded_cli.png
+route = "magnon"
+
+[input]
+results = "data/TB2J_results"          # directory holding TB2J.pickle
+
+[structure]
+supercell_matrix = [[0, 1, 1], [1, 0, 1], [1, 1, 0]]   # A_afm = M @ A_pc
+
+[path]
+special_points = "GXMGR"               # resolved on inv(M) @ TB2J cell (pseudo-cubic)
+npts = 200
+
+[output]
+output = "magnon_unfolded_cli.png"
+```
 
 ## Run it
 

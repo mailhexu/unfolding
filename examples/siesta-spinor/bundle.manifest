@@ -1,0 +1,4 @@
+tests/data/si_example/si_prim_pso.fdf -> data/si_prim_pso.fdf
+tests/data/si_example/si_prim_pso.HSX -> data/si_prim_pso.HSX
+tests/data/si_example/si_sc_pso.fdf -> data/si_sc_pso.fdf
+tests/data/si_example/si_sc_pso.HSX -> data/si_sc_pso.HSX

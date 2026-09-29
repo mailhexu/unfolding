@@ -1,22 +1,24 @@
 #!/usr/bin/env python
 """Reproduce the 'Wannier90 SrTiO3' example page.
 
-Primary route (as documented on the page): read a Wannier90 directory with
-minimulti's MyTB reader and drive unfolding.wannier_unfold.run().
+Real-data route (the page's headline figures): run the bundled Wannier90
+datasets (data/pristine, data/ti_vacancy) through the package's built-in
+Wannier90 reader and WannierUnfolder:
 
-Out of the box the bundled data/example_hr.dat is a small SYNTHETIC
-SrTiO3-like tight-binding model (Ti t2g conduction bands: 3 orbitals on a
-simple-cubic Ti sublattice, 2x2x2 supercell; see README.txt) so the script
-is demonstrably runnable without DFT and without minimulti: it then parses
-the hr file with a minimal built-in Wannier90 reader and drives the
-documented WannierUnfolder low-level route, which needs only numpy.
+    python reproduce.py --real pristine        # -> sto_unfolded.png
+    python reproduce.py --real ti_vacancy      # -> sto_ti_vacancy.png
 
-Run from the unpacked bundle directory:
+Synthetic smoke route: out of the box the bundled data/example_hr.dat is
+a small SYNTHETIC SrTiO3-like tight-binding model (Ti t2g conduction
+bands: 3 orbitals on a simple-cubic Ti sublattice, 2x2x2 supercell; see
+README.txt) so the script is demonstrably runnable without DFT: it then
+parses the hr file with a minimal built-in Wannier90 reader and drives
+the documented WannierUnfolder low-level route, which needs only numpy.
 
     python reproduce.py                      # pristine -> sto_unfolded.png
     python reproduce.py --defect             # impurity  -> sto_defect.png
     python reproduce.py --hr PATH            # your own wannier90_hr.dat
-    python reproduce.py --engine minimulti   # force the page's MyTB route
+    python reproduce.py --engine minimulti   # force the MyTB route
 
 Output: a weight-coded unfolded band figure in the working directory.
 """
@@ -222,6 +224,28 @@ def run_minimulti(hr_dir, prefix, out_png, npoints):
     )
 
 
+# ---------------------------------------------------------------------------
+# Real bundled Wannier90 datasets (the page's headline figures)
+# ---------------------------------------------------------------------------
+REAL_SCMAT = [[1, -1, 0], [1, 1, 0], [0, 0, 2]]   # sqrt(2)xsqrt(2)x2 of cubic a=3.9 A
+REAL_LABELS = ["pz", "px", "py"] * 12 + ["dz2", "dxy", "dyz", "dx2", "dxz"] * 4
+REAL_DIRS = {"pristine": ("data", "pristine", "sto_unfolded.png"),
+             "ti_vacancy": ("data", "ti_vacancy", "sto_ti_vacancy.png")}
+
+
+def run_real(which, out_png, npoints):
+    """Unfold a bundled real Wannier90 dataset with the built-in reader."""
+    from unfolding.wannier_unfold import Wannier90Model, WannierUnfolder
+
+    parent, dirname, default_out = REAL_DIRS[which]
+    model = Wannier90Model(os.path.join(parent, dirname), "wannier90",
+                           scmat=REAL_SCMAT)
+    u = WannierUnfolder(model, labels=REAL_LABELS, sc_matrix=REAL_SCMAT)
+    ax = u.plot_unfolded_band(kvectors=KVECTORS, knames=KNAMES, npoints=npoints)
+    ax.figure.savefig(out_png, dpi=200, bbox_inches="tight")
+    return ax
+
+
 def sector_weights(u, kpts_sc, scmat):
     """Sector-resolved unfolding weights for the built-in engine.
 
@@ -344,9 +368,14 @@ def report_weights(weights):
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Unfold a Wannier90 tight-binding model of SrTiO3 "
-        "(bundled synthetic t2g model by default).")
+        "(bundled real Wannier90 datasets or the synthetic t2g model).")
+    parser.add_argument("--real", choices=sorted(REAL_DIRS), default=None,
+                        help="run a bundled real Wannier90 dataset "
+                             "(data/pristine or data/ti_vacancy) through the "
+                             "built-in reader instead of the synthetic model")
     parser.add_argument("--hr", default=os.path.join("data", "example_hr.dat"),
-                        help="wannier90_hr.dat path (default %(default)s)")
+                        help="wannier90_hr.dat path (default %(default)s, "
+                             "synthetic route only)")
     parser.add_argument("--prefix", default="example",
                         help="file prefix for the minimulti engine (default %(default)s)")
     parser.add_argument("--engine", choices=("auto", "builtin", "minimulti"),
@@ -364,6 +393,15 @@ def main(argv=None):
     parser.add_argument("--regenerate-hr", action="store_true",
                         help="rewrite the bundled synthetic data/example_hr.dat")
     args = parser.parse_args(argv)
+
+    if args.real:
+        parent, dirname, default_out = REAL_DIRS[args.real]
+        out_png = args.output or default_out
+        print("engine: built-in Wannier90 reader + WannierUnfolder "
+              "(real dataset: %s)" % os.path.join(parent, dirname))
+        run_real(args.real, out_png, args.npoints)
+        print("wrote %s" % out_png)
+        return 0
 
     if args.regenerate_hr or not os.path.exists(args.hr):
         blocks, norb = build_t2g_hr()

@@ -1,0 +1,6 @@
+tests/data/si_example/si_prim.fdf -> data/si_prim.fdf
+tests/data/si_example/si_prim.HSX -> data/si_prim.HSX
+tests/data/si_example/si_sc.fdf -> data/si_sc.fdf
+tests/data/si_example/si_sc.HSX -> data/si_sc.HSX
+tests/data/si_example/si_sc_path.EIG -> data/si_sc_path.EIG
+tests/data/si_example/si_sc_path.selected.WFSX -> data/si_sc_path.selected.WFSX

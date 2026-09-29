@@ -9,6 +9,41 @@ supercell run in plane-wave mode (plus a Si:P Γ-point run) unfolded
 onto the primitive-cell path through `HamiltonIO.gpaw.GpawPWParser` and
 `PWUnfolder`. This does not reconstruct PAW all-electron weights.
 
+Run parameters and shared options (`mode`, `spin`, `resolve_degenerate`,
+`method`, supercell-matrix row convention, k-path coordinates,
+energy-reference conventions) are explained together in the
+[method, parameters, and k-path guide](/guide/method-parameters-kpaths/);
+this page only covers what is specific to this example.
+
+## Configuration
+
+```toml
+# GPAW plane-wave Si:P: the shipped Gamma-point restart unfolded into its
+# four primitive folds of supercell Gamma (companion of
+# `python reproduce.py --doped`; see README.txt).
+route = "gpaw"
+
+[input]
+supercell = "data/si7p_pw.gpw"
+
+[structure]
+# supercell = M @ primitive (conventional cubic cell in primitive units)
+supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
+
+[path]
+# the four primitive momenta folding to supercell Gamma
+kpoints = [[0.0, 0.0, 0.0], [0.0, 0.5, 0.5], [0.5, 0.0, 0.5], [0.5, 0.5, 0.0]]
+names = ["Γ", "(0,½,½)", "(½,0,½)", "(½,½,0)"]
+xticks = [0.0, 1.0, 2.0, 3.0]
+
+[options]
+mode = "pw"
+resolve_degenerate = 0.001
+
+[output]
+output = "gpaw_si_p_pw_unfolded.png"
+```
+
 ## Running the example
 
 Download the [gpaw-si-pw bundle](/downloads/gpaw-si-pw.tar.gz), unpack
@@ -71,7 +106,7 @@ result = PWUnfolder(eigendata, B).compute(folds, resolve_degenerate=1e-3)
 
 {{< figure src="/images/gpaw_si_pw_unfolded.png" title="GPAW plane-wave Si$_8$ (8-atom conventional cell) unfolded onto the primitive Γ-X-W-Γ-L-W-X path; blue color intensity encodes the pseudo-wavefunction coset weight, crimson curves are the independently computed primitive-cell plane-wave bands; energies in eV with zero at the run's Fermi level" >}}
 
-{{< figure src="/images/gpaw_si_p_pw_unfolded.png" title="GPAW plane-wave Si:P: pseudo-wavefunction weights at the four primitive momenta (Γ, (0,½,½), (½,0,½), (½,½,0)) folding to supercell Gamma; marker area and color intensity encode the weight; energies in eV relative to the run's Fermi level" >}}
+{{< figure src="/images/gpaw_si_p_pw_unfolded.png" title="GPAW plane-wave Si:P: pseudo-wavefunction weights at the four primitive momenta (Γ, (0,½,½), (½,0,½), (½,½,0)) folding to supercell Γ, presented deliberately as separate momentum columns — not a k-path, since the Γ-only run samples only supercell Γ; marker area and color intensity encode the weight; energies in eV relative to the run's Fermi level" >}}
 
 ## Structures
 
@@ -95,18 +130,16 @@ requested primitive k to its stored supercell momentum `K = k @ M.T`
 internally; every requested k must be present in the stored grid.
 
 Doped figure: the four primitive momenta folding to supercell Γ —
-Γ, (0,½,½), (½,0,½), (½,½,0) — plotted as separate columns, because a
-Γ-only run never sampled a continuous path. Energies in eV relative to
-each run's own Fermi level.
+Γ, (0,½,½), (½,0,½), (½,½,0) — are exactly the momenta for which
+`K = k @ M.T` lands on supercell Γ. A Γ-point-only SCF samples only
+that one supercell momentum, so the four weights are shown as separate
+momentum columns by design — this is not a broken or sparsely sampled
+k-path. Energies in eV relative to the run's Fermi level.
 
 ## Parameters
 
 | Parameter | Meaning |
 |---|---|
-| `supercell` | `mode='all'` plane-wave `.gpw` restart; `primitive` is not needed in pw mode |
-| `supercell_matrix` | `M`, row convention supercell = M @ primitive |
-| `mode` | `pw` (this example); `lcao` is the [GPAW LCAO example](/examples/gpaw-si/) |
-| `resolve_degenerate` | eV tolerance; reassigns gauge-invariant weights inside near-degenerate groups so exact degeneracies render as clean lines |
 | Weight meaning | pseudo-wavefunction reciprocal-coset fractions: the basis is orthonormal, so pristine weights are exactly 0/1. GPAW normalizes in the PAW overlap metric; the parser renormalizes to Σ\|c\|² = 1, which leaves coset fractions unchanged. These are **not** PAW all-electron spectral weights |
 
 ## Calculation background

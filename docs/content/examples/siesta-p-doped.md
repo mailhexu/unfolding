@@ -28,9 +28,45 @@ run is needed.
 
 Identical to the [pristine example](../siesta-si/): primitive 2-atom
 fcc cell (a = 5.430 Å), supercell matrix
-`M = [[-1,1,1],[1,-1,1],[1,1,-1]]` (row convention), path
-Γ-X-W-Γ-L-W-X with 300 points in primitive reciprocal coordinates,
-weight `"ideal"`.
+`M = [[-1,1,1],[1,-1,1],[1,1,-1]]`, path Γ-X-W-Γ-L-W-X with 300 points.
+
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Primitive cell input: required for the `siesta` route — it supplies the relabel map and the default path cell.
+
+## Configuration
+
+```toml
+# SIESTA Si:P dopant: one Si of the 8-atom conventional cell replaced by P.
+# Run from the unpacked bundle root:  unfolding --config unfold.toml
+# or with explicit flags:
+#   unfolding siesta --fdf data/si_sc_p.fdf --primitive data/si_prim.vasp \
+#     --unfold-mat -1 1 1 1 -1 1 1 1 -1 --special-points GXWGLX \
+#     --npts 300 --method ideal --no-match-species \
+#     --output si_p_doped_unfolded_cli.png
+#
+# match_species = false lets the P dopant map onto the host site it
+# replaces (same position and orbital count): host bands keep weight 1
+# while donor-derived states appear with fractional weight.
+route = "siesta"
+
+[input]
+fdf = "data/si_sc_p.fdf"          # Si7P supercell run; reads si_sc_p.HSX
+
+[structure]
+primitive = "data/si_prim.vasp"   # pristine 2-atom primitive fcc cell (a = 5.430 Ang)
+supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]   # conventional = M @ primitive
+
+[path]
+special_points = "GXWGLX"
+npts = 300
+
+[options]
+method = "ideal"
+match_species = false             # substitutional dopant: ignore species when matching
+
+[output]
+output = "si_p_doped_unfolded_cli.png"
+```
 
 ## Run it
 

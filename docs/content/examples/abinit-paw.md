@@ -9,8 +9,41 @@ supercells onto the 2-atom primitive fcc cell, with a separately
 computed 2-atom primitive WFK supplying the reference bands. The PAW
 wavefunction is normalized in the overlap metric, so overlaps are
 evaluated with `S = I + Σ_aij |p_ai⟩ ΔS_aij ⟨p_aj|` (only the overlap
-augmentation `ΔS` enters the projection); pass `resolve_degenerate`
-(in eV) so weights inside stored degenerate blocks are eigen-assigned.
+augmentation `ΔS` enters the projection).
+
+Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/); this page only covers what is specific to this example.
+Primitive cell input: required for the `abinit-paw` route — it provides the primitive-cell wavefunctions the supercell is projected onto.
+
+## Configuration
+
+```toml
+# ABINIT PAW Si:P: the shipped Gamma-point WFKs unfolded onto the four
+# primitive folds of supercell Gamma (companion of reproduce.py; see
+# README.txt). Weights live at the primitive WFK's stored k-points.
+route = "abinit-paw"
+
+[input]
+supercell = "data/si7p_gammao_WFK.nc"
+primitive = "data/si_primitive_foldso_WFK.nc"
+# directory holding the JTH datasets <Symbol>.xml (Si.xml, P.xml)
+paw = "data"
+
+[structure]
+# supercell = M @ primitive (conventional cubic cell in primitive units)
+supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
+
+[path]
+# tick labels for the four stored folds (xticks required with names)
+names = ["Γ", "(0,½,½)", "(½,0,½)", "(½,½,0)"]
+xticks = [0.0, 1.0, 2.0, 3.0]
+
+[options]
+spin = 0
+resolve_degenerate = 0.001
+
+[output]
+output = "abinit_paw_si7p_gamma.png"
+```
 
 ## Running the example
 
@@ -69,9 +102,8 @@ For the dense-path figure, place the regenerated
 `si8_paw_patho_DS2_WFK.nc`, `si7p_paw_patho_DS2_WFK.nc` and
 `si_prim_paw_patho_DS2_WFK.nc` in `data/`, then unfold each supercell
 WFK against the primitive one exactly as in `reproduce.py` (the decks
-already sample the 305-point path in supercell coordinates
-`K = k_prim @ M.T`); energies are referenced to each NSCF run's Fermi
-level and the top of the 32-band manifold above ~6 eV sits in the
+already sample the 305-point path in supercell coordinates); the top
+of the 32-band manifold above ~6 eV sits in the
 unconverged Davidson tail (trust energies below that).
 
 {{< figure src="/images/abinit_paw_si_path.png" title="ABINIT PAW unfolding of the pristine Si8 (left) and Si:P (right) supercells onto the primitive Γ-X-W-Γ-L-W-X path: line opacity encodes the PAW S-metric spectral weight carried on the primitive-sector reference bank; energies relative to the NSCF Fermi level (E_F = 0)" >}}
@@ -85,8 +117,8 @@ rejects PAW WFKs rather than treating them as norm-conserving.
 
 - **Primitive cell**: 2-atom fcc, `acell 3*10.26` bohr,
   `rprim 1 0 0  0 1 0  0 0 1`, Si at xred (0,0,0) and (¼,¼,¼).
-- **Supercell**: 8-atom conventional cubic cell, supercell = **M @
-  primitive** with `M = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]`; the
+- **Supercell**: 8-atom conventional cubic cell with
+  `M = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]`; the
   Si7P fixture replaces the (¼,¼,¼) atom by P (znucl 15).
 - **Atomic data**: JTH PAW datasets (Psdj_paw_pbe_std) `Si.xml` /
   `P.xml` — they ship with the bundle and are consumed through pypao.
@@ -97,17 +129,15 @@ rejects PAW WFKs rather than treating them as norm-conserving.
 ## K-path
 
 Γ-fold figure: the four primitive momenta folding to supercell Γ —
-Γ, (0,½,½), (½,0,½), (½,½,0) in **primitive reciprocal fractional
-coordinates** (the weights live at the primitive WFK's stored
-k-points).
+Γ, (0,½,½), (½,0,½), (½,½,0); the weights live at the primitive WFK's
+stored k-points.
 
-Dense-path figure: Γ–X–W–Γ–L–W–X, 305 points; fcc special points in
-primitive reciprocal fractional coordinates (Setyawan–Curtarolo); the
-supercell decks sample the same path in supercell coordinates
-`K = k_prim @ M.T` as an explicit `kpt` list (`kptopt 0`, `ndtset 2`:
+Dense-path figure: Γ–X–W–Γ–L–W–X, 305 points; the supercell decks
+sample the same path in supercell coordinates as an explicit `kpt`
+list (`kptopt 0`, `ndtset 2`:
 dataset 1 SCF at supercell Γ writing the density, dataset 2
-frozen-density non-SCF with `iscf -2`, `getden 1`, `tolwfr 1e-16`).
-Energies in eV relative to the NSCF Fermi level; window −13…8 eV.
+frozen-density non-SCF with `iscf -2`, `getden 1`, `tolwfr 1e-16`);
+window −13…8 eV.
 
 ## Parameters
 
@@ -115,10 +145,7 @@ Energies in eV relative to the NSCF Fermi level; window −13…8 eV.
 |---|---|
 | `supercell` / `primitive` | netCDF WFK paths (or parsed `AbinitPawData`); the primitive reference may be pristine Si while the supercell carries the dopant |
 | `datasets` / `paw` | maps chemical symbols to the matching JTH XML paths |
-| `matrix` | `M`, row convention supercell = M @ primitive; verified against the two WFK `rprimd` on entry |
-| `resolve_degenerate` | eigen-assigns gauge-invariant branch weights inside degenerate groups (ABINIT stores degenerate states in an arbitrary unitary gauge); pass 1e-3 eV, converted to Hartree internally |
 | `pseudo_weights` | result attribute: the pseudo-coset fractions, resolved with the same degenerate blocks |
-| `spin` | collinear channel (default 0) |
 
 ## Calculation background
 

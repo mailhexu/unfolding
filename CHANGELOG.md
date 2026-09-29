@@ -1,5 +1,53 @@
 # Changelog
 
+
+## Unreleased
+
+### Fixed
+
+- Wannier90 readers (`unfolding.wannier_unfold`): parse real Wannier90
+  output. `read_wannier90_hr` now skips the "written on ..." comment
+  line Wannier90 >= 2.0 prepends to `*_hr.dat` (real files raised
+  `ValueError: invalid literal for int()`), the win reader accepts
+  species-leading `atoms_cart` rows (`Ti<TAB>x y z`) and unit keyword
+  lines, and `Wannier90Model` reads the orbital positions from the
+  `.wout` Final State when `*_centres.xyz` is stale (centre count
+  different from `num_wann`) instead of refusing to run. Verified by
+  unfolding the real SrTiO3 datasets (pristine + Ti-vacancy
+  sqrt(2)xsqrt(2)x2 supercells, 56 Wannier functions); regression tests
+  in `tests/test_wannier_readers.py`.
+- `unf`/`phonopy_unfold` (phonopy route): pass `sc_mat.T` to the
+  translation maps. `ase.make_supercell` builds lattice points with the
+  transposed convention relative to phonopy's `A_sc = sc_mat^T @ A_prim`,
+  so non-diagonal `unfold_sc_mat` (e.g. R-centred hexagonal cells,
+  `M = inv(primitive_matrix)`) scrambled the translation orbits and
+  produced fractional weights on pristine supercells. Verified on the MDR
+  phonon-database R-3m dataset (Rb3B12H12I): weights are binary again
+  (84 unit-weight modes per q); regression test with a non-symmetric
+  supercell matrix added.
+
+### Documentation
+
+- Wannier90 SrTiO3 example: restore the real-data unfolding as the
+  page's headline. The page now documents the committed pristine and
+  Ti-vacancy SrTiO3 Wannier90 datasets (sqrt(2)xsqrt(2)x2 supercells,
+  56 Wannier functions: 12 O-2p + 4 Ti-3d shells), embeds the bundle's
+  `unfold.toml` verbatim, and links the shared method/parameters/k-path
+  guide; the previous synthetic t2g figures move out of the page (the
+  tiny synthetic model ships on as a smoke fixture in the bundle).
+  `wannier-sto.tar.gz` now carries the real inputs (~7 MB compressed,
+  packed via the new `examples/wannier-sto/bundle.manifest`), and
+  `docgen/fig_wannier_sto.py` regenerates both figures.
+- ABINIT WFK example: document the Si:P path-coverage analysis. The
+  committed Si:P WFK fixtures store only the four path corners
+  (supercell momenta (0,0,0), (0,1,0), (0.5,1,0), (0.5,0.5,0.5)), so of
+  the 305 requested path folds only the 7 corner ticks have a stored
+  match and the published Si:P map is the corner-fallback render. The
+  example page now carries the stored-vs-requested coverage table,
+  embeds the bundle's `unfold.toml` verbatim, and links the shared
+  method/parameters/k-path guide instead of repeating shared-option
+  explanations.
+
 ## 0.2.0 (2026-09-20)
 
 Renewal release: rewritten LCAO unfolding core with symbolic validation,

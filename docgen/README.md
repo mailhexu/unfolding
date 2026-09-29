@@ -9,7 +9,7 @@ scripts and asserts the output images exist.
 | `fig_phonopy_cu.py` | `phonopy_unfolded_band_structure.png` | `examples/phonopy/FORCE_CONSTANTS` + `SPOSCAR` (committed) | runs `phonopy_unfold` on the 3x3x3 fcc Cu example |
 | `fig_siesta_si.py` | `si_unfolded.png` | `tests/data/si_example/` (committed HSX fixtures, story 010) | 8-atom conventional-cell Si unfolded onto the primitive path; requires HamiltonIO + sisl |
 | *DDB example* | `cu_fcc_unfolded.png`, `catio3_unfolded.png` | `examples/Cu_fcc/out_DDB`, `examples/CaTiO3_unfold/out.DDB` (committed) | regeneration requires abipy + anaddb (not part of CI); the committed images in `examples/*/unfolded.png` are the authoritative copies |
-| *wannier example* | `docs` wannier figure | `examples/wannier_STO/` | regeneration requires the wannier90 inputs documented in the example; committed `unfold.png` is authoritative |
+| `fig_wannier_sto.py` | `wannier_sto_unfolded.png`, `wannier_sto_ti_vacancy.png` | `examples/wannier_STO/data_nodefect/`, `data/` (committed real Wannier90 outputs) | pristine + Ti-vacancy SrTiO3 supercells unfolded via the built-in Wannier90 reader; no args regenerates both |
 
 Usage:
 
