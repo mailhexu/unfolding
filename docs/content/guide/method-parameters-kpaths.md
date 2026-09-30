@@ -71,7 +71,7 @@ matrix relates to the DDB cell instead (see the
 | `spin` | `[options]` | collinear channel (`up`/`down`); one channel per run on spin-polarised data |
 | `mode` | `[options]` (gpaw, abacus) | `pw` (plane-wave coefficients) or `lcao` (localized basis) |
 | `method` | `[options]` (LCAO routes) | `ring` (exact torus projection, supercell-torus k-grids only) or `ideal` (arbitrary k-paths) |
-| `resolve_degenerate` | `[options]` (pw/PAW routes) | eV tolerance; reassigns gauge-invariant weights inside near-degenerate groups so exact degeneracies render as clean lines |
+| `resolve_degenerate` | `[options]` (PW/PAW and Wannier routes) | eV tolerance; reassigns sector/eigenvector weights within near-degenerate groups. Wannier defaults to raw weights; enable only for physically degenerate fold groups (e.g. pristine Wannier bands), not defect bands. |
 | `npts` | `[path]` | total number of interpolated points across the full special-point path |
 | `path_cell` | `[path]` | path-frame cell when the special points are meant in a frame other than the primitive cell |
 | `output` | `[output]` | figure path (PNG) |

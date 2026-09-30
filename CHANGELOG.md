@@ -32,6 +32,15 @@
   unfolding the real SrTiO3 datasets (pristine + Ti-vacancy
   sqrt(2)xsqrt(2)x2 supercells, 56 Wannier functions); regression tests
   in `tests/test_wannier_readers.py`.
+- Correct the in-package Wannier90 reader's tight-binding convention: divide each
+  `*_hr.dat` block by its Wigner-Seitz degeneracy, include the embedded Wannier
+  centre Bloch phases without wrapping center images, and return band-major
+  eigenvectors. `plot_unfolded_band`, `run`, and the Wannier config/CLI expose
+  the optional energy tolerance (default: raw weights). The standalone script,
+  figure generator, bundle config, and real-data reproducer opt in to 0.1 eV
+  grouping for pristine folding only; Ti-vacancy outputs preserve raw weights
+  to avoid rotating physically distinct defect levels. Regression coverage
+  compares vacancy bands to frozen historical-reader energies and weights.
 - `unf`/`phonopy_unfold` (phonopy route): pass `sc_mat.T` to the
   translation maps. `ase.make_supercell` builds lattice points with the
   transposed convention relative to phonopy's `A_sc = sc_mat^T @ A_prim`,

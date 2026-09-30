@@ -762,6 +762,7 @@ def run_wannier(cfg):
         npoints=cfg.npoints,
         cell=cfg.cell,
         return_result=True,
+        resolve_degenerate=cfg.resolve_degenerate,
     )
     _save_data(cfg, res, energy_reference="absolute")
     return ax

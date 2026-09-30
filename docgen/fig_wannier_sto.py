@@ -37,10 +37,12 @@ KVECTORS = [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0], [0.5, 0.5, 0.0],
 KNAMES = [r"$\Gamma$", "X", "M", r"$\Gamma$", "R"]
 
 
-def unfold(model_dir, out_path, title):
+def unfold(model_dir, out_path, title, resolve_degenerate=None):
     model = Wannier90Model(model_dir, "wannier90", scmat=SCMAT)
     u = WannierUnfolder(model, labels=LABELS, sc_matrix=SCMAT)
-    ax = u.plot_unfolded_band(kvectors=KVECTORS, knames=KNAMES, npoints=200)
+    ax = u.plot_unfolded_band(
+        kvectors=KVECTORS, knames=KNAMES, npoints=200,
+        resolve_degenerate=resolve_degenerate)
     ax.figure.set_size_inches(7.2, 5.2)
     # weight-coded segments scale with the default width=2; scale up so the
     # weight contrast survives dpi=200
@@ -60,16 +62,16 @@ def unfold(model_dir, out_path, title):
     plt.close(ax.figure)
     return out_path
 
-
 def main(out_path, vacancy_path=None):
     unfold(
         "data_nodefect", out_path,
         "Pristine SrTiO$_3$: $\\sqrt{2}\\times\\sqrt{2}\\times 2$ supercell "
-        "unfolded to the 5-atom cubic cell")
+        "unfolded to the 5-atom cubic cell", resolve_degenerate=0.1)
     if vacancy_path:
         unfold(
             "data", vacancy_path,
-            "Ti-vacancy SrTiO$_3$ supercell unfolded to the 5-atom cubic cell")
+            "Ti-vacancy SrTiO$_3$ supercell unfolded to the 5-atom cubic cell",
+            resolve_degenerate=None)
     return out_path
 
 

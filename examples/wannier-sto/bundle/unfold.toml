@@ -3,7 +3,8 @@
 # primitive cell.
 # Run from the unpacked bundle root (requires pip install unfolding):
 #   unfolding --config unfold.toml
-# Ti-vacancy dataset: same file with path = "data/ti_vacancy".
+# Ti-vacancy dataset: change path to "data/ti_vacancy" and omit the
+# resolve_degenerate option to preserve raw defect weights.
 route = "wannier"
 
 [input]
@@ -29,6 +30,7 @@ names = ["Γ", "X", "M", "Γ", "R"]
 
 [options]
 npoints = 200
+resolve_degenerate = 0.1  # pristine only; omit for Ti-vacancy
 
 [output]
 output = "sto_unfolded.png"

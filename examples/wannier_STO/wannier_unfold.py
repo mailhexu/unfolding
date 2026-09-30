@@ -1,155 +1,62 @@
-import numpy as np
-#from pythtb import w90
-#from unfolder.
-from minimulti.unfolding.unfolder import Unfolder
-#from pyDFTutils.phonon.plotphon import plot_band_weight
-from minimulti.electron.plot import plot_band_weight
-from pythtb import w90
-import matplotlib.pyplot as plt
+"""Unfold the bundled real SrTiO3 Wannier90 datasets without pythtb.
+
+From the repository root, run one system or both:
+
+    python examples/wannier_STO/wannier_unfold.py pristine
+    python examples/wannier_STO/wannier_unfold.py ti-vacancy
+    python examples/wannier_STO/wannier_unfold.py both --output-dir /tmp/sto-bands
+
+The script uses the package's built-in Wannier90 reader. Required inputs
+are the ``wannier90.win``, ``wannier90.wout``, ``wannier90_centres.xyz``
+and ``wannier90_hr.dat`` files in ``data_nodefect`` or ``data``.
+"""
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+
+from unfolding.wannier_unfold import Wannier90Model, WannierUnfolder
+
+SCMAT = [[1, -1, 0], [1, 1, 0], [0, 0, 2]]
+LABELS = ["pz", "px", "py"] * 12 + ["dz2", "dxy", "dyz", "dx2", "dxz"] * 4
+KVECTORS = [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0], [0.5, 0.5, 0.0],
+            [0.0, 0.0, 0.0], [0.5, 0.5, 0.5]]
+KNAMES = [r"$\Gamma$", "X", "M", r"$\Gamma$", "R"]
+EXAMPLE_DIR = Path(__file__).resolve().parent
 
 
-class wannier_unfolder(object):
-    def __init__(self, tbmodel, labels,  sc_matrix):
-        self.model = tbmodel
-        self.labels = labels
-        self.sc_matrix = sc_matrix
-        self.cell=self.model._lat
-        self.positions=self.model._orb
+def unfold(system: str, output: Path) -> Path:
+    """Render one shipped Wannier90 system to ``output``."""
+    model_dir = EXAMPLE_DIR / ("data_nodefect" if system == "pristine" else "data")
+    model = Wannier90Model(model_dir, "wannier90", scmat=SCMAT)
+    unfolder = WannierUnfolder(model, labels=LABELS, sc_matrix=SCMAT)
+    ax = unfolder.plot_unfolded_band(
+        kvectors=KVECTORS, knames=KNAMES, npoints=200,
+        resolve_degenerate=0.1 if system == "pristine" else None)
+    ax.figure.set_size_inches(7.2, 5.2)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    ax.figure.savefig(output, dpi=200, bbox_inches="tight")
+    import matplotlib.pyplot as plt
+    plt.close(ax.figure)
+    return output
 
-    def unfold(self, kpts):
-        self.evals, self.evecs = self.model.solve_all(
-            k_list=kpts, eig_vectors=True)
-        positions = self.model._orb
-        # tbmodel: evecs[iband, ikpt, iorb]
-        # unfolder: [ikpt, iorb, iband]
-        self.unf = Unfolder(
-            cell=self.cell,
-            basis=self.labels,
-            positions=self.positions,
-            supercell_matrix=self.sc_matrix,
-            #eigenvectors=np.swapaxes(self.evecs, 0, 1),
-            eigenvectors=np.swapaxes(np.swapaxes(self.evecs, 0, 1), 1, 2),
-            qpoints=kpts)
-        #x=np.arange(len(kpts)) 
-        #weights=self.unf.get_weights()
-        #ax=plot_band_weight([list(x)]*self.evals.shape[1],self.evals.T , weights[:,:].T*0.98+0.000001,xticks=[['G'], [0]],style='alpha' )
-        #plt.show()
-        return self.unf.get_weights()
 
-    def plot_unfolded_band(
-            self,
-            kvectors=np.array([[0, 0, 0], [0.5, 0, 0], [0.5, 0.5, 0],
-                               [0, 0, 0], [.5, .5, .5]]),
-            knames=['$\Gamma$', 'X', 'M', '$\Gamma$', 'R'],
-            npoints=200,
-            ax=None, ):
-        """
-        plot the projection of the band to the basis
-        """
-        if ax is None:
-            fig, ax = plt.subplots()
-        from ase.dft.kpoints import bandpath
-        kvectors = [np.dot(k, self.sc_matrix) for k in kvectors]
-        kpts, x, X = bandpath(kvectors, self.cell, npoints)
-        kslist = [x] * len(self.positions)
-        efermi = 0.0
-        wkslist=self.unfold(kpts).T * 0.98 +0.01
-        ekslist = self.evals
-        #wkslist = np.abs(self.get_projection(orb, spin=spin, eigenvecs=evecs))
-        ax = plot_band_weight(
-                kslist,
-                ekslist,
-                wkslist=wkslist,
-                efermi=None,
-                yrange=None,
-                output=None,
-                style='alpha',
-                color='blue',
-                axis=ax,
-                width=20,
-                xticks=None)
-        for i in range(len(self.positions)):
-            ax.plot(x, self.evals[i, :], color='gray', alpha=1, linewidth=0.1)
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("system", choices=("pristine", "ti-vacancy", "both"),
+                        nargs="?", default="both")
+    parser.add_argument("--output-dir", type=Path, default=Path("."))
+    args = parser.parse_args(argv)
+    systems = ("pristine", "ti-vacancy") if args.system == "both" else (args.system,)
+    for system in systems:
+        suffix = "unfolded" if system == "pristine" else "ti_vacancy"
+        output = unfold(system, args.output_dir / f"sto_{suffix}.png")
+        print(f"wrote {output}")
+    return 0
 
-        #ax.axhline(self.get_fermi_level(), linestyle='--', color='gray')
-        ax.set_xlabel('k-point')
-        ax.set_ylabel('Energy (eV)')
-        ax.set_xlim(x[0], x[-1])
-        ax.set_xticks(X)
-        ax.set_xticklabels(knames)
-        for x in X:
-            ax.axvline(x, linewidth=0.6, color='gray')
-        from matplotlib.lines import Line2D
 
-        ax.legend(
-            handles=[
-                Line2D([0], [0], color='blue', lw=2,
-                       label='unfolded spectral weight'),
-                Line2D([0], [0], color='gray', lw=1,
-                       label='supercell bands'),
-            ],
-            loc='upper right', fontsize=8, framealpha=0.85,
-        )
-        return ax
-
-# Below are example. Should be moved to examples.
-
-def test_nodefect():
-    w90reader = w90(path='data_nodefect', prefix='wannier90')
-    #w90reader = w90(path='data', prefix='wannier90')
-    tb = w90reader.model(min_hopping_norm=0.05)
-    labels = ['pz', 'px', 'py'] * 12 + ['dz2', 'dxy', 'dyz', 'dx2', 'dxz'] * 4
-    scmat=[[1,-1,0],[1,1,0],[0,0,2]]
-    u = wannier_unfolder(tb, labels, sc_matrix=scmat)
-    u.plot_unfolded_band()
-    plt.savefig('STO_nodefect.pdf')
-    plt.savefig('STO_nodefect.png')
-    plt.show()
-
-def test_defect():
-    w90reader = w90(path='data', prefix='wannier90')
-    tb = w90reader.model(min_hopping_norm=0.05)
-    labels = ['pz', 'px', 'py'] * 12 + ['dz2', 'dxy', 'dyz', 'dx2', 'dxz'] * 4
-    scmat=[[1,-1,0],[1,1,0],[0,0,2]]
-    u = wannier_unfolder(tb, labels, sc_matrix=scmat)
-    u.plot_unfolded_band(
-            kvectors=np.array([[0, 0, 0], [0.5, 0, 0], [0.5, 0.5, 0],
-                                [0, 0, 0], [.5, .5, .5]]),
-            knames=['$\Gamma$', 'X', 'M', '$\Gamma$', 'R'],
-            npoints=200,
-            ax=None, 
-            )
-    plt.savefig('STO_defect.pdf')
-    plt.savefig('STO_defect.png')
-    plt.show()
-
-def run(path, prefix,  labels, scmat, output_figure, kvectors, knames, npoints=200, min_hopping_norm=0.0001):
-    w90reader = w90(path=path, prefix=prefix)
-    tb = w90reader.model(min_hopping_norm=min_hopping_norm)
-    #labels = ['pz', 'px', 'py'] * 12 + ['dz2', 'dxy', 'dyz', 'dx2', 'dxz'] * 4
-    #scmat=[[1,-1,0],[1,1,0],[0,0,2]]
-    u = wannier_unfolder(tb, labels, sc_matrix=scmat)
-    u.plot_unfolded_band(
-            #kvectors=np.array([[0, 0, 0], [0.5, 0, 0], [0.5, 0.5, 0],
-            #                    [0, 0, 0], [.5, .5, .5]]),
-            kvectors=kvectors,
-            #knames=['$\Gamma$', 'X', 'M', '$\Gamma$', 'R'],
-            knames=knames,
-            npoints=npoints,
-            ax=None, 
-            )
-    plt.savefig(output_figure)
-    plt.show()
-
-if __name__=="__main__":
-    run(path='data_nodefect',
-        prefix='wannier90',
-        scmat=[[1,-1,0], [1,1,0 ], [0,0,2]],
-        output_figure='unfold.png', 
-        labels = ['pz', 'px', 'py'] * 12 + ['dz2', 'dxy', 'dyz', 'dx2', 'dxz'] * 4,
-        kvectors=np.array([[0, 0, 0], [0.5, 0, 0], [0.5, 0.5, 0],
-                         [0, 0, 0], [.5, .5, .5]]),
-        knames=['$\Gamma$', 'X', 'M', '$\Gamma$', 'R'] )
-
-#test_nodefect()
-#test_defect()
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -4,12 +4,13 @@ import warnings
 
 import numpy as np
 import matplotlib.pyplot as plt
+from ase.dft.kpoints import bandpath
 
 from unfolding.plotphon import plot_band_weight
 from unfolding.unfolder import Unfolder
 
 # MyTB (Wannier90 reader) lives in the separate minimulti package; it is only
-# needed by the run() convenience driver below, not by WannierUnfolder itself.
+# needed by the legacy run() convenience driver below.
 
 
 class WannierUnfolder(object):
@@ -36,8 +37,6 @@ class WannierUnfolder(object):
         # tbmodel: evecs[iband, ikpt, iorb]
         # unfolder: [ikpt, iorb, iband]
         with warnings.catch_warnings():
-            # Unfolder is our deprecated legacy core; wannier adaptation keeps
-            # using it until the orbital-based rewrite (internal use).
             warnings.simplefilter("ignore", DeprecationWarning)
             self.unf = Unfolder(
                 cell=self.cell,
@@ -48,20 +47,55 @@ class WannierUnfolder(object):
                 qpoints=kpts)
         return self.unf.get_weights()
 
+    @staticmethod
+    def _resolve_degenerate_weights(weights, eigenvalues, eigenvectors,
+                                    translation_indices, tolerance):
+        """Resolve arbitrary rotations in near-degenerate translation sectors."""
+        if tolerance is None:
+            return weights
+        if tolerance < 0:
+            raise ValueError("resolve_degenerate must be nonnegative")
+        norb = eigenvectors.shape[2]
+        projector = np.zeros((norb, norb), dtype=complex)
+        for indices in translation_indices:
+            translation = np.zeros((norb, norb), dtype=complex)
+            translation[np.arange(norb), indices] = 1.0
+            projector += translation / len(translation_indices)
+        projector = 0.5 * (projector + projector.conj().T)
+        resolved = np.array(weights, copy=True)
+        for ik, energies in enumerate(eigenvalues.T):
+            start = 0
+            for stop in range(1, len(energies) + 1):
+                at_end = stop == len(energies)
+                if at_end or energies[stop] - energies[stop - 1] > tolerance:
+                    if stop - start > 1:
+                        states = eigenvectors[start:stop, ik].T
+                        q = states.conj().T @ projector @ states
+                        resolved[ik, start:stop] = np.linalg.eigvalsh(
+                            0.5 * (q + q.conj().T))
+                    start = stop
+        return resolved
+
     def plot_unfolded_band(
             self,
             kvectors=np.array([[0, 0, 0], [0.5, 0, 0], [0.5, 0.5, 0],
                                [0, 0, 0], [.5, .5, .5]]),
-            knames=[r'$\Gamma$', 'X', 'M', r'$\Gamma$', 'R'],
-            npoints=200,
-            ax=None, ):
-        """Plot the unfolded bands with weight alpha along a k-path."""
-        if ax is None:
-            fig, ax = plt.subplots()
-        from ase.dft.kpoints import bandpath
+            knames=np.array([r'$\Gamma$', 'X', 'M', r'$\Gamma$', 'R']), npoints=200,
+            ax=None, resolve_degenerate=None):
+        """Plot the weighted path, resolving near-degenerate gauges.
+        resolve_degenerate is an energy tolerance in eV. The translation
+        projector is diagonalized within each band group so pristine
+        fold-sector weights do not depend on arbitrary eigenvector mixing.
+        By default, raw per-eigenvector weights are retained. Set this to a
+        positive energy tolerance only when the grouped states are physically
+        degenerate; this rotation must not be applied to nearby defect bands.
+        None disables gauge resolution.
+        """
+        if knames is None:
+            knames = [str(i) for i in range(len(kvectors))]
         kvectors = [np.dot(k, self.sc_matrix) for k in kvectors]
-        cell_sc = np.dot(self.sc_matrix, self.cell)
-        path = bandpath(kvectors, cell_sc, npoints)
+        # The Wannier90 win cell is already the supercell lattice.
+        path = bandpath(kvectors, self.cell, npoints)
         kpts = path.kpts
         x, X, _ = path.get_linear_kpoint_axis()
         # the axis may either collapse a revisited vertex (ase dedupe ->
@@ -76,6 +110,9 @@ class WannierUnfolder(object):
             tick_labels = None  # never crash on an unmappable path
         kslist = [x] * len(self.positions)
         weights = self.unfold(kpts)
+        weights = self._resolve_degenerate_weights(
+            weights, self.evals, self.evecs, self.unf._trans_indices,
+            resolve_degenerate)
         wkslist = weights.T * 0.98 + 0.01
         ekslist = self.evals  # [nband, nk]: one row per band, as plot_band_weight expects
         # kpts live in the supercell reciprocal frame (the vertices were
@@ -110,9 +147,9 @@ def read_wannier90_hr(path):
 
     Returns ``(Rs, H)``: integer R vectors ``(NR, 3)`` (rows sorted) and
     the real-space Hamiltonian blocks ``H[i]`` for ``Rs[i]`` (eV, complex,
-    ``(num_wann, num_wann)``). Handles the standard degeneracy preamble
-    and the 15-values-per-line wrapping; spin-polarized ``*_hr.dat``
-    files (``num_wann`` doubled) parse unchanged.
+    ``(num_wann, num_wann)``). Divide each block by its listed
+    Wigner-Seitz degeneracy before Fourier interpolation. Both legacy
+    and "written on ..." Wannier90 headers are accepted.
     """
     def is_int(token):
         return token.lstrip("+-").isdigit()
@@ -123,23 +160,43 @@ def read_wannier90_hr(path):
         raise ValueError(f"empty hr file: {path}")
     # Wannier90 >= 2.0 prepends a "written on ..." comment line before
     # num_wann (and num_r); older files start with num_wann directly.
-    norb = None
-    for line in lines:
-        tok = line.split()
-        if tok and is_int(tok[0]):
-            norb = int(tok[0])
-            break
-    if norb is None:
+    header = next((i for i, line in enumerate(lines)
+                   if len(line.split()) == 1 and is_int(line.split()[0])), None)
+    if header is None:
         raise ValueError(f"{path}: no num_wann line")
+    norb = int(lines[header])
+    try:
+        nr = int(lines[header + 1])
+    except (IndexError, ValueError) as exc:
+        raise ValueError(f"{path}: missing num_R line") from exc
+    if norb <= 0 or nr <= 0:
+        raise ValueError(f"{path}: num_wann and num_R must be positive")
+    degeneracies = []
+    start = header + 2
+    while len(degeneracies) < nr and start < len(lines):
+        tokens = lines[start].split()
+        if not tokens or not all(is_int(t) for t in tokens):
+            raise ValueError(f"{path}: malformed WS degeneracies")
+        degeneracies.extend(map(int, tokens))
+        start += 1
+    if len(degeneracies) != nr or any(d <= 0 for d in degeneracies):
+        raise ValueError(f"{path}: expected {nr} positive WS degeneracies")
     blocks = {}
+    deg_by_key = {}
     ndata = 0
-    for line in lines[1:]:
+    for line in lines[start:]:
         tok = line.split()
         if len(tok) != 7 or not all(is_int(t) for t in tok[:5]):
-            continue  # degeneracy preamble / blank / wrapped header
+            raise ValueError(f"{path}: malformed Hamiltonian entry")
         rx, ry, rz, m, n = (int(t) for t in tok[:5])
-        blocks.setdefault((rx, ry, rz), np.zeros((norb, norb), dtype=complex)
-                          )[m - 1, n - 1] = float(tok[5]) + 1j * float(tok[6])
+        key = (rx, ry, rz)
+        if key not in blocks:
+            if len(blocks) >= nr:
+                raise ValueError(f"{path}: more than {nr} R blocks")
+            deg_by_key[key] = degeneracies[len(blocks)]
+            blocks[key] = np.zeros((norb, norb), dtype=complex)
+        blocks[key][m - 1, n - 1] = (
+            float(tok[5]) + 1j * float(tok[6])) / deg_by_key[key]
         ndata += 1
     if not blocks:
         raise ValueError(f"no R-matrix entries found in {path}")
@@ -147,10 +204,9 @@ def read_wannier90_hr(path):
         raise ValueError(
             f"truncated hr file: {ndata} data lines for {norb} orbitals")
     Rs = np.array(sorted(blocks), dtype=float)
-    if len(blocks) != ndata // (norb * norb):
-        raise ValueError(
-            f"inconsistent hr file: {len(blocks)} blocks for "
-            f"{ndata // (norb * norb)} R vectors")
+    if len(blocks) != nr or ndata != nr * norb * norb:
+        raise ValueError(f"{path}: expected {nr * norb * norb} entries "
+                         f"across {nr} R blocks; found {ndata}")
     return Rs, np.stack([blocks[tuple(R)] for R in Rs])
 
 
@@ -330,7 +386,8 @@ class Wannier90Model:
                                 f"{self.norb} orbitals", cart))
         for message, cart in sources:
             if len(cart) == self.norb:
-                self._orb = np.mod(cart @ np.linalg.inv(cell), 1.0)
+                # Keep center images unwrapped; hr.dat R vectors use them.
+                self._orb = cart @ np.linalg.inv(cell)
                 return
         if sites is None:
             sites = np.zeros((1, 3))  # one-site primitive cell at the origin
@@ -347,17 +404,21 @@ class Wannier90Model:
 
     def solve_all(self, k_list, eig_vectors=False):
         k = np.atleast_2d(np.asarray(k_list, dtype=float))
-        phase = np.exp(2j * np.pi * k @ self.Rs.T)
-        hk = np.einsum("kr,rmn->kmn", phase, self.H)
+        # Wannier90 convention: <i|H|j+R> carries the Bloch phase
+        # exp(2pi i k . (R + r_j - r_i)), not exp(2pi i k . R) alone.
+        phase_r = np.exp(2j * np.pi * k @ self.Rs.T)
+        hk = np.einsum("kr,rmn->kmn", phase_r, self.H)
+        phase_orb = np.exp(2j * np.pi * k @ self._orb.T)
+        hk *= phase_orb.conj()[:, :, None] * phase_orb[:, None, :]
         hk = 0.5 * (hk + np.conj(np.transpose(hk, (0, 2, 1))))
         evals, evecs = np.linalg.eigh(hk)
         if not eig_vectors:
             return evals.T
-        return evals.T, np.transpose(evecs, (1, 0, 2))
+        return evals.T, np.transpose(evecs, (2, 0, 1))
 
 
 def run(path, prefix, labels, scmat, output_figure, kvectors, knames,
-        npoints=200, cell=None, return_result=False):
+        npoints=200, cell=None, return_result=False, resolve_degenerate=None):
     """Convenience driver reading a Wannier90 directory.
 
     Uses minimulti's MyTB reader when that (older) API is available,
@@ -370,6 +431,8 @@ def run(path, prefix, labels, scmat, output_figure, kvectors, knames,
     carries ``kpoints`` (primitive fractional path points),
     ``eigenvalues`` (eV) and ``weights`` arrays of the drawn figure.
     ``output_figure`` may be ``None`` for dataset-only runs.
+    ``resolve_degenerate`` forwards to ``plot_unfolded_band``; leave it
+    unset for raw per-eigenvector weights, including defect calculations.
     """
     tb = None
     try:
@@ -386,7 +449,9 @@ def run(path, prefix, labels, scmat, output_figure, kvectors, knames,
     if tb is None:
         tb = Wannier90Model(path, prefix, cell=cell, scmat=scmat)
     u = WannierUnfolder(tb, labels=labels, sc_matrix=scmat)
-    ax = u.plot_unfolded_band(kvectors=kvectors, knames=knames, npoints=npoints)
+    ax = u.plot_unfolded_band(
+        kvectors=kvectors, knames=knames, npoints=npoints,
+        resolve_degenerate=resolve_degenerate)
     if output_figure is not None:
         plt.savefig(output_figure)
         plt.show()
@@ -402,4 +467,5 @@ if __name__ == "__main__":
         scmat=[[1, -1, 0], [1, 1, 0], [0, 0, 2]],
         output_figure='STO_nodefect.png',
         kvectors=np.array([[0, 0, 0], [.5, 0, 0], [.5, .5, 0], [0, 0, 0], [.5, .5, .5]]),
-        knames=[r'$\Gamma$', 'X', 'M', r'$\Gamma$', 'R'])
+        knames=[r'$\Gamma$', 'X', 'M', r'$\Gamma$', 'R'],
+        resolve_degenerate=0.1)

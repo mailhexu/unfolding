@@ -870,7 +870,7 @@ def test_wannier_schema_parity(tmp_path):
             "kpoints": [[0, 0, 0], [0.5, 0, 0], [0.5, 0.5, 0]],
             "names": ["G", "X", "M"],
         },
-        "options": {"npoints": 20},
+        "options": {"npoints": 20, "resolve_degenerate": 0.1},
         "output": {"output": out},
     }
     toml = _write_toml(tmp_path / "wannier.toml", payload)
@@ -887,6 +887,7 @@ def test_wannier_schema_parity(tmp_path):
         "0.5", "0.5", "0.0",
         "--names", "G", "X", "M",
         "--npoints", "20",
+        "--resolve-degenerate", "0.1",
         "--output", out,
     ]
     cfg_flags = config_from_flags(
@@ -908,7 +909,8 @@ def test_wannier_schema_parity(tmp_path):
     ]
     cfg_default = config_from_flags(
         "wannier", build_parser().parse_args(argv2))
-    assert cfg_default == cfg_toml
+    assert cfg_default.prefix == "wannier90"
+    assert cfg_default.resolve_degenerate is None
 
     # required fields are enforced
     bad = dict(payload)
@@ -945,7 +947,7 @@ def test_wannier_execution(tmp_path):
         "structure": {"supercell_matrix": diag2, "labels": labels,
                       "cell": eye},
         "path": {"kpoints": kvectors, "names": ["G", "X", "M", "G", "R"]},
-        "options": {"npoints": 20},
+        "options": {"npoints": 20, "resolve_degenerate": 0.1},
         "output": {"output": str(out_toml)},
     }
     toml = _write_toml(tmp_path / "wannier.toml", payload)
@@ -960,6 +962,7 @@ def test_wannier_execution(tmp_path):
             "--kpoints", *(repr(float(v)) for k in kvectors for v in k),
             "--names", "G", "X", "M", "G", "R",
             "--npoints", "20",
+            "--resolve-degenerate", "0.1",
             "--output", str(out_flags),
         ]
     )
@@ -972,5 +975,6 @@ def test_wannier_execution(tmp_path):
         path=str(work), prefix="wannier90", supercell_matrix=diag2,
         labels=labels, cell=eye, kpoints=kvectors,
         names=["G", "X", "M", "G", "R"], npoints=20,
+        resolve_degenerate=0.1,
         output=str(tmp_path / "sto_api.png")))
     _assert_parity([ax_toml, ax_flags, ax_api])

@@ -91,8 +91,8 @@ def write_hr_dat(path, blocks, norb):
     """Write a canonical Wannier90-format wannier90_hr.dat."""
     Rs = sorted(blocks)
     with open(path, "w") as fh:
-        fh.write("%d\n" % norb)
-        deg = ["    1.00000000000000E+000"] * len(Rs)
+        fh.write("%d\n%d\n" % (norb, len(Rs)))
+        deg = ["1"] * len(Rs)
         for start in range(0, len(deg), 15):
             fh.write("".join("%28s" % v for v in deg[start:start + 15]) + "\n")
         for R in Rs:
@@ -241,7 +241,9 @@ def run_real(which, out_png, npoints):
     model = Wannier90Model(os.path.join(parent, dirname), "wannier90",
                            scmat=REAL_SCMAT)
     u = WannierUnfolder(model, labels=REAL_LABELS, sc_matrix=REAL_SCMAT)
-    ax = u.plot_unfolded_band(kvectors=KVECTORS, knames=KNAMES, npoints=npoints)
+    ax = u.plot_unfolded_band(
+        kvectors=KVECTORS, knames=KNAMES, npoints=npoints,
+        resolve_degenerate=0.1 if which == "pristine" else None)
     ax.figure.savefig(out_png, dpi=200, bbox_inches="tight")
     return ax
 

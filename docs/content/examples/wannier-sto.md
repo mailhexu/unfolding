@@ -50,7 +50,8 @@ Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate
 # primitive cell.
 # Run from the unpacked bundle root (requires pip install unfolding):
 #   unfolding --config unfold.toml
-# Ti-vacancy dataset: same file with path = "data/ti_vacancy".
+# Ti-vacancy dataset: change path to "data/ti_vacancy" and omit the
+# resolve_degenerate option to preserve raw defect weights.
 route = "wannier"
 
 [input]
@@ -76,6 +77,7 @@ names = ["Γ", "X", "M", "Γ", "R"]
 
 [options]
 npoints = 200
+resolve_degenerate = 0.1  # pristine only; omit for Ti-vacancy
 
 [output]
 output = "sto_unfolded.png"
@@ -112,9 +114,27 @@ ax = run(
               [0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
     knames=[r'$\Gamma$', 'X', 'M', r'$\Gamma$', 'R'],
     npoints=200,
+    resolve_degenerate=0.1,  # pristine only; omit for a Ti-vacancy run
 )
 ```
+## Standalone real-data script
 
+The repository example `examples/wannier_STO/wannier_unfold.py` uses only
+the built-in `Wannier90Model` reader and `WannierUnfolder`; it does not
+import pythtb or minimulti. Run from the repository root (with the package
+dependencies installed):
+
+```console
+python examples/wannier_STO/wannier_unfold.py both --output-dir /tmp/sto-bands
+```
+
+Use `pristine` or `ti-vacancy` instead of `both` to render one dataset.
+The script writes `sto_unfolded.png` and `sto_ti_vacancy.png` in the chosen
+output directory.
+For pristine, the script resolves translation-sector weights within 0.1 eV
+energy groups to remove arbitrary eigenvector rotations at folded degeneracies.
+It leaves Ti-vacancy weights unresolved, preserving defect mixing and parity
+with the historical-reader reference.
 `reproduce.py` draws both real datasets through the same reader (each
 run parses the 38 MB hr file once, ~5 s):
 

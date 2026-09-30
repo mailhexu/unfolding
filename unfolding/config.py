@@ -664,6 +664,11 @@ class WannierConfig:
         default="wannier90", metadata=F("input", "str", "Wannier90 seed name"))
     npoints: int = dataclasses.field(
         default=200, metadata=F("options", "int", "points per path"))
+    resolve_degenerate: float | None = dataclasses.field(
+        default=None, metadata=F(
+            "options", "float",
+            "energy tolerance (eV) for Wannier fold-sector gauge resolution",
+            flag="resolve-degenerate"))
     # [structure]
     cell: list | None = dataclasses.field(
         default=None, metadata=F(

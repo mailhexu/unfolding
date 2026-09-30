@@ -68,7 +68,8 @@ HOW TO RUN
   From the unpacked bundle directory:
 
     unfolding --config unfold.toml            # pristine -> sto_unfolded.png
-    # Ti-vacancy: edit [input] path to data/ti_vacancy, or via Python API:
+    # Ti-vacancy: change [input] path to data/ti_vacancy and remove
+    # [options] resolve_degenerate to retain raw vacancy weights.
 
     python reproduce.py --real pristine       # -> sto_unfolded.png
     python reproduce.py --real ti_vacancy     # -> sto_ti_vacancy.png
