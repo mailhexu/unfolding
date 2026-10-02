@@ -52,9 +52,10 @@ matrix relates to the DDB cell instead (see the
 ## Requesting a k-path
 - `[path] special_points = "GXWGLX"` builds a dense path through the
   special points of the **path frame cell** — by default the primitive
-  cell of the route (or a derived cell for phonopy/magnon/DDB; override
-  with `path_cell`). `npts` is the **total number of points on the
-  path**, distributed over all path segments.
+  cell of the route (or a derived cell for phonopy, magnon, DDB, and
+  Wannier; override with `path_cell`). `npts` is the **total number of
+  points on the path**, distributed over all path segments (Wannier keeps
+  its existing `options.npoints` spelling).
 - `[path] kpoints = [x1,y1,z1, ...]` lists explicit momenta instead
   (with optional `names`, `xcoords`, `xticks`).
 - Internally each requested primitive `k` is mapped to the supercell

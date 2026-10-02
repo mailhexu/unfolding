@@ -13,13 +13,13 @@
   Wannier JSON k-points are converted back to primitive fractional frame;
   direct SIESTA/OpenMX adapter `output=` saving is restored; Wannier now
   permits data-only runs (`[output] data` without a figure path).
-- Dataset visualization/reference fixes after review: the Wannier path
-  coordinates are mapped back with the exact inverse of the reader’s
-  `kvectors @ sc_matrix` convention, with a regression that checks the
-  non-Gamma path vertices; square tuple overlays now require an explicit
-  orientation (`kpoints_first` / `bands_first`); WFSX JSON stores absolute
-  eigenvalues plus its Fermi energy, so dataset rendering applies the same
-  single Fermi shift as the route figure.
+- Dataset visualization/reference fixes after review: Wannier path
+  coordinates are mapped back with the inverse of the row-convention
+  `supercell_matrix.T` mapping used for `A_sc = M @ A_prim`; regression
+  coverage checks non-Gamma path vertices. Square tuple overlays now require
+  an explicit orientation (`kpoints_first` / `bands_first`); WFSX JSON stores
+  absolute eigenvalues plus its Fermi energy, so dataset rendering applies
+  the same single Fermi shift as the route figure.
 
 - Wannier90 readers (`unfolding.wannier_unfold`): parse real Wannier90
   output. `read_wannier90_hr` now skips the "written on ..." comment
@@ -41,6 +41,7 @@
   grouping for pristine folding only; Ti-vacancy outputs preserve raw weights
   to avoid rotating physically distinct defect levels. Regression coverage
   compares vacancy bands to frozen historical-reader energies and weights.
+- Wannier TOML/CLI configs can use `path.special_points` for an ASE high-symmetry path. The default primitive path frame derives from the `.win` supercell cell and row-convention `supercell_matrix`; optional `path.path_cell` overrides are transformed to primitive reciprocal coordinates. Explicit vertices remain supported.
 - `unf`/`phonopy_unfold` (phonopy route): pass `sc_mat.T` to the
   translation maps. `ase.make_supercell` builds lattice points with the
   transposed convention relative to phonopy's `A_sc = sc_mat^T @ A_prim`,

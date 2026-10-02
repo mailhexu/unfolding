@@ -83,6 +83,23 @@ resolve_degenerate = 0.1  # pristine only; omit for Ti-vacancy
 output = "sto_unfolded.png"
 ```
 
+## Named high-symmetry path
+
+To let ASE choose the standard cubic path instead of listing explicit vertices,
+replace the `[path]` table in the config with:
+
+```toml
+[path]
+special_points = "GXMGR"
+```
+
+`G`, `X`, `M`, and `R` are ASE special-point labels. The route derives the
+primitive path cell by solving `M @ A_prim = A_sc`, where `A_sc` is the
+Wannier90 `<prefix>.win` `unit_cell_cart` and `M` is `supercell_matrix`.
+`options.npoints` sets the number of interpolated path points. An ASE-readable
+`path.path_cell` may explicitly override the derived primitive path cell.
+The CLI flag is `--special-points GXMGR`.
+
 ## Run it
 
 From the unpacked bundle directory, one command with the shipped config

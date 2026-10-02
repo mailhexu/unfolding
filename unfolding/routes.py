@@ -113,14 +113,18 @@ def _resolve_path(cfg, default_cell=None, dense=True):
     """
     from ase.dft.kpoints import bandpath, get_special_points
 
-    if getattr(cfg, "special_points", None):
+    if getattr(cfg, 'special_points', None):
+        if isinstance(cfg.special_points, str) and ',' in cfg.special_points:
+            raise ConfigError(
+                'path.special_points: disconnected paths (commas) are not '
+                'supported; use path.kpoints and path.names instead')
         cell = _path_cell_array(cfg, default_cell)
         points = get_special_points(cell, eps=0.01)
         unknown = [c for c in cfg.special_points if c not in points]
         if unknown:
             raise ConfigError(
-                f"path.special_points: {unknown} not available on the path "
-                f"cell; available: {sorted(points)}")
+                f'path.special_points: {unknown} not available on the path '
+                f'cell; available: {sorted(points)}')
         letters = list(cfg.special_points)
         if dense:
             path = bandpath([points[c] for c in letters], cell, cfg.npts)
@@ -131,10 +135,10 @@ def _resolve_path(cfg, default_cell=None, dense=True):
     kpts = np.asarray(
         [np.asarray(k, dtype=float) for k in cfg.kpoints], dtype=float
     ).reshape(-1, 3)
-    xcoords = getattr(cfg, "xcoords", None)
+    xcoords = getattr(cfg, 'xcoords', None)
     xqpts = np.arange(len(kpts), dtype=float) if xcoords is None \
         else np.asarray(xcoords, dtype=float)
-    return kpts, cfg.names, xqpts, getattr(cfg, "xticks", None)
+    return kpts, cfg.names, xqpts, getattr(cfg, 'xticks', None)
 
 
 # ---------------------------------------------------------------------------
@@ -748,9 +752,39 @@ def run_vasp_paw(cfg):
 # ---------------------------------------------------------------------------
 
 def run_wannier(cfg):
-    from .wannier_unfold import run as wannier_run
+    from .wannier_unfold import read_wannier90_win, run as wannier_run
+    default_path_cell = None
+    primitive_cell = None
+    if cfg.special_points:
+        sc_cell = cfg.cell
+        if sc_cell is None:
+            win_path = os.path.join(cfg.path, f"{cfg.prefix}.win")
+            if not os.path.isfile(win_path):
+                raise ConfigError(
+                    "Wannier special_points needs structure.cell or "
+                    f"{win_path} with unit_cell_cart")
+            try:
+                sc_cell, _sites = read_wannier90_win(win_path)
+            except (ValueError, IndexError) as exc:
+                raise ConfigError(
+                    f"{win_path}: {exc}; set structure.cell or add "
+                    "unit_cell_cart to the win") from exc
+        try:
+            primitive_cell = np.linalg.solve(
+                np.asarray(cfg.supercell_matrix, dtype=float),
+                np.asarray(sc_cell, dtype=float))
+        except np.linalg.LinAlgError as exc:
+            raise ConfigError(
+                "structure.supercell_matrix must be invertible for "
+                "Wannier special_points") from exc
+        if cfg.path_cell is None:
+            default_path_cell = primitive_cell
 
-    kpts, knames, _x, _X = _resolve_path(cfg)
+    kpts, knames, _x, _X = _resolve_path(
+        cfg, default_cell=default_path_cell, dense=False)
+    if cfg.special_points and cfg.path_cell is not None:
+        path_cell = _path_cell_array(cfg, default_path_cell)
+        kpts = kpts @ np.linalg.solve(path_cell.T, primitive_cell.T)
     ax, res = wannier_run(
         path=cfg.path,
         prefix=cfg.prefix,
@@ -758,7 +792,7 @@ def run_wannier(cfg):
         scmat=np.asarray(cfg.supercell_matrix, dtype=int),
         output_figure=cfg.output,
         kvectors=kpts,
-        knames=list(knames),
+        knames=list(knames) if knames is not None else None,
         npoints=cfg.npoints,
         cell=cfg.cell,
         return_result=True,

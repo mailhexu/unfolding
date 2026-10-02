@@ -93,7 +93,7 @@ class WannierUnfolder(object):
         """
         if knames is None:
             knames = [str(i) for i in range(len(kvectors))]
-        kvectors = [np.dot(k, self.sc_matrix) for k in kvectors]
+        kvectors = [np.dot(k, self.sc_matrix.T) for k in kvectors]
         # The Wannier90 win cell is already the supercell lattice.
         path = bandpath(kvectors, self.cell, npoints)
         kpts = path.kpts
@@ -120,7 +120,7 @@ class WannierUnfolder(object):
         # primitive fractional momenta, so invert that mapping here
         k_prim = np.mod(
             np.asarray(kpts, dtype=float)
-            @ np.linalg.inv(np.asarray(self.sc_matrix, dtype=float)),
+            @ np.linalg.inv(np.asarray(self.sc_matrix, dtype=float).T),
             1.0)
         self.last_result = SimpleNamespace(
             kpoints=k_prim, eigenvalues=self.evals.T, weights=weights)

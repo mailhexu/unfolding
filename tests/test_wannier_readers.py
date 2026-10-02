@@ -154,7 +154,7 @@ def test_real_sto_pristine_path_weights_resolve_folded_gauges():
     def path_weights(directory):
         model = Wannier90Model(base / directory, "wannier90", scmat=scmat)
         unfolder = WannierUnfolder(model, labels, scmat)
-        path = bandpath([np.dot(k, scmat) for k in vertices],
+        path = bandpath([np.dot(k, scmat.T) for k in vertices],
                         unfolder.cell, npoints=200)
         raw = unfolder.unfold(path.kpts)
         ax = unfolder.plot_unfolded_band(

@@ -918,8 +918,172 @@ def test_wannier_schema_parity(tmp_path):
     toml = _write_toml(tmp_path / "wannier_bad.toml", bad)
     with pytest.raises(ConfigError, match="structure.labels: is required"):
         load_config(toml)
+def test_wannier_named_path_toml_cli_and_path_mode_validation(tmp_path):
+    from unfolding.cli import build_parser
+    from unfolding.config import ConfigError, config_from_flags, load_config
+
+    hr_dir = tmp_path / "wannier"
+    hr_dir.mkdir()
+    labels = ["d_xy", "d_yz", "d_zx"] * 2
+    payload = {
+        "route": "wannier",
+        "input": {"path": str(hr_dir)},
+        "structure": {
+            "supercell_matrix": [[2, 0, 0], [0, 2, 0], [0, 0, 2]],
+            "labels": labels,
+        },
+        "path": {"special_points": "GXMGR"},
+        "options": {"npoints": 24},
+    }
+    toml = _write_toml(tmp_path / "wannier-special.toml", payload)
+    cfg_toml = load_config(toml)
+    cfg_flags = config_from_flags(
+        "wannier",
+        build_parser().parse_args([
+            "wannier", "--path", str(hr_dir),
+            "--unfold-mat", "2", "0", "0", "0", "2", "0", "0", "0", "2",
+            "--labels", *labels, "--special-points", "GXMGR",
+            "--npoints", "24",
+        ]))
+    assert cfg_toml == cfg_flags
+    assert cfg_toml.special_points == "GXMGR"
+    assert cfg_toml.kpoints is None and cfg_toml.names is None
+
+    both_modes = dict(payload)
+    both_modes["path"] = {
+        "special_points": "GXMGR",
+        "kpoints": [[0, 0, 0], [0.5, 0, 0]],
+        "names": ["G", "X"],
+    }
+    both_toml = _write_toml(tmp_path / "wannier-both-path-modes.toml", both_modes)
+    with pytest.raises(ConfigError, match="either path.special_points or path.kpoints"):
+        load_config(both_toml)
 
 
+def test_wannier_named_path_executes_in_derived_primitive_frame(tmp_path, monkeypatch):
+    from ase.dft.kpoints import bandpath, get_special_points
+    from unfolding.config import ConfigError, load_config
+    from unfolding.dataset import load_dataset
+    from unfolding.routes import run
+
+    base = REPO / "examples" / "wannier_STO" / "data_nodefect"
+    matrix = [[1, -1, 0], [1, 1, 0], [0, 0, 2]]
+    labels = (["pz", "px", "py"] * 12
+              + ["dz2", "dxy", "dyz", "dx2", "dxz"] * 4)
+    output = tmp_path / "wannier-special.png"
+    dataset_path = tmp_path / "wannier-special.json"
+    payload = {
+        "route": "wannier",
+        "input": {"path": str(base), "prefix": "wannier90"},
+        "structure": {"supercell_matrix": matrix, "labels": labels},
+        "path": {"special_points": "GXMGR"},
+        "options": {"npoints": 20, "resolve_degenerate": 0.1},
+        "output": {"output": str(output), "data": str(dataset_path)},
+    }
+    config = _write_toml(tmp_path / "wannier-special-real.toml", payload)
+    import unfolding.wannier_unfold as wannier_unfold
+    original_bandpath = wannier_unfold.bandpath
+    mapped_vertices = []
+
+    def capture_bandpath(vertices, cell, npoints):
+        mapped_vertices.append(np.asarray(vertices, dtype=float))
+        return original_bandpath(vertices, cell, npoints)
+
+    monkeypatch.setattr(wannier_unfold, "bandpath", capture_bandpath)
+    ax = _run_cli(["--config", str(config)])
+    assert output.is_file() and dataset_path.is_file()
+    labels_on_axis = [tick.get_text() for tick in ax.get_xticklabels()]
+    for label in ("G", "X", "M", "R"):
+        assert label in labels_on_axis
+
+    primitive_cell = 3.9 * np.eye(3)
+    points = get_special_points(primitive_cell, eps=0.01)
+    expected_vertices_sc = np.asarray([points[key] for key in "GXMGR"]) @ np.asarray(matrix).T
+    np.testing.assert_allclose(mapped_vertices[0], expected_vertices_sc)
+    expected = bandpath([points[key] for key in "GXMGR"],
+                        primitive_cell, npoints=20).kpts
+    actual = load_dataset(dataset_path).kpoints
+    np.testing.assert_allclose(actual, expected, atol=1e-8)
+    bad_payload = {
+        **payload,
+        "path": {"special_points": "GZ"},
+        "output": {},
+    }
+    bad_config = _write_toml(tmp_path / "wannier-special-invalid.toml", bad_payload)
+    with pytest.raises(ConfigError, match="path.special_points"):
+        run(load_config(bad_config))
+def test_wannier_named_path_cell_override_maps_back_to_primitive_frame(tmp_path):
+    from ase.dft.kpoints import bandpath, get_special_points
+    from unfolding.config import load_config
+    from unfolding.dataset import load_dataset
+    from unfolding.routes import run
+
+    base = REPO / "examples" / "wannier_STO" / "data_nodefect"
+    matrix = [[1, -1, 0], [1, 1, 0], [0, 0, 2]]
+    labels = (["pz", "px", "py"] * 12
+              + ["dz2", "dxy", "dyz", "dx2", "dxz"] * 4)
+    output = tmp_path / "wannier-override.json"
+    swapped_cell = [[0, 3.9, 0], [3.9, 0, 0], [0, 0, 3.9]]
+    cell_file = tmp_path / "swapped.vasp"
+    cell_file.write_text(
+        "swap\n1.0\n0 3.9 0\n3.9 0 0\n0 0 3.9\nSi\n1\nDirect\n0 0 0\n")
+    payload = {
+        "route": "wannier",
+        "input": {"path": str(base), "prefix": "wannier90"},
+        "structure": {"supercell_matrix": matrix, "labels": labels},
+        "path": {"special_points": "GXMGR", "path_cell": str(cell_file)},
+        "options": {"npoints": 20, "resolve_degenerate": 0.1},
+        "output": {"data": str(output)},
+    }
+    config = _write_toml(tmp_path / "wannier-override.toml", payload)
+    run(load_config(config))
+
+    points = get_special_points(swapped_cell, eps=0.01)
+    vertices = np.asarray([points[key] for key in "GXMGR"])
+    primitive_cell = 3.9 * np.eye(3)
+    expected_vertices = vertices @ np.linalg.solve(
+        swapped_cell, primitive_cell).T
+    expected = bandpath(expected_vertices, primitive_cell, npoints=20).kpts
+    np.testing.assert_allclose(
+        load_dataset(output).kpoints, expected, atol=1e-8)
+
+def test_wannier_named_path_cell_errors_are_config_errors(tmp_path):
+    from unfolding.config import ConfigError, load_config
+    from unfolding.routes import run
+
+    cell_file = tmp_path / "path.vasp"
+    cell_file.write_text(
+        "path\n1.0\n3.9 0 0\n0 3.9 0\n0 0 3.9\nSi\n1\nDirect\n0 0 0\n")
+    cases = [
+        ("missing-default", False, False, "needs structure.cell"),
+        ("malformed-default", True, False, "unit_cell_cart"),
+        ("truncated-default", True, False, "unit_cell_cart"),
+        ("missing-override", False, True, "needs structure.cell"),
+        ("singular-override", True, True, "must be invertible"),
+    ]
+    for name, has_win, has_override, message in cases:
+        input_dir = tmp_path / name
+        input_dir.mkdir()
+        if has_win:
+            win = input_dir / "wannier90.win"
+            win.write_text(
+                "begin unit_cell_cart\n3.9 0 0\n0 3.9 0\n0 0 3.9\nend unit_cell_cart\n"
+                if name == "singular-override" else
+                "begin unit_cell_cart\n" if name == "truncated-default" else
+                "begin atoms_frac\nend atoms_frac\n")
+        matrix = ([[1, 0, 0], [0, 0, 0], [0, 0, 1]]
+                  if name == "singular-override" else [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        path = {"special_points": "GX", **(
+            {"path_cell": str(cell_file)} if has_override else {})}
+        payload = {
+            "route": "wannier",
+            "input": {"path": str(input_dir)},
+            "structure": {"supercell_matrix": matrix, "labels": ["s"]},
+            "path": path,
+        }
+        config = _write_toml(tmp_path / f"{name}.toml", payload)
+        with pytest.raises(ConfigError, match=message):
+            run(load_config(config))
 def test_wannier_execution(tmp_path):
     """Real wannier route on the shipped synthetic STO fixture (bundled
     t2g hr model, cell pinned): TOML ≡ flags ≡ Python API."""

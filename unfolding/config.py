@@ -649,10 +649,19 @@ class WannierConfig:
         "structure", "str-list",
         "basis labels, one per Wannier orbital (used for the weight sectors)"))
     # [path]
-    kpoints: list = dataclasses.field(metadata=F(
-        "path", "kpoints", "path vertices, three primitive-frame numbers each"))
-    names: list = dataclasses.field(metadata=F(
-        "path", "str-list", "labels for path vertices"))
+    special_points: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "path", "str", "special-point letters on the derived primitive cell, e.g. GXMGR"))
+    kpoints: list | None = dataclasses.field(
+        default=None, metadata=F(
+            "path", "kpoints", "path vertices in primitive fractional coordinates"))
+    names: list | None = dataclasses.field(
+        default=None, metadata=F("path", "str-list", "labels for explicit path vertices"))
+    path_cell: str | None = dataclasses.field(
+        default=None, metadata=F(
+            "path", "path",
+            "path-frame cell (ASE-readable); default: primitive cell derived from <prefix>.win",
+            flag="path-cell"))
     # [output]
     output: str | None = dataclasses.field(
         default=None, metadata=F("output", "out", "output figure path"))
