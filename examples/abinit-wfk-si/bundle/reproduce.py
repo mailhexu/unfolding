@@ -1,26 +1,9 @@
 #!/usr/bin/env python
-"""Reproduce the ABINIT Si / Si:P unfolded-band figures of the
-"ABINIT WFK Si and Si:P" docs example.
+"""Reproduce the ABINIT pristine-Si unfolded-band figure and, optionally,
+Si:P only when a dense path WFK is available.
 
-Run from the unpacked bundle directory (the directory containing this
-script); the ``unfolding`` package must be importable (pip install
-unfolding, or put the repo root on PYTHONPATH).  Writes two PNGs into
-the bundle directory:
-
-  si8_abinit_unfolded.png    pristine Si 8-atom supercell unfolded onto
-                             Gamma-X-W-Gamma-L-W-X, with the independent
-                             primitive-cell bands overlaid when the
-                             primitive reference WFK is available
-  si7p_abinit_unfolded.png   Si:P (one P substituting Si) spectral weight
-
-No WFK ships with this bundle (they are large binary data): data/
-holds the WFKs you regenerate with ABINIT (>= 9, netCDF support).  The
-corner decks in inputs/ yield small corner WFKs -- with only those, the
-figures are rendered from the corner points along the same path axis.
-For the full 305-point published figures, run the dense dataset-2
-non-SCF path inputs as printed below; this script picks the dense WFK
-up automatically whenever it is present.
-"""
+Run from the unpacked bundle directory. Sparse corner-only Si:P data
+(7 of 305 requested path folds) is intentionally not plotted."""
 from pathlib import Path
 
 import numpy as np
@@ -46,8 +29,9 @@ PATH = "GXWGLWX"
 KNAMES = [r"$\Gamma$", "X", "W", r"$\Gamma$", "L", "W", "X"]
 
 REGENERATE = """\
-Dense path WFK(s) not found in data/.  For the full 305-point published
-figures, regenerate them with ABINIT >= 9 (built with netCDF, iomode 3).
+Dense path WFK(s) not found in data/. Regenerate the 305-point path
+with ABINIT >= 9 (netCDF, iomode 3) to render Si:P; the Si8 corner
+WFK remains available for the pristine example.
 From this bundle directory run:
 
   # dense pristine-Si8 supercell path WFK (~787 MB, ecut 25; dataset 1 is
@@ -72,8 +56,7 @@ From this bundle directory run:
 
 Each run is a two-dataset calculation (SCF at Gamma, then iscf -2 /
 getden 2 non-SCF path sampling with kptopt 0); the *_DS2_WFK.nc files
-feed this script.  Rendering below continues with the included corner
-fixtures meanwhile.
+feed this script.  The corner-only Si:P map is suppressed until its dense WFK is supplied.
 """
 
 
@@ -226,32 +209,39 @@ def si8_figure(out_path):
 
 
 def si7p_figure(out_path):
-    """Si:P: spectral-weight map; defect-hybridized states are dimmer.
+    """Render Si:P only from a dense WFK covering the full path."""
+    dense = DATA / "si7p_gamma_x_patho_DS2_WFK.nc"
+    if not dense.is_file():
+        print(
+            "Skipping Si:P figure: no dense path WFK is available. "
+            "The corner-only WFK covers 7 of 305 path folds and is not plotted."
+        )
+        return None
 
-    Coverage note: the corner deck (si7p_gxwglx_corners.abi) stores only
-    four supercell momenta -- (0,0,0), (0,1,0), (0.5,1,0), (0.5,0.5,0.5),
-    i.e. the path corners Gamma/X/W/L via K = k_prim @ M.T -- so with the
-    corner fallback only 7 of the 305 requested path folds (the corner
-    ticks themselves) have a stored match and the map shows weight only
-    there. The dense deck (si7p_gamma_x_path.abi) restores the full map.
-    """
     from unfolding.abinit_unfold import HARTREE_TO_EV
     from unfolding.pw_unfolder import PWUnfolder
 
-    dense = DATA / "si7p_gamma_x_patho_DS2_WFK.nc"
-    sparse = DATA / "si7p_gxwglx_cornerso_DS2_WFK.nc"
-    wfk = dense if dense.is_file() else sparse
-    if not wfk.is_file():
-        raise FileNotFoundError(
-            f"no Si7P path WFK found (tried {dense.name}, {sparse.name})"
+    path_kpts, _, Xqpts = siesta_style_path()
+    data, kpts, x = match_path_subset(dense)
+    stored_prim = np.mod(
+        np.asarray(data.kpoints) @ np.linalg.inv(MATRIX.T), 1.0
+    )
+    delta = (
+        (np.mod(path_kpts, 1.0)[:, None, :] - stored_prim[None, :, :] + 0.5)
+        % 1.0
+    ) - 0.5
+    covered = np.linalg.norm(delta, axis=2).min(axis=1) <= 1e-6
+    coverage = int(np.count_nonzero(covered))
+    if coverage != len(path_kpts):
+        print(
+            f"Skipping Si:P figure: the WFK covers {coverage} of "
+            f"{len(path_kpts)} requested path folds."
         )
-
-    data, kpts, x = match_path_subset(wfk)
+        return None
     res = PWUnfolder(pw_data(data), MATRIX).compute(
         kpts, resolve_degenerate=DEGEN_TOL_EV / HARTREE_TO_EV
     )
     _, _, egrid, A = spectral_weight_map(res, data)
-    _, _, Xqpts = siesta_style_path()
     return draw_map(
         x, egrid, A, Xqpts, "ABINIT Si$_7$P unfolded spectral weight", out_path
     )
@@ -262,33 +252,20 @@ def main():
 
     matplotlib.use("Agg")
 
-    dense = [
-        name
-        for name in (
-            "si8_gxwglwxo_DS2_WFK.nc",
-            "si7p_gamma_x_patho_DS2_WFK.nc",
-            "si_prim_patho_DS2_WFK.nc",
-        )
-        if not (DATA / name).is_file()
-    ]
-    corners = [
-        name
-        for name in ("si8_gxwglx_cornerso_DS2_WFK.nc", "si7p_gxwglx_cornerso_DS2_WFK.nc")
-        if not (DATA / name).is_file()
-    ]
-    if corners:
-        # nothing renderable at all: no corner WFKs either
-        print("Missing WFK fixtures: " + ", ".join(dense + corners))
+    si8_dense = DATA / "si8_gxwglwxo_DS2_WFK.nc"
+    si8_corners = DATA / "si8_gxwglx_cornerso_DS2_WFK.nc"
+    si7p_dense = DATA / "si7p_gamma_x_patho_DS2_WFK.nc"
+    if not any(path.is_file() for path in (si8_dense, si8_corners, si7p_dense)):
         print("No WFK files ship with this bundle (they are large binary data).")
         print(REGENERATE)
         raise SystemExit(1)
-    if dense:
-        # the corner WFKs still render coarse figures on the same axis
-        print("Missing dense WFKs: " + ", ".join(dense))
-        print(REGENERATE)
 
-    print(si8_figure(BUNDLE / "si8_abinit_unfolded.png"))
-    print(si7p_figure(BUNDLE / "si7p_abinit_unfolded.png"))
+    if si8_dense.is_file() or si8_corners.is_file():
+        print(si8_figure(BUNDLE / "si8_abinit_unfolded.png"))
+    if si7p_dense.is_file():
+        print(si7p_figure(BUNDLE / "si7p_abinit_unfolded.png"))
+    else:
+        si7p_figure(BUNDLE / "si7p_abinit_unfolded.png")
 
 
 if __name__ == "__main__":

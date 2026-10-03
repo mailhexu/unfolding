@@ -1,4 +1,3 @@
-# Shipped GPAW planewave fixtures (committed in tests/data; the pristine
-# path restart si8_pw.gpw is ~290 MB and stays user-supplied).
-tests/data/gpaw_example/si7p_pw.gpw -> data/si7p_pw.gpw
+# Shipped GPAW plane-wave path reference data; the pristine
+# si8_pw.gpw restart is ~290 MB and remains user-supplied.
 tests/data/gpaw_example/si_prim_pw_path_bands.npz -> data/si_prim_pw_path_bands.npz

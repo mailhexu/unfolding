@@ -1,16 +1,14 @@
 ---
-title: "ABINIT WFK Si and Si:P"
+title: "ABINIT WFK Si"
 weight: 6
 ---
 
 Unfold ABINIT supercell calculations directly from their wavefunction
 files (norm-conserving plane waves: the weight is a pure
 reciprocal-coset projection — no overlaps or atom maps are involved).
-Two systems: pristine Si in the 8-atom conventional cell and Si:P with
-one substitutional P, both unfolded onto the primitive fcc cell along
-Γ–X–W–Γ–L–W–X. Pristine weights are binary — the unfolded bands ARE the
-primitive band structure — while defect-hybridized states carry
-fractional weight and render dimmer.
+This example presents pristine Si in the 8-atom conventional cell,
+unfolded onto the primitive fcc cell along Γ–X–W–Γ–L–W–X. Its weights
+are binary — the unfolded bands ARE the primitive band structure.
 
 ## The bundle
 
@@ -58,31 +56,13 @@ the top valence triplet and a metallic pristine Si.
 | supercell | 8-atom conventional cubic cell, `acell 3*10.26` bohr; `M = [[-1,1,1],[1,-1,1],[1,1,-1]]` |
 | k-path | Γ-X-W-Γ-L-W-X, 305 deck points / 300 plotted; the decks store the path in supercell coordinates (`kpt2` = path `@ M.T`) |
 
-## Si:P path coverage
+## Si:P output coverage policy
 
-The Si:P figure is only as dense as the WFK behind it, and the corner
-deck stores far less than the 305-point path. Reading the corner WFK
-(`inputs/si7p_gxwglx_corners.abi` → four stored momenta) with
-`HamiltonIO.abinit.read_wfk` gives exactly the four path corners:
-
-| stored supercell K | matching primitive path point |
-|---|---|
-| (0, 0, 0) | Γ |
-| (0, 1, 0) | X |
-| (0.5, 1, 0) | W |
-| (0.5, 0.5, 0.5) | L |
-
-Requested against these, only 7 of the 305 path folds — the corner
-ticks Γ, X, W, Γ, L, W, X themselves — have a stored match; the other
-298 interpolation points have none, and the unfolder rejects them
-("target SC k-point ... has no stored match within tol_k"). That is the
-sparsity of the committed Si:P map: `reproduce.py` falls back to the
-corner WFK whenever the dense one is absent and plots the four covered
-points on the full path axis — weight appears only at the corners, the
-segments between them carry no sampled dispersion, and the axis is
-cropped at the final L. Regenerating the dense deck
-(`inputs/si7p_gamma_x_path.abi`) restores the full 305-point map;
-`reproduce.py` picks the dense WFK up automatically.
+The Si:P corner WFK stores four supercell momenta and matches only 7 of
+305 requested path folds. Its corner-only fallback plot is intentionally
+not published. The reproduction script emits a Si:P path figure only when
+the dense 305-point Si:P WFK is present; the dense deck remains available
+in the bundle for users who regenerate that WFK.
 
 Run parameters and shared options (`mode`, `spin`, `method`,
 `resolve_degenerate`, supercell-matrix row convention, k-path
@@ -490,18 +470,12 @@ ax = unfold_abinit(
 )
 ```
 
-`python reproduce.py` renders both published figures (Si8 with the
-crimson primitive-cell overlay when `data/si_prim_patho_DS2_WFK.nc` is
-present, Si₇P spectral weight), falling back to the corner WFKs on the
-same path axis.
+`python reproduce.py` renders the pristine Si8 path figure (with an
+independent primitive-cell overlay when `data/si_prim_patho_DS2_WFK.nc` is
+present). Si:P output is skipped unless its dense 305-point WFK is present; the corner-only WFK is never plotted.
 
 {{< figure src="/images/si8_abinit_unfolded.png" title="Pristine Si (8-atom conventional cell) unfolded onto the Γ-X-W-Γ-L-W-X primitive path: Gaussian-smeared spectral-weight map (Blues scale, opacity = weight), energies relative to the WFK Fermi level; crimson curves are primitive-cell bands from an independent primitive-cell calculation" >}}
 
-The Si₇P map below is the corner-fallback render described in
-*Si:P path coverage*: four stored momenta, weight only at
-Γ, X, W, Γ, L.
-
-{{< figure src="/images/si7p_abinit_unfolded.png" title="Si:P (one P substituting Si in the 8-atom cell) unfolded onto the same path: Gaussian-smeared spectral-weight map (Blues scale, opacity = weight), energies relative to the WFK Fermi level" >}}
 
 ## Parameters and weights
 

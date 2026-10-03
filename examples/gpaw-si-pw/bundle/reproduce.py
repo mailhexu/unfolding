@@ -1,21 +1,10 @@
 #!/usr/bin/env python
-"""Reproduce the GPAW plane-wave Si figures.
+"""Reproduce the pristine GPAW plane-wave Si path figure.
 
 Docs example: docs/content/examples/gpaw-si-pw.md in the unfolding repo.
 
-- gpaw_si_p_pw_unfolded.png: the shipped Si7P Gamma-point PW restart
-  (data/si7p_pw.gpw) unfolded into its four primitive folds of supercell
-  Gamma; runs out of the box.
-- gpaw_si_pw_unfolded.png: the 8-atom conventional-cell Si PW restart
-  sampled on the 300-point primitive path, with the independently
-  computed primitive-cell PW bands overlaid; needs data/si8_pw.gpw
-  (~290 MB, NOT shipped -- produce it with your own GPAW, see README).
-
-Run from the unpacked bundle directory (this file's directory):
-
-    python reproduce.py                # both (pristine skipped if absent)
-    python reproduce.py --doped        # only the Si7P folds figure
-    python reproduce.py --pristine     # only the path figure
+The pristine path figure requires data/si8_pw.gpw (~290 MB, not shipped);
+generate it with your own GPAW as described in README.txt.
 
 Requires the ``unfolding`` package importable (pip install -e <unfolding
 repo checkout>, or PYTHONPATH=<unfolding repo checkout>) plus numpy,
@@ -26,8 +15,6 @@ weights are exactly 0/1 (GPAW's PAW-metric normalization is renormalized
 to sum |c|^2 = 1 per band, which leaves coset fractions unchanged -- the
 weights describe the *pseudo* wavefunctions).
 """
-import argparse
-import os
 from pathlib import Path
 
 import matplotlib
@@ -53,12 +40,10 @@ DEGEN_EV = 1e-3  # resolve degenerate branch weights when plotting
 
 PRISTINE_MISSING = """
 data/si8_pw.gpw is NOT shipped (about 290 MB, over the bundle cap).
-Produce it with GPAW: an 8-atom conventional-cell Si plane-wave run
-(PBE, PW cutoff 340 eV, 24 bands, symmetry='off') whose k-point list is
-the 300-point primitive GXWGLWX path mapped to supercell coordinates
-K_sc = k_prim @ B.T. examples/gpaw_si/generate_fixtures.py in the
-unfolding repository generates exactly this fixture. Place the .gpw in
-data/ and re-run this script.
+Generate it with `python generate_restart.py`; the script runs an 8-atom
+conventional-cell PBE/PW calculation (340 eV, 24 bands, symmetry off) on
+the exact 305-point primitive GXWGLWX path mapped to supercell coordinates
+with K_sc = k_prim @ B.T. The restart is written to data/si8_pw.gpw.
 """
 
 
@@ -99,16 +84,17 @@ def _eigendata(data):
 
 
 def pristine():
-    """Path figure from the (user-supplied) pristine path restart."""
+    """Path figure from the generated pristine path restart."""
+    src = DATA / "si8_pw.gpw"
+    if not src.is_file():
+        raise FileNotFoundError(
+            f"missing {src}; run `python generate_restart.py` first\n{PRISTINE_MISSING}"
+        )
+
     from unfolding.plotphon import plot_band_weight
     from unfolding.pw_unfolder import PWUnfolder
     from HamiltonIO.gpaw import GpawPWParser
 
-    src = DATA / "si8_pw.gpw"
-    if not src.is_file():
-        print(f"missing {src}")
-        print(PRISTINE_MISSING)
-        return None
     data = GpawPWParser(src).read()
     unf = PWUnfolder(_eigendata(data), B)
 
@@ -166,48 +152,5 @@ def pristine():
     return out
 
 
-def doped():
-    """Four-fold figure from the shipped Si7P Gamma restart."""
-    from HamiltonIO.gpaw import GpawPWParser
-    from unfolding.pw_unfolder import PWUnfolder
-
-    data = GpawPWParser(DATA / "si7p_pw.gpw").read()
-    eigen = _eigendata(data)
-    FOLDS = np.array([[0, 0, 0], [0, .5, .5], [.5, 0, .5], [.5, .5, 0]])
-    result = PWUnfolder(eigen, B).compute(FOLDS)
-    fig, ax = plt.subplots(figsize=(6.5, 4.5))
-    for i, (energies, weights) in enumerate(zip(result.eigenvalues, result.weights)):
-        ax.scatter(np.full(len(energies), i), energies - data.efermi,
-                   s=140 * weights, c="navy", alpha=np.clip(weights, 0.03, 1.0))
-    ax.set_xticks(range(4), ["Γ", "(0,½,½)", "(½,0,½)", "(½,½,0)"])
-    ax.set_xlim(-.5, 3.5)
-    ax.set_ylabel("Energy relative to Fermi level (eV)")
-    ax.set_title("GPAW plane-wave Si:P: four primitive folds of supercell Gamma")
-    ax.legend(handles=[Line2D([0], [0], marker="o", linestyle="none",
-                              markerfacecolor="navy", markeredgecolor="none",
-                              alpha=0.8, markersize=9,
-                              label="unfolded spectral weight")],
-              loc="upper right", fontsize=8, framealpha=0.85)
-    fig.tight_layout()
-    out = HERE / "gpaw_si_p_pw_unfolded.png"
-    fig.savefig(out, dpi=160)
-    plt.close(fig)
-    print("maximum four-fold sum-rule error:",
-          np.max(np.abs(result.weights.sum(axis=0) - 1)))
-    print("donor-window fold weights:", result.weights[:, 16])
-    print("wrote", out)
-    return out
-
-
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--pristine", action="store_true", help="only the path figure")
-    ap.add_argument("--doped", action="store_true", help="only the folds figure")
-    args = ap.parse_args()
-    if args.pristine:
-        pristine()
-    elif args.doped:
-        doped()
-    else:
-        doped()
-        pristine()
+    pristine()

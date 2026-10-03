@@ -31,11 +31,6 @@ def test_fig_abinit_si8():
     _run("fig_abinit_si8.py", "abinit_si8.png")
 
 
-def test_fig_abinit_si7p():
-    pytest.importorskip("netCDF4")
-    _run("fig_abinit_si7p.py", "abinit_si7p.png")
-
-
 def test_fig_abinit_nio():
     pytest.importorskip("netCDF4")
     _run("fig_abinit_nio.py", "abinit_nio.png")

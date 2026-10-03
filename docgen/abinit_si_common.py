@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Shared helpers for the ABINIT Si/Si7P unfolded-band docgen figures.
+"""Shared helpers for ABINIT pristine-Si and NiO docgen figures.
 
 The band path is identical to the SIESTA Si example: fcc special points
 ``GXWGLWX`` (Setyawan-Curtarolo values in the primitive reciprocal basis),

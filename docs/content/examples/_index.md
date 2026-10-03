@@ -49,7 +49,7 @@ bundled (large GPAW restarts and VASP's licensed POTCAR/WAVECAR).
 
 {{< gallery >}}
 
-{{< card title="ABINIT WFK Si and Si:P" link="/examples/abinit-wfk/" src="/images/si8_abinit_unfolded.png" text="Planewave unfolding straight from an ETSF netCDF WFK; pristine Si validated against the primitive cell." >}}
+{{< card title="ABINIT WFK Si" link="/examples/abinit-wfk/" src="/images/si8_abinit_unfolded.png" text="Planewave unfolding straight from an ETSF netCDF WFK; pristine Si validated against the primitive cell." >}}
 
 {{< card title="ABINIT WFK AFM NiO" link="/examples/abinit-nio/" src="/images/nio_afm_unfolded.png" text="Type-II antiferromagnet unfolded per spin channel onto the 2-atom primitive cell." >}}
 
@@ -57,7 +57,7 @@ bundled (large GPAW restarts and VASP's licensed POTCAR/WAVECAR).
 
 {{< card title="VASP PAW bcc Fe" link="/examples/vasp-paw/" src="/images/vasp_fe_path.png" text="Licensed WAVECAR/POTCAR, 16-fold supercell along the dense primitive path." >}}
 
-{{< card title="GPAW plane-wave Si and Si:P" link="/examples/gpaw-si-pw/" src="/images/gpaw_si_pw_unfolded.png" text="Unfold GPAW pseudo plane-wave coefficients, without PAW augmentation." >}}
+{{< card title="GPAW plane-wave Si" link="/examples/gpaw-si-pw/" src="/images/gpaw_si_pw_unfolded.png" text="Unfold GPAW pseudo plane-wave coefficients on the densely sampled pristine Si path." >}}
 
 {{< /gallery >}}
 

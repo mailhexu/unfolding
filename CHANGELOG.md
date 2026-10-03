@@ -64,15 +64,14 @@
   `wannier-sto.tar.gz` now carries the real inputs (~7 MB compressed,
   packed via the new `examples/wannier-sto/bundle.manifest`), and
   `docgen/fig_wannier_sto.py` regenerates both figures.
-- ABINIT WFK example: document the Si:P path-coverage analysis. The
-  committed Si:P WFK fixtures store only the four path corners
-  (supercell momenta (0,0,0), (0,1,0), (0.5,1,0), (0.5,0.5,0.5)), so of
-  the 305 requested path folds only the 7 corner ticks have a stored
-  match and the published Si:P map is the corner-fallback render. The
-  example page now carries the stored-vs-requested coverage table,
-  embeds the bundle's `unfold.toml` verbatim, and links the shared
-  method/parameters/k-path guide instead of repeating shared-option
-  explanations.
+- Suppress the ABINIT WFK Si:P corner-fallback map: its four stored
+  supercell momenta match only 7 of 305 path folds. The reproducer checks
+  actual reciprocal-periodic coverage before rendering Si:P. The GPAW PW
+  Si:P Γ-only figure and restart are removed; its public bundle includes
+  a focused generator for the pristine 305-point restart. Legacy ABINIT
+  corner-map and GPAW Γ-only image generators are removed. Both PW pages and
+  bundles present pristine Si only; GPAW LCAO and ABINIT PAW doped examples
+  retain their adequately sampled paths.
 
 ## 0.2.0 (2026-09-20)
 

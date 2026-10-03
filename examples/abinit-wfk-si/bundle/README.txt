@@ -1,8 +1,8 @@
 ====================================================================
-ABINIT WFK unfolding bundle: pristine Si and Si:P (8-atom conventional cell)
+ABINIT WFK unfolding bundle: pristine Si (8-atom conventional cell)
 ====================================================================
 
-Companion bundle of the "ABINIT WFK Si and Si:P" example
+Companion bundle of the "ABINIT WFK Si" example
 (https://mailhexu.github.io/unfolding/examples/abinit-wfk/). Unfolds
 ABINIT supercell wavefunction files (WFK, netCDF) onto the primitive fcc
 band path Gamma-X-W-Gamma-L-W-X. The planewave basis is orthonormal, so
@@ -22,7 +22,6 @@ Two figures are produced:
                             when the primitive reference WFK is present;
                             after a single constant potential-reference
                             shift the two agree to ~0.07 eV
-  si7p_abinit_unfolded.png  Si:P spectral-weight map on the same path
 
 Physics to check: pristine Si shows the LDA gap of ~0.4-0.5 eV with the
 Fermi level mid-gap (indirect Gamma-X gap). If your plot shows a metal
@@ -53,7 +52,7 @@ BUNDLE LAYOUT
   data/        WFK output directory; no binary WFK ships with this
                bundle (each dense path WFK is hundreds of MB) -- run the
                ABINIT commands printed by reproduce.py first
-  reproduce.py renders both figures; run from this directory
+  reproduce.py renders the pristine Si path figure; run from this directory
 
 PREREQUISITES
   - Python >= 3.9 with numpy and matplotlib
@@ -106,13 +105,14 @@ HOW TO RUN
 
      or the reproduction script:
 
-       python reproduce.py                   # writes both published PNGs
+       python reproduce.py                   # writes the pristine Si PNG
 
-     reproduce.py automatically uses the dense WFKs when present and
-     falls back to the corner WFKs (coarse maps on the same path axis).
+     Si:P output is generated only when its dense 305-point WFK is present.
+     The corner-only Si:P WFK is not plotted: it covers only 7 of 305
+     requested path folds.
 
 EXPECTED OUTPUT
-  With the dense WFKs: the published 305-point maps (plus the crimson
+  The pristine Si 305-point map (plus the crimson
   primitive overlay when si_prim_patho_DS2_WFK.nc is present).
   Energies are relative to the WFK Fermi level (eV).
 
