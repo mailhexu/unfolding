@@ -3,16 +3,7 @@
 
 ## Unreleased
 
-### Added
-- KCuF3-inspired four-Cu type-A Heisenberg magnon example using TB2J,
-  unfolded onto the pseudo-cubic neutron frame. Ships a SymPy chain
-  oracle, an illustrative orbital-flavor exchange variant, and a
-  weight-coded figure; this is a model, not a first-principles spectrum.
-
 ### Fixed
-- Magnon site bookkeeping snaps floating-point round-trip dust at
-  integer primitive coordinates before coset grouping; centered-cell
-  examples no longer split one magnetic sublattice into phantom sites.
 - Unfolded-band JSON/plotting review fixes: `Dataset` now validates the
   (nk,3) coordinate arrays, rejects non-finite values except NaN weights,
   and preserves route/unit/Fermi/provenance metadata when re-saved.

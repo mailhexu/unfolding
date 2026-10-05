@@ -7,6 +7,7 @@ import subprocess
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONTENT = os.path.join(ROOT, "docs", "content")
+STATIC_IMG = os.path.join(ROOT, "docs", "static", "images")
 
 
 def test_all_figure_references_resolve():
@@ -28,6 +29,24 @@ def test_content_pages_have_frontmatter():
         if fn.endswith(".md"):
             first = open(os.path.join(CONTENT, fn)).readline().strip()
             assert first == "---", f"{fn} missing Hugo frontmatter"
+
+
+def test_example_pages_embed_config_and_guide_link():
+    """Story-041 FR-001..003: every example page embeds its bundle
+    configuration in a fenced ```toml block and links the shared
+    [method, parameters, and k-path] guide."""
+    examples = os.path.join(CONTENT, "examples")
+    pages = sorted(
+        fn for fn in os.listdir(examples)
+        if fn.endswith(".md") and fn != "_index.md"
+    )
+    assert len(pages) == 16, pages
+    for fn in pages:
+        text = open(os.path.join(examples, fn)).read()
+        assert "```toml" in text, f"{fn}: no ```toml configuration block"
+        assert "/guide/method-parameters-kpaths/" in text, (
+            f"{fn}: missing method-parameters-kpaths guide link"
+        )
 
 
 def test_hugo_build():
