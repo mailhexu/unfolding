@@ -23,6 +23,8 @@ bundled (large GPAW restarts and VASP's licensed POTCAR/WAVECAR).
 
 {{< card title="TB2J magnons SrMnO3" link="/examples/tb2j-magnon-srmmo3/" src="/images/srmmo3_magnon_unfolded.png" text="Downfold TB2J magnon bands from the G-AFM cell onto the pseudo-cubic primitive cell." >}}
 
+{{< card title="KCuF3 model magnons" link="/examples/tb2j-kcuf3-model/" src="/images/tb2j_kcuf3_model_unfolded.png" text="Model-only type-A magnons: unfold a four-Cu cell to the pseudo-cubic neutron frame; illustrative orbital-flavor exchange mixing." >}}
+
 {{< /gallery >}}
 
 ## Electrons — LCAO

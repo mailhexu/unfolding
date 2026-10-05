@@ -14,7 +14,7 @@ from derivations.magnon_weight import (
     heisenberg_chain_bdg,
     positive_modes,
 )
-from unfolding import MagnonEigenData, MagnonUnfolder, MagnonWeights
+from unfolding import MagnonEigenData, MagnonUnfolder
 
 DATA = Path(__file__).parent / "data" / "magnon_synth" / "magnon_synth_fixture.npz"
 M = np.array([[3, 0, 0], [0, 1, 0], [0, 0, 1]])
@@ -37,10 +37,6 @@ def test_pristine_weights_binary_and_sum_rule():
     for Kx in (0.0, 0.12, 0.3, 0.5, 0.77):
         K = np.array([Kx, 0.0, 0.0])
         unf = MagnonUnfolder(_eigendata(np.ones(NMAG), K), M)
-        folds = MagnonUnfolder.fold_kpoints(M)
-        qfolds = np.mod(
-            np.linalg.solve(M.T.astype(float), (K + np.eye(3)[0] * 0).T).T, 1.0
-        )
         # request exactly the folds of this K: q = M^-T (K + n)
         labels = np.array([[j, 0, 0] for j in range(3)])
         qfolds = np.mod(
@@ -126,6 +122,36 @@ def test_positions_must_form_a_supercell_of_the_primitive_basis():
     )
     with pytest.raises(ValueError, match="supercell of the"):
         MagnonUnfolder(bad, M)
+
+
+@pytest.mark.parametrize("z,accepted", [
+    (np.nextafter(0.5, 0.0), True),
+    (0.5 - 2e-7, True),
+    (0.5 + 4e-7, True),
+    (0.5 + 1e-6, False),
+])
+def test_coset_boundary_site_tolerance_groups_only_equivalent_images(z, accepted):
+    # Both sides of an integer within site tolerance are the same coset;
+    # a displacement beyond it must remain a distinct primitive site.
+    mat = np.array([[1, -1, 0], [1, 1, 0], [0, 0, 2]])
+    positions = np.array([
+        [0.0, 0.0, 0.0], [0.5, 0.5, 0.0],
+        [0.0, 0.0, z], [0.5, 0.5, z],
+    ])
+    data = MagnonEigenData(
+        kpoints=np.zeros((1, 3)),
+        energies=np.ones((1, 4)),
+        wavefunctions=np.eye(8, dtype=complex)[None, :4],
+        positions=positions,
+    )
+    if not accepted:
+        with pytest.raises(ValueError, match="supercell of the"):
+            MagnonUnfolder(data, mat)
+        return
+    unf = MagnonUnfolder(data, mat)
+    assert unf.nsublattice == 1
+    weights = unf.compute(MagnonUnfolder.fold_kpoints(mat)).weights
+    np.testing.assert_allclose(weights.sum(axis=0), 1.0, atol=1e-12)
 
 
 def test_resolve_degenerate_rejects_negative_tolerance():

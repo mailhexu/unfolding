@@ -6,7 +6,7 @@ amplitude convention and computes unfolding weights with the
 reciprocal-coset Euclidean projector derived and sealed in
 ``derivations/magnon_weight.py``:
 
-    tau_prim = tau_sc @ M.T          (per magnetic atom)
+    tau_prim = tau_sc @ M            (per magnetic atom, row convention)
     m = tau_prim mod 1               (primitive sublattice)
     n = tau_prim - m in Z^3/M^T Z^3  (coset label)
     W_q(nu) = sum_{s in {u,v}} sum_m |sum_{a in m} chi_q(n_a) psi^s_a|^2 / N
@@ -165,15 +165,19 @@ class MagnonUnfolder:
     def _analyze_sites(self):
         """Per magnetic atom: primitive sublattice and coset label."""
         M = self.unfold_sc_mat.astype(float)
-        # row convention A_sc = M @ A_prim gives tau_prim = tau_sc @ M
-        # (positions transform with M, momenta with M.T)
+        # row convention A_sc = M @ A_prim gives tau_prim = tau_sc @ M.
+        # Cartesian/fractional round trips can place an exact coset image
+        # just below or above an integer. Snap both mod-1 sides at the
+        # existing site tolerance; otherwise six-digit keys invent a
+        # primitive sublattice at 1.0 or 0.000001 instead of 0.
         tau_prim_raw = self.eigendata.positions @ M
         tau_prim = np.mod(tau_prim_raw, 1.0)
+        tau_prim[(tau_prim <= 1e-6) | (1.0 - tau_prim <= 1e-6)] = 0.0
         n_vec = tau_prim_raw - tau_prim
         if np.max(np.abs(n_vec - np.round(n_vec))) > 1e-6:
             raise ValueError(
                 "magnetic-atom positions are not commensurate with "
-                "unfold_sc_mat (tau_prim = tau_sc @ M.T must decompose "
+                "unfold_sc_mat (tau_prim = tau_sc @ M must decompose "
                 "into sublattice + integer cell)"
             )
         keys = [tuple(np.round(t, 6)) for t in tau_prim]
