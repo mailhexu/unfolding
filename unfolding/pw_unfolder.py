@@ -233,6 +233,23 @@ class PWUnfolder:
         self.eigendata = eigendata
         self.unfold_sc_mat = matrix
         self.tol_k = float(tol_k)
+        # Row convention A_sc = M @ A_prim gives primitive reciprocal
+        # coordinates w = (K + n) @ M^-T (solve M @ w_col = f_col);
+        # M^-T is k-independent, and the fractional wavevectors depend
+        # only on the stored k-point index, so cache them per ik.
+        self._inv_transpose = np.linalg.inv(matrix.T)
+        self._wave_mod1_cache: dict[int, np.ndarray] = {}
+
+    def _wave_mod1(self, ik: int) -> np.ndarray:
+        """frac((K + gvec) @ M^-T) for stored k-point ``ik`` (cached)."""
+        cached = self._wave_mod1_cache.get(ik)
+        if cached is None:
+            K = self.eigendata.kpoints[ik]
+            wavevectors = (K + self.eigendata.gvecs[ik]) @ self._inv_transpose
+            cached = np.mod(wavevectors, 1.0)
+            cached.setflags(write=False)
+            self._wave_mod1_cache[ik] = cached
+        return cached
 
     @staticmethod
     def fold_kpoints(unfold_sc_mat) -> np.ndarray:
@@ -323,17 +340,12 @@ class PWUnfolder:
         weights = np.empty_like(eig)
         sc_kpoints = np.empty_like(kpoints)
         folds = np.mod(kpoints, 1.0)
-        inv_transpose = np.linalg.inv(self.unfold_sc_mat.T)
 
         for i, (kpoint, fold) in enumerate(zip(kpoints, folds)):
             ik = self._stored_kpoint(kpoint)
             K = self.eigendata.kpoints[ik]
-            gvec = self.eigendata.gvecs[ik]
             coeff = self.eigendata.coefficients[ik][spin]
-            # Row convention A_sc = M @ A_prim gives primitive reciprocal
-            # coordinates w = (K + n) @ M^-T (solve M @ w_col = f_col).
-            wavevectors = (K + gvec) @ inv_transpose
-            delta = self._periodic_delta(np.mod(wavevectors, 1.0), fold)
+            delta = self._periodic_delta(self._wave_mod1(ik), fold)
             sector = np.linalg.norm(delta, axis=1) <= self.tol_k
             eig[i] = self.eigendata.eigenvalues[ik][spin]
             projected = coeff[:, :, sector].reshape(coeff.shape[0], -1)

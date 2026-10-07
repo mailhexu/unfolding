@@ -57,20 +57,24 @@ class phonon_unfolder:
         sc = make_supercell(a1, self._scmat)
         rs = sc.get_scaled_positions()
         positions = np.array(self._atoms.get_scaled_positions())
-        indices = np.zeros([len(rs), len(positions) * self._ndim], dtype='int32')
+        nat = len(positions)
+        ndim = self._ndim
+        indices = np.zeros([len(rs), nat * ndim], dtype='int32')
+        atom_ids = np.arange(nat)
         for i, ri in enumerate(rs):
-            inds = []
-            Tpositions = positions + np.array(ri)
-            close_to_int = lambda x: np.all(np.abs(x - np.round(x)) < self._tol_r)
-            for i_atom, pos in enumerate(positions):
-                for j_atom, Tpos in enumerate(Tpositions):
-                    dpos = Tpos - pos
-                    if close_to_int(dpos):
-                        indices[i, j_atom * self._ndim:j_atom * self._ndim + self._ndim] = np.arange(i_atom * self._ndim, i_atom * self._ndim + self._ndim)
+            # target j_atom: (positions[j] + r_i) - positions[i] integer
+            dpos = (positions + np.asarray(ri))[None, :, :] - positions[:, None, :]
+            mask = np.all(np.abs(dpos - np.round(dpos)) < self._tol_r, axis=-1)
+            # last matching i_atom per j_atom (loop-overwrite semantics);
+            # unmatched columns keep the initialized zeros
+            last = np.where(mask, atom_ids[:, None], -1).max(axis=0)
+            match = np.repeat(mask.any(axis=0), ndim)
+            row = np.repeat(np.where(mask.any(axis=0), last, 0) * ndim, ndim) \
+                + np.tile(np.arange(ndim), nat)
+            indices[i] = np.where(match, row, 0)
 
         self._trans_rs = rs
         self._trans_indices = indices
-        #print indices
 
     def get_weight(self, evec, qpt, G=None):
         """
@@ -79,34 +83,41 @@ class phonon_unfolder:
         """
         if G is None:
             G = np.zeros(len(qpt))
-        weight = 0j
+        evec = np.asarray(evec)
         N = len(self._trans_rs)
-        for r_i, ind in zip(self._trans_rs, self._trans_indices):
-            if self._phase:
-                #weight += np.vdot(evec, evec[ind]*np.exp(-1j * np.dot(qpt+G,r_i)) ) /N
-                #r_i =np.dot(self._scmat,r_i)
-                weight += np.vdot(evec, evec[ind]*np.exp(-1j *2 * np.pi * np.dot(qpt+G,r_i)))  /N
-            else:
-                weight += np.vdot(evec, evec[ind] / N*np.exp(-1j *2 * np.pi * np.dot(G,r_i)))  
-
-        #print("weight=", weight)
-        weight=weight.real
-        if weight<0.0:
-            weight=0.0
-        elif weight>1.0:
-            weight=1.0
-        #weight= (weight*(1.0-weight))**1.2
+        G = np.asarray(G, dtype=float)
+        if self._phase:
+            ph = np.exp(-1j * 2 * np.pi * (self._trans_rs @ (np.asarray(qpt, dtype=float) + G))) / N
+        else:
+            ph = np.exp(-1j * 2 * np.pi * (self._trans_rs @ G)) / N
+        E2 = evec[self._trans_indices]                       # (N, ndof)
+        weight = ((E2 @ np.conj(evec)) @ ph).real
+        if weight < 0.0:
+            weight = 0.0
+        elif weight > 1.0:
+            weight = 1.0
         return weight
 
     def get_weights(self):
         """
         Get the weight for all the modes.
         """
-        nqpts, nfreqs = self._evecs.shape[0], self._evecs.shape[1]
+        evecs = np.asarray(self._evecs)
+        nqpts, nfreqs = evecs.shape[0], evecs.shape[1]
         weights = np.zeros([nqpts, nfreqs])
+        N = len(self._trans_rs)
         for iqpt in range(nqpts):
-            for ifreq in range(nfreqs):
-                weights[iqpt, ifreq] = self.get_weight(self._evecs[iqpt, :, ifreq], self._qpts[iqpt])
+            qpt = np.asarray(self._qpts[iqpt], dtype=float)
+            E = evecs[iqpt]                                 # (ndof, nfreqs)
+            Ec = np.conj(E)
+            if self._phase:
+                ph = np.exp(-1j * 2 * np.pi * (self._trans_rs @ qpt)) / N
+            else:
+                ph = np.full(N, 1.0 / N)
+            w = np.zeros(nfreqs, dtype=complex)
+            for it, ind in enumerate(self._trans_indices):
+                w += ph[it] * np.sum(Ec * E[ind, :], axis=0)
+            weights[iqpt] = np.clip(w.real, 0.0, 1.0)
 
         self._weights = weights
         return self._weights
@@ -174,10 +185,9 @@ class phonon_unfolder:
             qcarry = qpt if gauge == "fold" else np.zeros_like(qpt)
             ph = np.exp(-2j * np.pi * (R @ (qpt - qcarry)))
             E = evecs[iqpt]
-            A = np.zeros((len(home), E.shape[1]), dtype=complex)
-            for ph_i, ind in zip(ph, self._trans_indices):
-                A += ph_i * E[ind][home, :]
-            A /= np.sqrt(N)
+            # one gather of the home columns for all translations + contraction
+            A = np.tensordot(ph, E[self._trans_indices[:, home], :], axes=1)
+            A = A / np.sqrt(N)
             H = A.conj().T @ A
             weights[iqpt] = _block_weights(H, frequencies[iqpt], degenerate_tol)
         self._weights = weights

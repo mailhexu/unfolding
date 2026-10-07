@@ -190,6 +190,10 @@ class MagnonUnfolder:
                 "primitive magnetic basis: every primitive sublattice "
                 f"must appear det(M) = {nfold} times, got {counts.tolist()}"
             )
+        # Structure constants hoisted out of the per-fold hot path.
+        self._N = nfold
+        self._nmag = self.eigendata.positions.shape[0]
+        self._sublattice_counts = counts
 
     @staticmethod
     def fold_kpoints(unfold_sc_mat) -> np.ndarray:
@@ -232,31 +236,28 @@ class MagnonUnfolder:
             )
         return ik
 
-    def _fold_projected(self, ik: int, fold):
-        """(nmode, 2*nmag) amplitudes projected onto one fold.
+    def _fold_weights(self, ik: int, fold) -> np.ndarray:
+        """(nmode,) weights of stored supercell momentum ik on fold q.
 
-        The fold projector acts per sublattice and per BdG sector as
-        the character average over the coset labels; the projected
-        vectors are the overlap objects whose Gram carries the
-        gauge-invariant group content.
+        The fold projector acts per sublattice and per BdG sector as the
+        character average ``proj = (amps @ chi[sel])[:, None]
+        * chi[sel].conj()[None, :] / N``.  Since |chi| = 1, summing
+        |proj|^2 over the output columns of one (sublattice, sector)
+        block collapses to ``|amps @ chi[sel]|^2 * n_m / N^2``, so the
+        weight is computed directly without materializing the projected
+        (nmode, 2*nmag) array.
         """
-        M = self.unfold_sc_mat.astype(float)
-        N = round(abs(np.linalg.det(M)))
-        nmag = self.eigendata.positions.shape[0]
         wf = self.eigendata.wavefunctions[ik]
         chi = np.exp(-2j * np.pi * self._coset @ np.mod(fold, 1.0))  # (nmag,)
-        out = np.zeros(wf.shape, dtype=complex)
+        nmag, N2 = self._nmag, self._N * self._N
+        total = np.zeros(wf.shape[0])
         for m in range(self.nsublattice):
             sel = self._sublattice == m
+            c = chi[sel]
             for s_block in (slice(0, nmag), slice(nmag, 2 * nmag)):
                 amps = wf[:, s_block][:, sel]  # (nmode, n_m)
-                proj = (amps @ chi[sel])[:, None] * chi[sel].conj()[None, :] / N
-                out[:, s_block][:, sel] = proj
-        return out
-
-    def _fold_weights(self, ik: int, fold) -> np.ndarray:
-        """(nmode,) weights of stored supercell momentum ik on fold q."""
-        return np.sum(np.abs(self._fold_projected(ik, fold)) ** 2, axis=1)
+                total += np.abs(amps @ c) ** 2 * self._sublattice_counts[m]
+        return total / N2
 
     def compute(self, kpoints, resolve_degenerate: Optional[float] = None) -> MagnonWeights:
         """Unfold primitive ``kpoints`` (one may lie in each fold).

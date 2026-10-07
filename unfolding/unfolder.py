@@ -66,22 +66,23 @@ class Unfolder():
         sc = make_supercell(a1, self._scmat)
         rs = sc.get_scaled_positions()
 
-        positions = self._positions
-        indices = np.zeros([len(rs), len(positions)], dtype='int32')
+        positions = np.asarray(self._positions, dtype=float)
+        nb = len(positions)
+        indices = np.zeros([len(rs), nb], dtype='int32')
+        basis = np.asarray(self._basis)
+        same_basis = basis[:, None] == basis[None, :]
+        atom_ids = np.arange(nb)
         for i, ri in enumerate(rs):
-            inds = []
-            Tpositions = positions + np.array(ri)
-            close_to_int = lambda x: np.all(np.abs(x - np.round(x)) < self._tol_r)
-            for i_basis, pos in enumerate(positions):
-                for j_basis, Tpos in enumerate(Tpositions):
-                    dpos = Tpos - pos
-                    if close_to_int(dpos) and (self._basis[i_basis]==self._basis[j_basis]):
-                        #indices[i, j_atom * self._ndim:j_atom * self._ndim + self._ndim] = np.arange(i_atom * self._ndim, i_atom * self._ndim + self._ndim)
-                        indices[i, j_basis] = i_basis
+            # target j_basis: (positions[j] + r_i) - positions[i] integer
+            dpos = (positions + np.asarray(ri))[None, :, :] - positions[:, None, :]
+            mask = (np.all(np.abs(dpos - np.round(dpos)) < self._tol_r, axis=-1)
+                    & same_basis)
+            # last matching i_basis per j_basis (loop-overwrite semantics), 0 if none
+            last = np.where(mask, atom_ids[:, None], -1).max(axis=0)
+            indices[i] = np.where(mask.any(axis=0), last, 0)
 
         self._trans_rs = rs
         self._trans_indices = indices
-        #print(indices)
 
     def get_weight(self, evec, qpt, G=None):
         """
@@ -90,23 +91,28 @@ class Unfolder():
         """
         if G is None:
             G=np.zeros_like(qpt)
-        weight = 0j
+        evec = np.asarray(evec)
         N = len(self._trans_rs)
-        for r_i, ind in zip(self._trans_rs, self._trans_indices):
-            weight += np.vdot(evec, evec[ind])/N *np.exp(1j*2*np.pi*np.dot(G, r_i))
-        #print('w: ', weight)
-        return weight.real
-
+        ph = np.exp(1j * 2 * np.pi * (self._trans_rs @ np.asarray(G, dtype=float))) / N
+        E2 = evec[self._trans_indices]                       # (N, nbasis)
+        weight = ((E2 @ np.conj(evec)) @ ph).real
+        return weight
 
     def get_weights(self):
         """
         Get the weight for all the modes.
         """
-        nqpts, nfreqs = self._evecs.shape[0], self._evecs.shape[1]
+        evecs = np.asarray(self._evecs)
+        nqpts, nfreqs = evecs.shape[0], evecs.shape[1]
         weights = np.zeros([nqpts, nfreqs])
+        N = len(self._trans_rs)
         for iqpt in range(nqpts):
-            for ifreq in range(nfreqs):
-                weights[iqpt, ifreq] = self.get_weight(self._evecs[iqpt, :, ifreq], self._qpts[iqpt])
+            E = evecs[iqpt]                                 # (nbasis, nfreqs)
+            Ec = np.conj(E)
+            w = np.zeros(nfreqs, dtype=complex)
+            for ind in self._trans_indices:
+                w += np.sum(Ec * E[ind, :], axis=0)
+            weights[iqpt] = (w / N).real
 
         self._weights = weights
         return self._weights

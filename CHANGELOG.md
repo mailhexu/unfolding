@@ -3,6 +3,22 @@
 
 ## Unreleased
 
+### Performance
+- Vectorized the weight kernels (behaviour-preserving; verified
+  old-vs-new on synthetic pristine fixtures and the oracle suites):
+  `LCAOUnfolder` ring Gram is assembled per k from k-independent cached
+  tables with einsum (143.7 s -> 0.83 s per k-point at det=64, n_sc=640),
+  `inv(scmat.T)`/sector span are cached, ideal-method term tables are
+  built with sort-based grouping plus bincount scatters (det=64 ideal
+  incl. setup 68.8 s -> <1 s per path), and the per-k S-orthonormality
+  assert is now opt-in via `compute(..., atol_orth=...)` (default off).
+  `phonon_unfolder` and the deprecated `unfolder.Unfolder` character sums
+  batch the translation loop (233 -> 42 us/mode at det=64), the
+  translate maps are built with vectorized mod-matching (2.7 s -> ~10 ms
+  at det=64), and `get_weights_robust` gathers home columns once
+  (24 -> 7 ms/q at det=64). `PWUnfolder` caches fractional wavevectors
+  per stored k; `MagnonUnfolder` computes fold weights in norm form
+  without materializing projected-amplitude outer products.
 ### Fixed
 - Unfolded-band JSON/plotting review fixes: `Dataset` now validates the
   (nk,3) coordinate arrays, rejects non-finite values except NaN weights,

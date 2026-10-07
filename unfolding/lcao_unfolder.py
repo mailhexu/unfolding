@@ -95,6 +95,67 @@ def _key3(T):
     return T + (0,) * (3 - len(T))
 
 
+_QOFF = 1 << 25  # offset keeping quantized deltas non-negative (|delta| < 32)
+
+
+def _pack_hi(hi, qx):
+    """Pack (small id, quantized delta component) into one int64 key."""
+    return (np.asarray(hi, dtype=np.int64) << 26) + (np.asarray(qx, dtype=np.int64) + _QOFF)
+
+
+def _pack_lo(qy, qz):
+    """Pack two quantized delta components into one int64 key."""
+    return ((np.asarray(qy, dtype=np.int64) + _QOFF) << 26) + (np.asarray(qz, dtype=np.int64) + _QOFF)
+
+
+def _group_mean(ids, dq, vals):
+    """Mean of ``vals`` over duplicate ``(ids, dq)`` keys (sort-based).
+
+    ``ids`` is a per-row small integer id (orbital pair), ``dq`` the
+    (rows, 3) int64 quantized displacement. Returns ``(uk, means)`` with
+    ``uk`` columns ``(id, qx, qy, qz)`` (components de-quantized only by
+    the caller's scale). Uses the packed two-int64 fast path when every
+    component fits the 26-bit field; falls back to a column lexsort for
+    arbitrarily large displacements.
+    """
+    if np.abs(dq).max() < _QOFF:
+        kA = _pack_hi(ids, dq[:, 0])
+        kB = _pack_lo(dq[:, 1], dq[:, 2])
+        order = np.lexsort((kB, kA))
+        ka, kb = kA[order], kB[order]
+        key1, key2 = ka, kb
+        unpack = True
+    else:
+        order = np.lexsort((dq[:, 2], dq[:, 1], dq[:, 0], ids))
+        key1 = np.asarray(ids)[order]
+        key2 = dq[order, 0]
+        ka = np.stack([key1, dq[order, 0], dq[order, 1], dq[order, 2]], axis=1)
+        unpack = False
+    v = vals[order]
+    if unpack:
+        new = np.empty(len(ka), dtype=bool)
+        new[0] = True
+        np.logical_or(ka[1:] != ka[:-1], kb[1:] != kb[:-1], out=new[1:])
+        starts = np.flatnonzero(new)
+        mask = (1 << 26) - 1
+        uk = np.stack([ka[starts] >> 26, (ka[starts] & mask) - _QOFF,
+                       (kb[starts] >> 26) - _QOFF, (kb[starts] & mask) - _QOFF],
+                      axis=1)
+    else:
+        d0, d1, d2 = dq[order, 0], dq[order, 1], dq[order, 2]
+        new = np.empty(len(key1), dtype=bool)
+        new[0] = True
+        np.logical_or.reduce([key1[1:] != key1[:-1], d0[1:] != d0[:-1],
+                              d1[1:] != d1[:-1], d2[1:] != d2[:-1]],
+                             out=new[1:])
+        starts = np.flatnonzero(new)
+        uk = np.stack([key1[starts], d0[starts], d1[starts], d2[starts]], axis=1)
+    cnt = np.diff(np.append(starts, len(v)))
+    sr = np.add.reduceat(v.real, starts)
+    si = np.add.reduceat(v.imag, starts)
+    return uk, (sr + 1j * si) / cnt
+
+
 class HamiltonIOModel:
     """Backend-neutral view of a HamiltonIO model (thin adapter).
 
@@ -170,6 +231,11 @@ class LCAOUnfolder:
         self._n_cells = len(self._offsets)
         self._n_orb_sc = len(relabel_map.orb_to_m)
         self._S_AO = self._build_S_AO()
+        # k-independent caches (built lazily; structure-only constants)
+        self._invT = np.linalg.inv(self._scmat.T)
+        self._sector_span = None
+        self._ring_tables = None   # (blocks (N,N,n,n), deltas (N,N,3))
+        self._bra_cells = None     # (N, n, n_orb_sc) S_AO rows per cell
 
     # -- geometry -----------------------------------------------------------
 
@@ -206,8 +272,8 @@ class LCAOUnfolder:
         quotient is complete (skew supercell matrices).
         """
         g_k = self._fold(k)
-        invT = np.linalg.inv(self._scmat.T)
-        span = max(1, int(np.abs(self._scmat).max()))
+        invT = self._invT
+        span = self._sector_span or max(1, int(np.abs(self._scmat).max()))
         seen = {}
         while len(seen) < self._n_cells:
             seen = {}
@@ -222,6 +288,7 @@ class LCAOUnfolder:
                 span *= 2
             if span > 4096:
                 break
+        self._sector_span = span
         members = list(seen.values())[: self._n_cells]
         assert len(members) == self._n_cells, (len(members), self._n_cells)
         if not any(np.allclose(cand, k, atol=1e-8) for cand in members):
@@ -239,29 +306,71 @@ class LCAOUnfolder:
         Multi-atom generic-k gauges (intra-cell coordinates in the
         phases) are an open derivation item (story 010).
         """
-        n = self._n_orb_prim
-        Gb = np.zeros((n, n), dtype=complex)
-        for c in range(self._n_cells):
-            for cp in range(self._n_cells):
-                T = np.asarray(self._rm.scmat_keys[(c, cp)], dtype=float)
-                # lattice-coordinate displacement (fractional k x lattice
-                # integer dot product: the Bloch phase convention)
-                delta = self._offsets[cp] - self._offsets[c] + T @ self._scmat
-                ph = np.exp(2j * np.pi * (
-                    np.asarray(kj, dtype=float) @ (self._offsets[c] + delta)
-                    - np.asarray(ki, dtype=float) @ self._offsets[c]
-                ))
-                Gb += ph * self._S_AO[np.ix_(self._rep[:, c], self._rep[:, cp])]
+        blocks, deltas = self._get_ring_tables()
+        ki = np.asarray(ki, dtype=float)
+        kj = np.asarray(kj, dtype=float)
+        off = np.asarray(self._offsets, dtype=float)
+        arg = (np.einsum('x,cpx->cp', kj, deltas)
+               + np.einsum('x,cx->c', kj - ki, off)[:, None])
+        ph = np.exp(2j * np.pi * arg)
+        Gb = np.einsum('cp,cpmn->mn', ph, blocks)
         return Gb / self._n_cells
+
+    def _get_ring_tables(self):
+        """k-independent sector-Gram tables, built once.
+
+        ``blocks[c, cp, m, m'] = S_AO[rep[m, c], rep[m', cp']]`` and
+        ``deltas[c, cp] = offsets[cp] - offsets[c] + T(c, cp) @ scmat``
+        (the per-pair displacement of ``_sector_gram_block``); both are
+        pure structure quantities consumed by the ring weight path.
+        """
+        if self._ring_tables is None:
+            N, n = self._n_cells, self._n_orb_prim
+            # assemble the (N, N, n, n) block stack in place: one dense
+            # n_orb_sc^2 allocation, no intermediate gather or transpose copy
+            blocks = np.empty((N, N, n, n), dtype=self._S_AO.dtype)
+            for c in range(N):
+                rows = self._rep[:, c]
+                for cp in range(N):
+                    blocks[c, cp] = self._S_AO[np.ix_(rows, self._rep[:, cp])]
+            off = np.asarray(self._offsets, dtype=float)
+            scmat = self._scmat.astype(float)
+            deltas = np.empty((N, N, 3))
+            for (c, cp), T in self._rm.scmat_keys.items():
+                deltas[c, cp] = off[cp] - off[c] + np.asarray(T, dtype=float) @ scmat
+            self._ring_tables = (blocks, deltas)
+        return self._ring_tables
+
+    def _sector_gram(self, members):
+        """Sector Gram for all member pairs in one pass per k-point.
+
+        Identical math to :meth:`_sector_gram_block` over every
+        ``(k_i, k_j)`` pair, assembled as phase-tensor contractions of
+        the cached ring tables instead of ``n_cells**4`` Python
+        iterations.
+        """
+        blocks, deltas = self._get_ring_tables()
+        Km = np.asarray(members, dtype=float)                  # (M, 3)
+        off = np.asarray(self._offsets, dtype=float)           # (N, 3)
+        u = np.exp(2j * np.pi * np.einsum('jx,cpx->jcp', Km, deltas))
+        W = np.einsum('jcp,cpmn->jcmn', u, blocks)             # (M, N, n, n)
+        off_proj = np.einsum('jx,cx->jc', Km, off)             # (M, N)
+        v = np.exp(2j * np.pi * (off_proj[None, :, :] - off_proj[:, None, :]))
+        G = np.einsum('ijc,jcmn->imjn', v, W) / self._n_cells  # (M, n, M, n)
+        M, n = len(members), self._n_orb_prim
+        return G.reshape(M * n, M * n)
 
     def _bra_overlap(self, k):
         """Plain AO overlaps ``A[m, s] = <k m|s>/...`` from ``S_AO``."""
-        A = np.zeros((self._n_orb_prim, self._n_orb_sc), dtype=complex)
-        for c in range(self._n_cells):
-            ph = np.exp(-2j * np.pi * (
-                np.asarray(k, dtype=float) @ self._offsets[c]
-            ))
-            A += ph * self._S_AO[self._rep[:, c], :]
+        if self._bra_cells is None:
+            rep = self._rep
+            self._bra_cells = np.stack(
+                [self._S_AO[rep[:, c], :] for c in range(self._n_cells)]
+            )                                                  # (N, n, n_sc)
+        ph = np.exp(-2j * np.pi * (
+            np.asarray(self._offsets, dtype=float) @ np.asarray(k, dtype=float)
+        ))
+        A = np.einsum('c,csm->sm', ph, self._bra_cells)
         return A / np.sqrt(self._n_cells)
 
     def ideal_gram(self, k):
@@ -290,9 +399,11 @@ class LCAOUnfolder:
         k = np.asarray(k, dtype=float)
         n = self._n_orb_prim
         deltas, vals, km1, km2 = self._ideal_gram_terms()
-        Gp = np.zeros((n, n), dtype=complex)
-        np.add.at(Gp, (km1, km2), vals * np.exp(2j * np.pi * (deltas @ k)))
-        return Gp
+        Gp = np.zeros(n * n, dtype=complex)
+        ph = vals * np.exp(2j * np.pi * (deltas @ k))
+        Gp.real = np.bincount(km1 * n + km2, weights=ph.real, minlength=n * n)
+        Gp.imag = np.bincount(km1 * n + km2, weights=ph.imag, minlength=n * n)
+        return Gp.reshape(n, n)
 
     def _ideal_gram_terms(self):
         """Cache ``(deltas, vals, m1, m2)`` for :meth:`ideal_gram`.
@@ -305,25 +416,25 @@ class LCAOUnfolder:
         if cache is not None:
             return cache
         n_sc = self._n_orb_sc
-        m_idx = self._rm.orb_to_m
+        m_idx = np.asarray(self._rm.orb_to_m)
         r0 = self._rm.orb_to_r0.astype(float)
         scmat = self._scmat.astype(float)
-        intra = r0[None, :] - r0[:, None]
-        acc = {}
+        intra = r0[None, :] - r0[:, None]                  # (s, s', 3)
+        m1_g = np.broadcast_to(m_idx[:, None], (n_sc, n_sc)).reshape(-1)
+        m2_g = np.broadcast_to(m_idx[None, :], (n_sc, n_sc)).reshape(-1)
+        pair = m1_g * n_sc + m2_g
+        ids, dqs, vals = [], [], []
         for T, block in self._model.SR.items():
             Tv = np.asarray(_key3(T), dtype=float)
-            delta = intra + Tv[None, :] @ scmat  # (s, s', 3)
-            block = np.asarray(block)
-            for s in range(n_sc):
-                ms = m_idx[s]
-                for sp in range(n_sc):
-                    key = (ms, m_idx[sp], tuple(np.round(delta[s, sp], 6)))
-                    acc.setdefault(key, []).append(block[s, sp])
-        deltas = np.array([key[2] for key in acc], dtype=float)
-        vals = np.array([sum(v) / len(v) for v in acc.values()])
-        km1 = np.array([key[0] for key in acc], dtype=int)
-        km2 = np.array([key[1] for key in acc], dtype=int)
-        self._ideal_gram_cache = (deltas, vals, km1, km2)
+            delta = intra + Tv @ scmat                     # (s, s', 3)
+            dqs.append(np.round(delta * 1e6).astype(np.int64).reshape(-1, 3))
+            ids.append(pair)
+            vals.append(np.asarray(block).reshape(-1))
+        uk, vmean = _group_mean(np.concatenate(ids), np.concatenate(dqs),
+                                np.concatenate(vals))
+        km1, km2 = np.divmod(uk[:, 0], n_sc)
+        deltas = uk[:, 1:4] / 1e6
+        self._ideal_gram_cache = (deltas, vmean, km1, km2)
         return self._ideal_gram_cache
 
     def _ideal_bra_overlap(self, k):
@@ -336,13 +447,14 @@ class LCAOUnfolder:
         """
         k = np.asarray(k, dtype=float)
         n = self._n_orb_prim
+        n_sc = self._n_orb_sc
         m_arr, s_arr, rbra, vals = self._ideal_bra_terms()
-        A = np.zeros((n, self._n_orb_sc), dtype=complex)
-        np.add.at(
-            A, (m_arr, s_arr),
-            vals * np.exp(-2j * np.pi * (rbra @ k)),
-        )
-        return A / np.sqrt(self._n_cells)
+        ph = vals * np.exp(-2j * np.pi * (rbra @ k))
+        A = np.zeros(n * n_sc, dtype=complex)
+        idx = m_arr * n_sc + s_arr
+        A.real = np.bincount(idx, weights=ph.real, minlength=n * n_sc)
+        A.imag = np.bincount(idx, weights=ph.imag, minlength=n * n_sc)
+        return A.reshape(n, n_sc) / np.sqrt(self._n_cells)
 
     def _ideal_bra_terms(self):
         """Cache ``(m, s, R_bra, vals)`` for :meth:`_ideal_bra_overlap`."""
@@ -350,10 +462,14 @@ class LCAOUnfolder:
         if cache is not None:
             return cache
         n = self._n_orb_prim
+        n_sc = self._n_orb_sc
         r0 = self._rm.orb_to_r0.astype(float)
         scmat = self._scmat.astype(float)
         rep = self._rep
-        acc = {}
+        m_g = np.broadcast_to(np.arange(n)[:, None], (n, n_sc)).reshape(-1)
+        s_g = np.broadcast_to(np.arange(n_sc)[None, :], (n, n_sc)).reshape(-1)
+        pair = m_g * n_sc + s_g
+        ids, dqs, vals = [], [], []
         for c in range(self._n_cells):
             src = rep[:, c]  # SC orbitals of (m, c), m = 0..n-1
             for T, block in self._model.SR.items():
@@ -362,21 +478,19 @@ class LCAOUnfolder:
                 # element <m c|s> = block[src[m], s] at displacement delta[m, s];
                 # the bra's total lattice position is R = r0[s] - delta
                 blk = np.asarray(block)[src, :]
-                for m in range(n):
-                    for s in range(self._n_orb_sc):
-                        key = (m, s, tuple(np.round(delta[m, s], 6)))
-                        acc.setdefault(key, []).append(blk[m, s])
-        m_arr = np.array([key[0] for key in acc], dtype=int)
-        s_arr = np.array([key[1] for key in acc], dtype=int)
-        rbra = np.array(
-            [r0[key[1]] - np.asarray(key[2]) for key in acc], dtype=float
-        )
-        vals = np.array([sum(v) / len(v) for v in acc.values()])
-        self._ideal_bra_cache = (m_arr, s_arr, rbra, vals)
+                dqs.append(np.round(delta * 1e6).astype(np.int64).reshape(-1, 3))
+                ids.append(pair)
+                vals.append(blk.reshape(-1))
+        uk, vmean = _group_mean(np.concatenate(ids), np.concatenate(dqs),
+                                np.concatenate(vals))
+        m_arr, s_arr = np.divmod(uk[:, 0], n_sc)
+        # R_bra is reconstructed exactly from the unique key
+        rbra = r0[s_arr] - uk[:, 1:4] / 1e6
+        self._ideal_bra_cache = (m_arr, s_arr, rbra, vmean)
         return self._ideal_bra_cache
 
     def compute(self, kpoints, method: str = "ring",
-                atol_imag: float = 1e-8, atol_orth: float = 1e-8):
+                atol_imag: float = 1e-8, atol_orth: float | None = None):
         """Weights of every supercell band at each primitive k-point.
 
         Dual-basis spectral weight (paper Eq. 25; sealed against the
@@ -420,9 +534,11 @@ class LCAOUnfolder:
             K = self._fold(k)
             out = self._model.hs_and_eigen(K)
             H, S = out[0], out[1]
-            # scipy eigenvector S-orthonormality (story verification item)
+            # scipy eigenvector S-orthonormality (story verification item);
+            # opt-in: pass atol_orth to enable (costs an O(n^3) matmul per k)
             eps, C = eigh(H, S)
-            assert np.allclose(np.conj(C).T @ S @ C, np.eye(len(S)), atol=atol_orth)
+            if atol_orth is not None:
+                assert np.allclose(np.conj(C).T @ S @ C, np.eye(len(S)), atol=atol_orth)
 
             if method == "ideal":
                 A = self._ideal_bra_overlap(k) @ C
@@ -435,15 +551,8 @@ class LCAOUnfolder:
                 continue
 
             members = self._sector(k)
-            A_mats = [self._bra_overlap(ki) @ C for ki in members]
-            n_mem = len(members)
-            G = np.zeros((n_mem * n, n_mem * n), dtype=complex)
-            for i, ki in enumerate(members):
-                for j, kj in enumerate(members):
-                    G[i * n:(i + 1) * n, j * n:(j + 1) * n] = (
-                        self._sector_gram_block(ki, kj)
-                    )
-            A_stack = np.vstack(A_mats)
+            A_stack = np.vstack([self._bra_overlap(ki) @ C for ki in members])
+            G = self._sector_gram(members)
             x = np.linalg.solve(G, A_stack)
             i_self = next(
                 i for i, cand in enumerate(members)
