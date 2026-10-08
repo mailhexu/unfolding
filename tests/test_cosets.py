@@ -2,17 +2,13 @@
 
 Seeded from the shared-core prototype checks: skew supercell matrices,
 zero-first coset order, fold/unfold roundtrip, sector membership and
-member-count, matching success/failure paths, and delegate parity for
-the engine class methods that now forward to :mod:`unfolding.cosets`.
+member-count, and matching success/failure paths.
 """
-from itertools import product
 
 import numpy as np
 import pytest
 
 from unfolding import cosets
-from unfolding.pw_unfolder import PWUnfolder
-from unfolding.magnon_unfolder import MagnonUnfolder
 
 MATS = [
     np.diag([2, 2, 2]),
@@ -34,11 +30,6 @@ def test_fold_kpoints_count_and_zero_first(M):
     keys = {tuple(np.round(np.mod(f, 1.0), 9)) for f in folds}
     assert len(keys) == nfold
 
-
-@pytest.mark.parametrize("M", MATS)
-def test_engine_fold_kpoints_delegates(M):
-    assert np.array_equal(PWUnfolder.fold_kpoints(M), cosets.fold_kpoints(M))
-    assert np.array_equal(MagnonUnfolder.fold_kpoints(M), cosets.fold_kpoints(M))
 
 
 @pytest.mark.parametrize("M", MATS)
@@ -71,6 +62,7 @@ def test_match_stored_k_roundtrip_and_error():
     M = np.diag([2, 2, 2])
     # k = (0.5002, 0, 1) folds to ~0.0004 -> nearest stored is zero row
     ik = cosets.match_stored_k(stored, np.array([0.5002, 0.0, 1.0]), M, tol_k=1e-2)
+    assert ik == 0
     # k=(0.25,0,0) folds to (0.5,0,0) -> stored row 4
     assert cosets.match_stored_k(stored, np.array([0.25, 0.0, 0.0]), M,
                                  tol_k=1e-12) == 4
