@@ -144,11 +144,11 @@ def unfold_openmx(
     # Reference energies to the Fermi level (house style: E_F = 0).
     res.eigenvalues = res.eigenvalues - efermi
 
-    from unfolding.plotphon import plot_band_weight
+    from unfolding.plotphon import as_axis_arrays, plot_band_weight
 
     if xqpts is None:
         xqpts = np.arange(len(kpts))
-    kslist, ekslist, wkslist = _as_axis_arrays(res, xqpts)
+    kslist, ekslist, wkslist = as_axis_arrays(res, xqpts)
     ax = plot_band_weight(
         kslist,
         ekslist,
@@ -176,11 +176,3 @@ def unfold_openmx(
     return ax
 
 
-def _as_axis_arrays(res, xqpts):
-    nb = res.weights.shape[1]
-    kslist = [list(xqpts) for _ in range(nb)]
-    ekslist = [list(res.eigenvalues[:, ib]) for ib in range(nb)]
-    wkslist = [
-        list(np.clip(res.weights[:, ib], 0.0, 1.0)) for ib in range(nb)
-    ]
-    return kslist, ekslist, wkslist

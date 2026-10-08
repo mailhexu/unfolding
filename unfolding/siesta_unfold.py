@@ -69,16 +69,6 @@ def _load_channel_model(fdf, spin):
     return _select_channel(model, spin)
 
 
-def _as_axis_arrays(res, xqpts):
-    """Reshape LCAOWeights into the per-band lists plot_band_weight takes."""
-    x = np.asarray(xqpts, dtype=float)
-    nbands = res.weights.shape[1]
-    kslist = [list(x) for _ in range(nbands)]
-    ekslist = [list(res.eigenvalues[:, ib]) for ib in range(nbands)]
-    wkslist = [list(np.clip(res.weights[:, ib], 0.0, 1.0)) for ib in range(nbands)]
-    return kslist, ekslist, wkslist
-
-
 def _derive_prim_counts(sc_atoms, orb_dict_sc, prim_atoms):
     """Default primitive orbital counts: species-level counts from the
     parsed model's ``orb_dict``. Returns None when unambiguous."""
@@ -227,11 +217,11 @@ def unfold_siesta(
     unf = LCAOUnfolder(adapted, rm)
     res = unf.compute(kpts, method=method)
 
-    from unfolding.plotphon import plot_band_weight
+    from unfolding.plotphon import as_axis_arrays, plot_band_weight
 
     if xqpts is None:
         xqpts = np.arange(len(kpts))
-    kslist, ekslist, wkslist = _as_axis_arrays(res, xqpts)
+    kslist, ekslist, wkslist = as_axis_arrays(res, xqpts)
     ax = plot_band_weight(
         kslist,
         ekslist,

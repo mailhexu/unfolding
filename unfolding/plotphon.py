@@ -93,3 +93,20 @@ def plot_band_weight(kslist,
     if efermi is not None:
         a.axhline(linestyle='--', color='black')
     return a
+
+
+def as_axis_arrays(res, xqpts):
+    """Reshape an (nk, nband) result into per-band lists for
+    :func:`plot_band_weight`.
+
+    ``res`` is any object with ``eigenvalues``/``weights`` arrays (the
+    engine result contract); weights are clipped to [0, 1] like the
+    adapters' historical packaging. Replaces the per-adapter copies
+    (story 049).
+    """
+    x = np.asarray(xqpts, dtype=float)
+    nbands = res.weights.shape[1]
+    kslist = [list(x) for _ in range(nbands)]
+    ekslist = [list(res.eigenvalues[:, ib]) for ib in range(nbands)]
+    wkslist = [list(np.clip(res.weights[:, ib], 0.0, 1.0)) for ib in range(nbands)]
+    return kslist, ekslist, wkslist
