@@ -33,6 +33,8 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.linalg import eigh
 
+from . import cosets
+
 
 @dataclass
 class LCAOWeights:
@@ -271,28 +273,10 @@ class LCAOUnfolder:
         n_cells distinct members. The box grows until the reciprocal
         quotient is complete (skew supercell matrices).
         """
-        g_k = self._fold(k)
-        invT = self._invT
-        span = self._sector_span or max(1, int(np.abs(self._scmat).max()))
-        seen = {}
-        while len(seen) < self._n_cells:
-            seen = {}
-            for hx in range(span):
-                for hy in range(span):
-                    for hz in range(span):
-                        cand = (g_k + np.array([hx, hy, hz], dtype=float)) @ invT
-                        key = tuple(np.round(cand % 1.0, 8) % 1.0)
-                        if key not in seen:
-                            seen[key] = cand
-            if len(seen) < self._n_cells:
-                span *= 2
-            if span > 4096:
-                break
+        members, span = cosets.sector(k, self._scmat, self._n_cells,
+                                       invT=self._invT,
+                                       span=self._sector_span)
         self._sector_span = span
-        members = list(seen.values())[: self._n_cells]
-        assert len(members) == self._n_cells, (len(members), self._n_cells)
-        if not any(np.allclose(cand, k, atol=1e-8) for cand in members):
-            members = [np.asarray(k, dtype=float)] + members[1:]
         return members
 
     def _sector_gram_block(self, ki, kj):

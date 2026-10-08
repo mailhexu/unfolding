@@ -22,8 +22,9 @@ sorted-descending onto the energy-sorted group.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from itertools import product
 from typing import Optional
+
+from . import cosets
 
 import numpy as np
 
@@ -197,44 +198,17 @@ class MagnonUnfolder:
 
     @staticmethod
     def fold_kpoints(unfold_sc_mat) -> np.ndarray:
-        """Primitive fractional coset representatives (house convention)."""
-        matrix = np.asarray(unfold_sc_mat, dtype=int)
-        nfold = round(abs(np.linalg.det(matrix)))
-        max_entry = int(np.abs(matrix).max())
-        reps = {}
-        for bound in range(0, max_entry + 2):
-            for n in product(range(bound + 1), repeat=3):
-                frac = np.mod(
-                    np.linalg.solve(matrix, np.asarray(n, dtype=float)), 1.0
-                )
-                key = tuple(np.rint(frac * 1e12).astype(np.int64) % 10**12)
-                reps.setdefault(key, frac)
-            if len(reps) == nfold:
-                break
-        if len(reps) != nfold:
-            raise RuntimeError("could not enumerate all reciprocal fold sectors")
-        values = list(reps.values())
-        values.sort(key=lambda v: (not np.allclose(v, 0.0), *v.tolist()))
-        return np.asarray(values)
+        """Primitive fractional coset representatives (house convention).
+
+        Shared implementation: :func:`unfolding.cosets.fold_kpoints`.
+        """
+        return cosets.fold_kpoints(unfold_sc_mat)
 
     # -- unfolding ---------------------------------------------------------
 
     def _stored_kpoint(self, kpoint: np.ndarray) -> int:
-        target = np.mod(kpoint @ self.unfold_sc_mat.T, 1.0)
-        delta = (
-            np.mod(self.eigendata.kpoints - target + 0.5, 1.0) - 0.5
-        )
-        distances = np.linalg.norm(delta, axis=1)
-        ik = int(np.argmin(distances))
-        if distances[ik] > self.tol_k:
-            raise ValueError(
-                "target supercell momentum "
-                f"{target.tolist()} has no stored match within "
-                f"tol_k={self.tol_k:g}; nearest stored "
-                f"{self.eigendata.kpoints[ik].tolist()} "
-                f"(periodic distance {distances[ik]:.3g})"
-            )
-        return ik
+        return cosets.match_stored_k(self.eigendata.kpoints, kpoint,
+                                     self.unfold_sc_mat, self.tol_k)
 
     def _fold_weights(self, ik: int, fold) -> np.ndarray:
         """(nmode,) weights of stored supercell momentum ik on fold q.

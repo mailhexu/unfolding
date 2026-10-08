@@ -3,7 +3,17 @@
 
 ## Unreleased
 
-### Performance
+### Changed
+- New shared module `unfolding.cosets` (story 046, first step of the
+  shared-core migration): one implementation of the row-convention
+  k<->K mapping (`fold`/`unfold`), the reciprocal coset enumeration
+  (`fold_kpoints`), per-k sector members (`sector`), and stored-momentum
+  matching (`match_stored_k`). `PWUnfolder`/`MagnonUnfolder`
+  `fold_kpoints`/`_stored_kpoint` and `LCAOUnfolder._sector` now
+  delegate to it (public engine APIs unchanged); the near-duplicate
+  per-engine bodies are gone. Verified old-vs-new bit-identical on
+  PW/magnon fixtures and to float noise on LCAO ring/ideal; WFSX and
+  PAW matchers keep their per-site metrics pending story 049.
 - Vectorized the weight kernels (behaviour-preserving; verified
   old-vs-new on synthetic pristine fixtures and the oracle suites):
   `LCAOUnfolder` ring Gram is assembled per k from k-independent cached

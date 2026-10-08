@@ -17,10 +17,11 @@ helper, imported lazily by :meth:`PWWeights.plot`.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from itertools import product
 from typing import Sequence
 
 import numpy as np
+
+from . import cosets
 
 
 def _owned_array(value, dtype) -> np.ndarray:
@@ -255,54 +256,20 @@ class PWUnfolder:
     def fold_kpoints(unfold_sc_mat) -> np.ndarray:
         """Primitive fractional coset representatives of ``Z^3 / M^T Z^3``.
 
-        The enumeration uses a bounded integer box and a stable rational
-        grid key. In the row convention ``K = k @ M.T``, the fractional
-        fold vectors solve ``M @ t = n``. Physical path-sector matching
-        itself uses ``tol_k`` in :meth:`compute`.
+        In the row convention ``K = k @ M.T``, the fractional fold
+        vectors solve ``M @ t = n``. Physical path-sector matching
+        itself uses ``tol_k`` in :meth:`compute`. Shared
+        implementation: :func:`unfolding.cosets.fold_kpoints`.
         """
-        matrix = np.asarray(unfold_sc_mat, dtype=int)
-        if matrix.shape != (3, 3):
-            raise ValueError("unfold_sc_mat must have shape (3, 3)")
-        nfold = int(abs(round(np.linalg.det(matrix))))
-        if nfold == 0:
-            raise ValueError("unfold_sc_mat must be nonsingular")
-
-        # Every quotient class has a short integer representative. Grow a
-        # small positive box until all |det M| sectors have been found.
-        reps = {}
-        for bound in range(0, max(nfold, int(np.abs(matrix).max())) + 2):
-            for n in product(range(bound + 1), repeat=3):
-                frac = np.mod(np.linalg.solve(matrix, np.asarray(n, dtype=float)), 1.0)
-                key = tuple(np.rint(frac * 1e12).astype(np.int64) % 10**12)
-                reps.setdefault(key, frac)
-            if len(reps) == nfold:
-                break
-        if len(reps) != nfold:
-            raise RuntimeError("could not enumerate all reciprocal fold sectors")
-
-        zero = (0, 0, 0)
-        values = list(reps.values())
-        values.sort(key=lambda value: (not np.allclose(value, 0.0), *value.tolist()))
-        assert tuple(np.rint(values[0] * 1e12).astype(np.int64) % 10**12) == zero
-        return np.asarray(values)
+        return cosets.fold_kpoints(unfold_sc_mat)
 
     @staticmethod
     def _periodic_delta(a: np.ndarray, b: np.ndarray) -> np.ndarray:
         return (np.asarray(a) - np.asarray(b) + 0.5) % 1.0 - 0.5
 
     def _stored_kpoint(self, kpoint: np.ndarray) -> int:
-        target = np.mod(kpoint @ self.unfold_sc_mat.T, 1.0)
-        delta = self._periodic_delta(self.eigendata.kpoints, target)
-        distances = np.linalg.norm(delta, axis=1)
-        ik = int(np.argmin(distances))
-        if distances[ik] > self.tol_k:
-            raise ValueError(
-                "target SC k-point "
-                f"{target.tolist()} has no stored match within tol_k={self.tol_k:g}; "
-                f"nearest stored {self.eigendata.kpoints[ik].tolist()} "
-                f"(periodic distance {distances[ik]:.3g})"
-            )
-        return ik
+        return cosets.match_stored_k(self.eigendata.kpoints, kpoint,
+                                     self.unfold_sc_mat, self.tol_k)
 
     def compute(self, kpoints, spin: int = 0, resolve_degenerate=None) -> PWWeights:
         """Compute weights for primitive fractional ``kpoints``.
