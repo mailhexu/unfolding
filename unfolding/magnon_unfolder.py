@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from . import cosets
+from . import degeneracy
 
 import numpy as np
 
@@ -263,34 +264,13 @@ class MagnonUnfolder:
             weights[i] = self._fold_weights(ik, q)
             sc_kpoints[i] = self.eigendata.kpoints[ik]
             if resolve_degenerate:
+                # the gauge-invariant group content at this fold is the
+                # group-total weight; canonical BdG modes are g-orthogonal,
+                # not Euclidean-orthogonal, so per-mode spectra inside a
+                # degenerate group are not presentation-stable
                 order = np.argsort(energies[i], kind="stable")
-                esorted = energies[i][order]
-                start = 0
-                for stop in range(1, nmode + 1):
-                    if (
-                        stop == nmode
-                        or esorted[stop] - esorted[stop - 1] > resolve_degenerate
-                    ):
-                        idx = order[start:stop]
-                        if stop - start > 1:
-                            # the gauge-invariant group content at this
-                            # fold is the group-total weight; canonical
-                            # BdG modes are g-orthogonal, not
-                            # Euclidean-orthogonal, so per-mode spectra
-                            # inside a degenerate group are not
-                            # presentation-stable. Assign the invariant
-                            # total: integer totals become b(1, .. 1, 0,
-                            # .. 0) onto the energy-sorted group; a
-                            # fractional total (defect-hybridized
-                            # degeneracies) is split equally.
-                            total = weights[i][idx].sum()
-                            k = round(total)
-                            if abs(total - k) < 1e-6:
-                                assign = np.zeros(stop - start)
-                                assign[:k] = 1.0
-                            else:
-                                assign = np.full(stop - start, total / (stop - start))
-                            weights[i][idx] = assign
-                        start = stop
+                degeneracy.assign_total_groups(weights[i], energies[i],
+                                               resolve_degenerate,
+                                               order=order)
         return MagnonWeights(kpoints, energies, weights, sc_kpoints)
 

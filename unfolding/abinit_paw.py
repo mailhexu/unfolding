@@ -17,6 +17,8 @@ import numpy as np
 
 from HamiltonIO.abinit import AbinitPawData, read_paw_wfk
 
+from . import degeneracy
+
 
 @dataclass(frozen=True)
 class PawWeights:
@@ -156,13 +158,12 @@ def unfold_abinit_paw(supercell, primitive, datasets, matrix, *, spin=0,
             if resolve_degenerate < 0:
                 raise ValueError("resolve_degenerate must be nonnegative")
             energies = s.eigenvalues[isk][spin]
-            boundaries = np.r_[0, np.flatnonzero(np.diff(energies) > resolve_degenerate) + 1,
-                               len(energies)]
-            for start, stop in zip(boundaries[:-1], boundaries[1:]):
-                if stop - start > 1:
-                    weights[start:stop] = np.linalg.eigvalsh(operator[start:stop, start:stop])
-                    pseudo_weight[start:stop] = np.linalg.eigvalsh(
-                        coset_operator[start:stop, start:stop])
+            degeneracy.assign_eigvalsh_groups(
+                weights, operator, energies, resolve_degenerate,
+                descending=False)
+            degeneracy.assign_eigvalsh_groups(
+                pseudo_weight, coset_operator, energies, resolve_degenerate,
+                descending=False)
         all_w.append(weights)
         all_pseudo.append(pseudo_weight)
         all_e.append(s.eigenvalues[isk][spin])

@@ -23,6 +23,7 @@ import numpy as np
 
 from . import cosets
 
+from . import degeneracy
 
 def _owned_array(value, dtype) -> np.ndarray:
     """Copy a public-array boundary and freeze the stored value."""
@@ -320,15 +321,9 @@ class PWUnfolder:
             weights[i] = gram.real.diagonal()
             if resolve_degenerate:
                 order = np.argsort(eig[i], kind="stable")
-                energies = eig[i][order]
-                start = 0
-                for stop in range(1, nband + 1):
-                    if stop == nband or energies[stop] - energies[stop - 1] > resolve_degenerate:
-                        idx = order[start:stop]
-                        if stop - start > 1:
-                            block_ev = np.linalg.eigvalsh(gram[np.ix_(idx, idx)])
-                            weights[i][idx] = np.clip(np.sort(block_ev)[::-1], 0.0, 1.0)
-                        start = stop
+                degeneracy.assign_eigvalsh_groups(
+                    weights[i], gram, eig[i], resolve_degenerate,
+                    order=order, clip=(0.0, 1.0))
             sc_kpoints[i] = K
 
         return PWWeights(kpoints, eig, weights, folds, sc_kpoints)

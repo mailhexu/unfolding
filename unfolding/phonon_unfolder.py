@@ -7,6 +7,8 @@ from ase.build import make_supercell
 from ase.atoms import Atoms
 import numpy as np
 
+from . import degeneracy
+
 class phonon_unfolder:
     """ phonon unfolding class"""
 
@@ -206,22 +208,11 @@ def _block_weights(H, freqs, tol):
     degenerate group).
     """
     freqs = np.asarray(freqs, dtype=float)
-    n = len(freqs)
-    w = np.zeros(n)
+    # singletons carry the diagonal; degenerate groups receive the
+    # sorted-descending block spectrum (any assignment is equivalent
+    # inside a degenerate group)
+    w = np.asarray(np.diag(H)).real.astype(float).copy()
     order = np.argsort(freqs)
-    f = freqs[order]
-    grp = np.zeros(n, dtype=int)
-    g = 0
-    for i in range(1, n):
-        if f[i] - f[i - 1] > tol:
-            g += 1
-        grp[i] = g
-    Ho = H[np.ix_(order, order)]
-    for gg in np.unique(grp):
-        sel = grp == gg
-        if sel.sum() == 1:
-            w[order[sel]] = Ho[sel, sel].real
-        else:
-            ev = np.linalg.eigvalsh(Ho[np.ix_(sel, sel)])
-            w[order[sel]] = np.sort(ev)[::-1]
+    degeneracy.assign_eigvalsh_groups(w, H, freqs, tol, order=order,
+                                      clip=(0.0, 1.0))
     return np.clip(w, 0.0, 1.0)

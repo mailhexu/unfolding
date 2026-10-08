@@ -13,6 +13,7 @@ from scipy.interpolate import CubicSpline
 
 from HamiltonIO.vasp import read_potcar_paw, read_wavecar
 from .abinit_paw import _s_overlap
+from . import degeneracy
 
 
 @dataclass(frozen=True)
@@ -114,10 +115,8 @@ def unfold_vasp_paw(supercell, primitive, potcar, matrix, *, spin=0,
         if resolve_degenerate is not None:
             if resolve_degenerate < 0:
                 raise ValueError("resolve_degenerate must be nonnegative")
-            bounds = np.r_[0, np.flatnonzero(np.diff(e) > resolve_degenerate)+1, len(e)]
-            for start, stop in zip(bounds[:-1], bounds[1:]):
-                if stop-start > 1:
-                    wk[start:stop] = np.linalg.eigvalsh(operator[start:stop,start:stop])
+            degeneracy.assign_eigvalsh_groups(
+                wk, operator, e, resolve_degenerate, descending=False)
         weights.append(wk)
         pseudo.append(np.sum(np.abs(ket[:, sectors])**2, axis=1)
                       / np.sum(np.abs(ket)**2, axis=1))

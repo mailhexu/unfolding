@@ -8,6 +8,7 @@ from ase.dft.kpoints import bandpath
 
 from unfolding.plotphon import plot_band_weight
 from unfolding.unfolder import Unfolder
+from unfolding import degeneracy
 
 # MyTB (Wannier90 reader) lives in the separate minimulti package; it is only
 # needed by the legacy run() convenience driver below.
@@ -64,16 +65,12 @@ class WannierUnfolder(object):
         projector = 0.5 * (projector + projector.conj().T)
         resolved = np.array(weights, copy=True)
         for ik, energies in enumerate(eigenvalues.T):
-            start = 0
-            for stop in range(1, len(energies) + 1):
-                at_end = stop == len(energies)
-                if at_end or energies[stop] - energies[stop - 1] > tolerance:
-                    if stop - start > 1:
-                        states = eigenvectors[start:stop, ik].T
-                        q = states.conj().T @ projector @ states
-                        resolved[ik, start:stop] = np.linalg.eigvalsh(
-                            0.5 * (q + q.conj().T))
-                    start = stop
+            for start, stop in degeneracy.energy_groups(energies, tolerance):
+                if stop - start > 1:
+                    states = eigenvectors[start:stop, ik].T
+                    q = states.conj().T @ projector @ states
+                    resolved[ik, start:stop] = np.linalg.eigvalsh(
+                        0.5 * (q + q.conj().T))
         return resolved
 
     def plot_unfolded_band(
