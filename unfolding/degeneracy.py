@@ -18,10 +18,11 @@ Two assignment strategies exist:
   equally.
 
 Sorting policy: helpers never sort the energies. Callers that group on
-a sorted copy (phonon, PW) pass ``order`` (the argsort) so group
-members map back to their original positions; callers whose energies
-are already grouped in place (Wannier, PAW, magnon after its sort)
-pass ``order=None``.
+a sorted copy (phonon, PW, magnon) pass ``order`` (the argsort) so
+group members map back to their original positions; callers whose
+energies are already grouped in place (Wannier, PAW) pass
+``order=None`` — which keeps the contiguous operator slice a view
+(no np.ix_ copy).
 """
 import numpy as np
 
@@ -65,7 +66,9 @@ def assign_eigvalsh_groups(weights, operator, energies, tol, *,
         idx = (np.arange(start, stop) if order is None
                else np.asarray(order)[start:stop])
         if len(idx) > 1:
-            block_ev = np.linalg.eigvalsh(operator[np.ix_(idx, idx)])
+            block = (operator[start:stop, start:stop] if order is None
+                     else operator[np.ix_(idx, idx)])
+            block_ev = np.linalg.eigvalsh(block)
             if descending:
                 block_ev = np.sort(block_ev)[::-1]
             if clip is not None:
