@@ -30,19 +30,32 @@ shared modules below and keep the kernel engine-local.
 - **Row convention**: `K = k @ M.T` everywhere (`A_sc = M @ A_prim`).
   The reciprocal fold vectors solve `M @ t = n`.
 - **Eigenvector layout**: engines consume `evecs[ik]` with rows = DOF
-  (`evecs[ik, :, imode]` is one mode). Adapters that read column-major
-  sources transpose at the boundary (see the DDB displacement adapter).
-- **Units**: pick the source-native unit for `eigenvalues`/`energies`
-  and record it in the Dataset metadata; adapters convert at the
-  boundary only (e.g. THz → cm⁻¹ on plot).
+  and modes as columns (`evecs[ik, :, imode]` is one mode). Produce that
+  layout however your source stores it — e.g. the DDB adapter fills
+  `evecs[iq, :, ibranch]` mode by mode from displacement patterns; only
+  transpose when the source is genuinely mode-major.
+- **Units**: the Dataset boundary is **eV** — `Dataset.from_result`
+  has no unit argument (it defaults to eV); only `save_dataset`
+  accepts an explicit `energy_unit`. Adapters convert at the boundary:
+  e.g. the phonopy adapter converts THz → cm⁻¹ for its plot output,
+  and a Dataset export of such a source must convert to eV (or pass
+  `energy_unit` through `save_dataset`) instead of relying on
+  `from_result`.
 - **Normalization**: dual-basis (LCAO) weights need the overlap metric
   (`w = c† S⁻¹ c`); BdG magnons are g-orthogonal — per-mode spectra in
   degenerate groups are not presentation-stable, hence the group-total
   strategy. Plane-wave/character weights are Euclidean.
 - **Phases/gauge**: `exp(±2πi k·r)` signs differ per module *by design*
-  (legacy `Unfolder` keeps its historical `+` sign). The robust
-  projector phase is `k* = fold(k) − K_stored` **without** mod 1 — the
-  integer part distinguishes coset members.
+  (legacy `Unfolder` keeps its historical `+` sign). Note two distinct
+  robust-projector contracts: the **public**
+  `phonon_unfolder.get_weights_robust(frequencies, gauge=...)`
+  targets the *stored* q itself (phonopy/DDB contract; its phase is
+  `qpt − qcarry`); a **folded-path** engine that must distinguish
+  primitive coset members instead uses `k* = fold(k) − K_stored`
+  **without** mod 1 — that folded-target form is exercised by the TB
+  fixture (`tests/test_toy_tb_fixture.py::_robust_weights`), which
+  composes the public character-sum machinery, and is the formula a new
+  engine on a folded k-path needs.
 - **Spin**: PW engines select one collinear `spin` channel and sum the
   `nspinor` axis; spinor LCAO keeps interlaced blocks.
 - **Optional backends**: wrap imports in try/except naming the extra

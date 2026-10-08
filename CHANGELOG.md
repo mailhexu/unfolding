@@ -4,7 +4,32 @@
 ## Unreleased
 
 ### Changed
-- New shared module `unfolding.cosets` (story 046, first step of the
+- New shared module `unfolding/degeneracy.py` (story 047, shared-core
+  step 2): one implementation of the two degeneracy-assignment
+  strategies previously re-implemented five times —
+  `energy_groups` (caller chooses sorted-order or in-place idiom),
+  `assign_eigvalsh_groups` (Hermitian-block spectrum; phonon/PW
+  sorted-descending + clip, PAW as-returned), `assign_total_groups`
+  (magnon integer/fractional group totals). The phonon, PW, magnon,
+  Wannier and PAW paths consume it; result classes and their public
+  `average_degenerate` semantics are unchanged. Verified bitwise
+  old-vs-new on all migrated paths.
+- New contributor recipe `devdoc/adding-an-unfolding.md` and production
+  TB behavioral fixture `tests/test_toy_tb_fixture.py` (story 048): the
+  seams table (cosets, degeneracy, result contract, `Dataset.from_result`,
+  `RouteSpec`), the per-module conventions (row convention, eigenvector
+  layout, units, normalization, phases incl. the un-mod-1 robust
+  projector phase, spin, lazy backends), and checklists for new sources
+  vs new projections. The TB fixture seals binary pristine weights,
+  folded-spectrum agreement, group-total weight 1, Parseval sector sum,
+  fractional defect weights, and a Dataset round-trip.
+- `plotphon.as_axis_arrays` is the single implementation of the
+  per-band plot packaging previously duplicated in the SIESTA and
+  OpenMX adapters (story 049). Orbital-count derivations stay
+  per-adapter (species-based vs fallback-based are not
+  proven-identical); engine compute loops stay engine-owned per
+  ADR-017.
+- New shared module `unfolding/cosets.py` (story 046, first step of the
   shared-core migration): one implementation of the row-convention
   k<->K mapping (`fold`/`unfold`), the reciprocal coset enumeration
   (`fold_kpoints`), per-k sector members (`sector`), and stored-momentum
@@ -29,6 +54,7 @@
   (24 -> 7 ms/q at det=64). `PWUnfolder` caches fractional wavevectors
   per stored k; `MagnonUnfolder` computes fold weights in norm form
   without materializing projected-amplitude outer products.
+
 ### Fixed
 - Unfolded-band JSON/plotting review fixes: `Dataset` now validates the
   (nk,3) coordinate arrays, rejects non-finite values except NaN weights,
