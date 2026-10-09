@@ -1,9 +1,19 @@
 # Changelog
 
 
-## Unreleased
+## 0.3.0 (2026-10-09)
 
 ### Changed
+- Local example staging now assembles the existing bundle manifests together
+  with an external runtime-input catalog (`docgen/stage_examples.py`,
+  `docgen/local-data.toml`). Large/private inputs live outside Git in the
+  sibling `unfolding-data/` store; committed regression fixtures are unchanged.
+  `devdoc/example-data.md` documents provenance, backups and regeneration.
+- Expanded the new-interface recipe with engine input contracts, parser/adapter
+  composition, route registration, lazy exports, Dataset units/Fermi metadata,
+  and local-data verification. The full 17-configuration baseline/current
+  example audit passes, including raw-weight probes; maximum weight difference
+  is `2.19e-12`, with identical k-points, energies, metadata and PNGs.
 - New shared module `unfolding/degeneracy.py` (story 047, shared-core
   step 2): one implementation of the two degeneracy-assignment
   strategies previously re-implemented five times —

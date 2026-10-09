@@ -97,6 +97,13 @@ For more detailed information, tutorials, and API reference, please visit the of
 
 Contributions are welcome! If you find a bug, have a feature request, or would like to contribute code, please feel free to open an issue or a pull request on the [GitHub repository](https://github.com/mailhexu/unfolding).
 
+### Adding a new backend interface
+
+The contributor recipe for connecting a new data source or projection —
+engine selection, parser/adapter contracts, route registration
+(TOML/CLI/JSON), local example data, and verification — is
+[`devdoc/adding-an-unfolding.md`](devdoc/adding-an-unfolding.md).
+
 ### Re-running the symbolic derivations
 
 The weight identities (LCAO dual-basis projection, spectral sum rule, and the

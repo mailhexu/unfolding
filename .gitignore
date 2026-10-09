@@ -146,3 +146,10 @@ docs/resources/
 # Temporary files
 tmp/
 temp/
+
+# Local runtime inputs (existing tracked regression fixtures are unaffected).
+/unfolding-data/
+*.gpw
+*_WFK.nc
+WAVECAR
+POTCAR

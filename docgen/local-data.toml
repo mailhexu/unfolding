@@ -1,0 +1,22 @@
+# Runtime-only inputs. Paths are relative to UNFOLDING_DATA_DIR (never packed).
+# Committed regression fixtures continue to use examples/*/bundle.manifest.
+["abinit-wfk-si"]
+"data/si8_gxwglwxo_DS2_WFK.nc" = "abinit-si/si8_gxwglwxo_DS2_WFK.nc"
+
+["abinit-nio"]
+"data/nio_afm_patho_DS2_WFK.nc" = "abinit-si/nio_afm_patho_DS2_WFK.nc"
+
+["gpaw-si"]
+"data/si_sc_lcao.gpw" = "gpaw/si_sc_lcao.gpw"
+"data/si_prim_lcao.gpw" = "gpaw/si_prim_lcao.gpw"
+"data/si7p_lcao.gpw" = "gpaw/si7p_lcao.gpw"
+
+["gpaw-si-pw"]
+"data/si8_pw.gpw" = "gpaw/si8_pw.gpw"
+
+["vasp-fe"]
+"runs/sc16_nscf/WAVECAR" = "vasp-fe/runs/sc16_nscf/WAVECAR"
+"runs/sc16_nscf/POSCAR" = "vasp-fe/runs/sc16_nscf/POSCAR"
+"runs/prim_nscf/WAVECAR" = "vasp-fe/runs/prim_nscf/WAVECAR"
+"runs/prim_nscf/POSCAR" = "vasp-fe/runs/prim_nscf/POSCAR"
+"POTCAR" = "vasp-fe/runs/sc16_nscf/POTCAR"

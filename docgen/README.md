@@ -17,3 +17,13 @@ Usage:
 python docgen/fig_phonopy_cu.py [out.png]
 python docgen/fig_siesta_si.py  [out.png]
 ```
+
+## Local runtime inputs
+
+Bundle source directories need their `bundle.manifest` pulls before running.
+Use `python docgen/stage_examples.py --check`, then stage into a fresh scratch
+directory with `python docgen/stage_examples.py --output ../.tmp/local-examples`.
+Large/private runtime inputs come from the sibling `unfolding-data/` store
+(or `UNFOLDING_DATA_DIR`); the public archive packer never includes them.
+See [Local example data](../devdoc/example-data.md) for inventory, provenance,
+backups, regeneration and adding inputs.
