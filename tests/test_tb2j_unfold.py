@@ -10,9 +10,10 @@ import pytest
 
 matplotlib.use("Agg")
 
+_TB2J_DEV = "/home/hexu/projects/TB2J_dev/TB2J-supercell"  # dev checkout if not installed
+if Path(_TB2J_DEV).exists():
+    sys.path.insert(0, _TB2J_DEV)
 pytest.importorskip("TB2J", reason="TB2J extra required")
-
-sys.path.insert(0, "/home/hexu/projects/TB2J_dev/TB2J")  # dev checkout if not installed
 
 from TB2J.magnon.magnon3 import Magnon  # noqa: E402
 

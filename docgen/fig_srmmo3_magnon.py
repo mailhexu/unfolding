@@ -13,8 +13,13 @@ import sys
 from pathlib import Path
 
 import numpy as np
-
 ROOT = Path(__file__).resolve().parents[1]
+# TB2J dev checkout with get_magnon_eigenstates (spinphon lineage); the
+# pip-installed dev checkout may lack it
+_TB2J_DEV = Path("/home/hexu/projects/TB2J_dev/TB2J-supercell")
+if _TB2J_DEV.exists():
+    sys.path.insert(0, str(_TB2J_DEV))
+
 DATA = ROOT / "tests" / "data" / "tb2j_srmmo3" / "TB2J_results"
 M_AFM = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
 
