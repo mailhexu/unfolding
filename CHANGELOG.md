@@ -5,6 +5,9 @@
 - The TB2J adapter uses the same batch Cholesky regularization as the magnon
   eigensolver, including at Goldstone points. Commensurate noncollinear
   supercells can be unfolded in the existing site-local frame convention.
+- `MagnonUnfolder` snaps round-trip dust just below 1.0 in the primitive-site
+  keys, so a supercell grid of one magnetic sublattice no longer splits into
+  phantom cosets (e.g. a 6x6 grid counted as [33, 3] instead of 36 copies).
 
 
 ## 0.3.0 (2026-10-09)

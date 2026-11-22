@@ -128,6 +128,43 @@ def test_positions_must_form_a_supercell_of_the_primitive_basis():
         MagnonUnfolder(bad, M)
 
 
+def test_coset_keys_snap_round_trip_dust_at_integer_sites():
+    # A 2D 6x6 grid of one primitive site, passed through the cartesian
+    # round trip used by the TB2J adapter: 6*5/6 lands a hair below 1.0,
+    # which used to key as a second phantom sublattice ([33, 3] counts).
+    cell = np.array([[6.0, 0.0, 0.0],
+                     [-3.0, 6.0 * np.sqrt(3.0) / 2.0, 0.0],
+                     [0.0, 0.0, 1.0]])
+    frac = np.array([[i / 6.0, j / 6.0, 0.0]
+                     for i in range(6) for j in range(6)])
+    positions = (frac @ cell) @ np.linalg.inv(cell)
+    data = MagnonEigenData(
+        kpoints=np.zeros((1, 3)),
+        energies=np.zeros((1, 36)),
+        wavefunctions=np.zeros((1, 36, 72)),
+        positions=positions,
+    )
+    unf = MagnonUnfolder(data, np.diag([6, 6, 1]))
+    assert unf.nsublattice == 1
+    assert np.array_equal(np.bincount(unf._sublattice), [36])
+
+
+def test_coset_snap_keeps_sites_in_the_same_rounded_bin():
+    # Two copies of one primitive site key as 1.0 at six decimals; the
+    # seam must fold the whole rounded bin to 0, not just part of it.
+    data = MagnonEigenData(
+        kpoints=np.zeros((1, 3)),
+        energies=np.zeros((1, 2)),
+        wavefunctions=np.zeros((1, 2, 4)),
+        positions=np.array([[0.499999999, 0.0, 0.0],
+                            [0.99999999995, 0.0, 0.0]]),
+    )
+    unf = MagnonUnfolder(data, np.diag([2, 1, 1]))
+    assert unf.nsublattice == 1
+    assert np.array_equal(np.bincount(unf._sublattice), [2])
+    assert np.array_equal(unf._coset[:, 0], [1, 2])
+
+
 def test_resolve_degenerate_rejects_negative_tolerance():
     unf = MagnonUnfolder(_eigendata(np.ones(NMAG), np.zeros(3)), M)
     with pytest.raises(ValueError, match="resolve_degenerate"):

@@ -171,6 +171,11 @@ class MagnonUnfolder:
         # (positions transform with M, momenta with M.T)
         tau_prim_raw = self.eigendata.positions @ M
         tau_prim = np.mod(tau_prim_raw, 1.0)
+        # Normalize the seam at the same six-decimal precision used for
+        # the sublattice keys: every coordinate that keys as 1.0 is the
+        # integer cell, not a second sublattice.
+        seam = np.abs(np.round(tau_prim, 6) - 1.0) < 1e-12
+        tau_prim[seam] = 0.0
         n_vec = tau_prim_raw - tau_prim
         if np.max(np.abs(n_vec - np.round(n_vec))) > 1e-6:
             raise ValueError(
