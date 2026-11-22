@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The TB2J adapter uses the same batch Cholesky regularization as the magnon
+  eigensolver, including at Goldstone points. Commensurate noncollinear
+  supercells can be unfolded in the existing site-local frame convention.
+
 
 ## 0.3.0 (2026-10-09)
 

@@ -8,12 +8,11 @@ amplitudes sealed by ``derivations/magnon_weight.py`` (``Psi = K @ X``,
 Euclidean-normalized rows), and unfolds through
 :class:`unfolding.magnon_unfolder.MagnonUnfolder`.
 
-Reference convention (ADR-015): the default is the collinear
-two-sublattice frame -- ``Q = 0``, quantization axis ``uz = [[0, 0, 1]]``,
-rotation axis ``n = [1, 0, 0]`` and the magnetic moments read from the
-pickle. This matches the TB2J example CLI defaults; spiral (``Q != 0``)
-references are not supported in v1 (they change the eigenvector phase
-convention between cells and are not covered by the sealed weight).
+For a commensurate spiral, store all site moments in a periodic magnetic
+supercell and set TB2J's reference ``Q = 0``. The projector measures
+positional character in TB2J's chosen site-local transverse frames, not a
+lab-frame neutron-scattering intensity; its weights depend on that gauge.
+An analytic intercell spiral reference (``Q != 0``) is not supported here.
 """
 from __future__ import annotations
 
@@ -27,27 +26,22 @@ __all__ = ["unfold_tb2j", "magnon_eigendata_from_tb2j"]
 def _canonical_amplitudes(H, X):
     """(nk, nmode, 2N) TB2J Cholesky-frame modes -> canonical, normalized.
 
-    Psi = K @ X with K from TB2J's exact fallback sequence (chol(H),
-    then chol(H + 1e-6 I), then a minimum-eigenvalue shift of 1e-6), so
-    the frame always matches the problem whose eigenvectors X solve;
-    rows are Euclidean-normalized so both BdG sectors of a clean fold
-    state carry the same fold character exactly.
+    TB2J supplies the same batch factor used to obtain X, including its
+    roundoff-scale Goldstone regularization. Rows are Euclidean-normalized.
     """
-    nk, nmode, dim = X.shape
-    psi = np.empty((nk, nmode, dim), dtype=complex)
-    for ik in range(nk):
-        Hk = H[ik]
-        try:
-            K = np.linalg.cholesky(Hk)
-        except np.linalg.LinAlgError:
-            try:
-                K = np.linalg.cholesky(Hk + 1e-6 * np.eye(dim))
-            except np.linalg.LinAlgError:
-                shift = np.min(np.linalg.eigvalsh(Hk))
-                K = np.linalg.cholesky(Hk - (shift - 1e-6) * np.eye(dim))
-        cand = (K @ X[ik].T).T
-        psi[ik] = cand / np.linalg.norm(cand, axis=1)[:, None]
-    return psi
+    try:
+        from TB2J.magnon.magnon_math import _cholesky_magnon_hamiltonian
+    except ImportError as exc:  # pragma: no cover - install-time contract
+        raise ImportError(
+            "unfolding[tb2j] requires a TB2J build that exposes "
+            "TB2J.magnon.magnon_math._cholesky_magnon_hamiltonian (the shared "
+            "Cholesky frame used for spiral-supercell wavefunctions); install "
+            "the matching TB2J version"
+        ) from exc
+
+    K = _cholesky_magnon_hamiltonian(H)
+    psi = np.einsum("kij,kmj->kmi", K, X)
+    return psi / np.linalg.norm(psi, axis=2, keepdims=True)
 
 
 def magnon_eigendata_from_tb2j(magnon, kpoints_sc) -> MagnonEigenData:
@@ -107,8 +101,8 @@ def unfold_tb2j(
     knames, xqpts, Xqpts : sequence, optional
         Plot labels, path coordinates, tick positions.
     spin_conf : (nspin, 3) array-like, optional
-        Override the collinear magnetic moments (e.g. ``[[0, 0, 3],
-        [0, 0, -3]]``); by default the moments from the pickle are used.
+        Override the sitewise magnetic moments in the supercell (including
+        noncollinear moments); by default the moments from the pickle are used.
     degen_tolerance : float, optional
         Energy tolerance for the degenerate-group presentation (eV);
         1e-5 eV by default -- symmetry degeneracies (the Q-periodic
