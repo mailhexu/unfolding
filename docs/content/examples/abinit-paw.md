@@ -34,7 +34,7 @@ supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
 
 [path]
 # tick labels for the four stored folds (xticks required with names)
-names = ["Γ", "(0,½,½)", "(½,0,½)", "(½,½,0)"]
+names = ["Γ", "X", "X", "X"]
 xticks = [0.0, 1.0, 2.0, 3.0]
 
 [options]
@@ -72,7 +72,7 @@ unfolding --config unfold.toml          # the bundled config
 unfolding abinit-paw --supercell data/si7p_gammao_WFK.nc \
   --primitive data/si_primitive_foldso_WFK.nc --paw data \
   --unfold-mat -1 1 1 1 -1 1 1 1 -1 \
-  --names 'Γ' '(0,½,½)' '(½,0,½)' '(½,½,0)' --xticks 0 1 2 3 \
+  --names 'Γ' 'X' 'X' 'X' --xticks 0 1 2 3 \
   --resolve-degenerate 0.001 --output abinit_paw_si7p_gamma.png
 ```
 
@@ -128,9 +128,10 @@ rejects PAW WFKs rather than treating them as norm-conserving.
 
 ## K-path
 
-Γ-fold figure: the four primitive momenta folding to supercell Γ —
-Γ, (0,½,½), (½,0,½), (½,½,0); the weights live at the primitive WFK's
-stored k-points.
+Γ-fold figure: the four primitive momenta folding to supercell Γ are
+Γ = (0,0,0) and three symmetry-equivalent X points at (0,½,½),
+(½,0,½), and (½,½,0), in primitive reciprocal coordinates. The weights
+live at the primitive WFK's stored k-points.
 
 Dense-path figure: Γ–X–W–Γ–L–W–X, 305 points; the supercell decks
 sample the same path in supercell coordinates as an explicit `kpt`
