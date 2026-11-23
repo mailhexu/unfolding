@@ -54,7 +54,7 @@ def main(output=None):
     fermi = defect.wavefunctions.fermi_energy
     energies = (result.eigenvalues - fermi) * HARTREE_TO_EV
     fig, axes = plt.subplots(1, 2, figsize=(9.5, 4.6), sharey=True)
-    labels = ["Γ", "X", "X", "X"]
+    labels = ["Γ", "(0,½,½)", "(½,0,½)", "(½,½,0)"]
     for ax, weights, title in zip(axes,
                                   (result.weights, result.pseudo_weights),
                                   ("PAW S-metric reference", "Pseudo-only coset")):

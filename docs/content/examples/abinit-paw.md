@@ -14,17 +14,21 @@ augmentation `ΔS` enters the projection).
 Run parameters and shared options (`mode`, `spin`, `method`, `resolve_degenerate`, supercell-matrix row convention, k-path coordinates and frames, energy-reference conventions) are explained together in the [method, parameters, and k-path guide](/guide/method-parameters-kpaths/).
 Primitive cell input: required for the `abinit-paw` route — it provides the primitive-cell wavefunctions the supercell is projected onto.
 
-## Configuration
+The figure below uses the dense primitive path **Γ–X–W–Γ–L–W–X**.
+The bundled `reproduce.py` instead uses Γ-only supercell WFKs to produce
+a separate four-point fold plot.
+
+{{< figure src="/images/abinit_paw_si_path.png" title="ABINIT PAW unfolding of the pristine Si8 (left) and Si:P (right) supercells onto the primitive Γ-X-W-Γ-L-W-X path: line opacity encodes the PAW S-metric spectral weight carried on the primitive-sector reference bank; energies relative to the NSCF Fermi level (E_F = 0)" >}}
+
+## Dense-path configuration
 
 ```toml
-# ABINIT PAW Si:P: the shipped Gamma-point WFKs unfolded onto the four
-# primitive folds of supercell Gamma (companion of reproduce.py; see
-# README.txt). Weights live at the primitive WFK's stored k-points.
+# Si:P dense-path WFKs, regenerated from the bundled ABINIT decks.
 route = "abinit-paw"
 
 [input]
-supercell = "data/si7p_gammao_WFK.nc"
-primitive = "data/si_primitive_foldso_WFK.nc"
+supercell = "data/si7p_paw_patho_DS2_WFK.nc"
+primitive = "data/si_prim_paw_patho_DS2_WFK.nc"
 # directory holding the JTH datasets <Symbol>.xml (Si.xml, P.xml)
 paw = "data"
 
@@ -33,16 +37,16 @@ paw = "data"
 supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
 
 [path]
-# tick labels for the four stored folds (xticks required with names)
-names = ["Γ", "X", "X", "X"]
-xticks = [0.0, 1.0, 2.0, 3.0]
+# Cumulative reciprocal-space distances at the special points.
+names = ["Γ", "X", "W", "Γ", "L", "W", "X"]
+xticks = [0.0, 0.612396, 0.918594, 1.603274, 2.133625, 2.566654, 2.872852]
 
 [options]
 spin = 0
 resolve_degenerate = 0.001
 
 [output]
-output = "abinit_paw_si7p_gamma.png"
+output = "abinit_paw_si7p_path.png"
 ```
 
 ## Running the example
@@ -61,29 +65,22 @@ needs no ABINIT run — only the `unfolding` package importable (`pip
 install -e <unfolding repo checkout>`) with numpy, matplotlib, netCDF4
 and pypao. The dense Γ-X-W-Γ-L-W-X path figure additionally needs the
 path WFKs (~250 MB each, not shippable): regenerate them from the
-bundled decks with your own ABINIT >= 10 (`bash regenerate_path.sh`
-next to the XMLs) and follow the path recipe below.
-
-The same Γ computation through the unified CLI:
+bundled decks with your own ABINIT >= 10 (`bash regenerate_path.sh`).
+Save the dense-path configuration above as `dense.toml`, then run:
 
 ```bash
-unfolding --config unfold.toml          # the bundled config
-# or, with explicit flags:
-unfolding abinit-paw --supercell data/si7p_gammao_WFK.nc \
-  --primitive data/si_primitive_foldso_WFK.nc --paw data \
-  --unfold-mat -1 1 1 1 -1 1 1 1 -1 \
-  --names 'Γ' 'X' 'X' 'X' --xticks 0 1 2 3 \
-  --resolve-degenerate 0.001 --output abinit_paw_si7p_gamma.png
+unfolding --config dense.toml           # Si:P dense-path plot
+# For pristine Si, change supercell to data/si8_paw_patho_DS2_WFK.nc.
 ```
 
 ```python
-# the same TOML through the Python entry points
+# the dense-path TOML through the Python entry points
 from unfolding import load_config, run
 
-run(load_config("unfold.toml"))
+run(load_config("dense.toml"))
 ```
 
-and from Python:
+Or compute the Si:P dense-path weights directly from Python:
 
 ```python
 from pathlib import Path
@@ -93,20 +90,14 @@ from unfolding.abinit_paw import unfold_abinit_paw
 data = Path('data')
 xml = {symbol: data / f'{symbol}.xml' for symbol in ('Si', 'P')}
 M = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
-result = unfold_abinit_paw(data/'si7p_gammao_WFK.nc',
-                           data/'si_primitive_foldso_WFK.nc', xml, M,
+result = unfold_abinit_paw(data/'si7p_paw_patho_DS2_WFK.nc',
+                           data/'si_prim_paw_patho_DS2_WFK.nc', xml, M,
                            resolve_degenerate=1e-3 / HARTREE_TO_EV)
 ```
 
-For the dense-path figure, place the regenerated
-`si8_paw_patho_DS2_WFK.nc`, `si7p_paw_patho_DS2_WFK.nc` and
-`si_prim_paw_patho_DS2_WFK.nc` in `data/`, then unfold each supercell
-WFK against the primitive one exactly as in `reproduce.py` (the decks
-already sample the 305-point path in supercell coordinates); the top
-of the 32-band manifold above ~6 eV sits in the
-unconverged Davidson tail (trust energies below that).
-
-{{< figure src="/images/abinit_paw_si_path.png" title="ABINIT PAW unfolding of the pristine Si8 (left) and Si:P (right) supercells onto the primitive Γ-X-W-Γ-L-W-X path: line opacity encodes the PAW S-metric spectral weight carried on the primitive-sector reference bank; energies relative to the NSCF Fermi level (E_F = 0)" >}}
+The dense decks sample the 305-point path in supercell coordinates. The
+top of the 32-band manifold above ~6 eV sits in the unconverged Davidson
+tail (trust energies below that).
 
 `HamiltonIO.abinit.read_paw_wfk` reads ABINIT 9/10 netCDF WFKs and JTH
 PAW XML datasets (via `pypao`); the ordinary

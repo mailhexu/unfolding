@@ -15,7 +15,7 @@ supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
 
 [path]
 # tick labels for the four stored folds (xticks required with names)
-names = ["Γ", "X", "X", "X"]
+names = ["Γ", "(0,½,½)", "(½,0,½)", "(½,½,0)"]
 xticks = [0.0, 1.0, 2.0, 3.0]
 
 [options]
